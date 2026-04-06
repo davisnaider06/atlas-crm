@@ -10,3 +10,4 @@ web/out/
 *.suo
 *.db
 *.log
+.env

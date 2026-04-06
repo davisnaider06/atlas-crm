@@ -1,17 +1,4 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: atlascrm-postgres
-    environment:
-      POSTGRES_DB: atlascrm
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - atlascrm_pgdata:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-
   api:
     build:
       context: .
@@ -19,15 +6,14 @@ services:
     container_name: atlascrm-api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=atlascrm;Username=postgres;Password=postgres
-      Jwt__Issuer: AtlasCRM
-      Jwt__Audience: AtlasCRM.Web
-      Jwt__SecretKey: atlascrm-super-secret-key-change-me
-      FrontendUrl: http://localhost:3000
+      ConnectionStrings__DefaultConnection: ${ATLASCRM_DB_CONNECTION}
+      Database__AutoCreateSchema: ${ATLASCRM_DB_AUTO_CREATE:-false}
+      Jwt__Issuer: ${ATLASCRM_JWT_ISSUER:-AtlasCRM}
+      Jwt__Audience: ${ATLASCRM_JWT_AUDIENCE:-AtlasCRM.Web}
+      Jwt__SecretKey: ${ATLASCRM_JWT_SECRET:-atlascrm-super-secret-key-change-me}
+      FrontendUrl: ${ATLASCRM_FRONTEND_URL:-http://localhost:3000}
     ports:
       - "8080:8080"
-    depends_on:
-      - postgres
 
   web:
     build:
@@ -35,11 +21,8 @@ services:
       dockerfile: Dockerfile
     container_name: atlascrm-web
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
     depends_on:
       - api
-
-volumes:
-  atlascrm_pgdata:

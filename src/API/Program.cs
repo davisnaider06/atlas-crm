@@ -71,8 +71,12 @@ app.UseExceptionHandler(errorApp =>
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AtlasCrmDbContext>();
-    await DatabaseInitializer.InitializeAsync(dbContext);
+    var autoCreateSchema = builder.Configuration.GetValue<bool>("Database:AutoCreateSchema");
+    if (autoCreateSchema)
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AtlasCrmDbContext>();
+        await DatabaseInitializer.InitializeAsync(dbContext);
+    }
 }
 
 if (app.Environment.IsDevelopment())
