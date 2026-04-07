@@ -10,6 +10,7 @@ namespace AtlasCRM.Infrastructure.Persistence;
 public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
 {
     private readonly ICurrentUserService _currentUserService;
+    private long? CurrentCompanyId => _currentUserService.User?.CompanyId;
 
     public AtlasCrmDbContext(DbContextOptions<AtlasCrmDbContext> options, ICurrentUserService currentUserService) : base(options)
     {
@@ -51,7 +52,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Name).HasMaxLength(140);
             entity.Property(x => x.Email).HasMaxLength(180);
             entity.HasIndex(x => new { x.CompanyId, x.Email }).IsUnique();
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Lead>(entity =>
@@ -63,14 +64,14 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Source).HasMaxLength(100);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.ToTable("customers");
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Pipeline>(entity =>
@@ -78,7 +79,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("pipelines");
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Stage>(entity =>
@@ -94,7 +95,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Value).HasColumnType("numeric(18,2)");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.StageId });
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Activity>(entity =>
@@ -103,7 +104,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Description).HasMaxLength(500);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<Automation>(entity =>
@@ -111,7 +112,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("automations");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.EventType });
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<EventLog>(entity =>
@@ -119,7 +120,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("event_logs");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Type });
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -128,7 +129,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Token).HasMaxLength(200);
             entity.HasIndex(x => x.Token).IsUnique();
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => HasCompanyScope(x.CompanyId));
+            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
         });
 
         SeedData(modelBuilder);
@@ -154,12 +155,6 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
         }
 
         return base.SaveChangesAsync(cancellationToken);
-    }
-
-    private bool HasCompanyScope(long companyId)
-    {
-        var currentCompanyId = _currentUserService.User?.CompanyId;
-        return currentCompanyId is null || companyId == currentCompanyId.Value;
     }
 
     private static void SeedData(ModelBuilder modelBuilder)
