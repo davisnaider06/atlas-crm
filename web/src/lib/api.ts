@@ -4,9 +4,11 @@ import type {
   Automation,
   Dashboard,
   Deal,
+  HistoryItem,
   Lead,
   PagedResult,
   Pipeline,
+  WhatsAppIntegration,
 } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -47,7 +49,16 @@ export const api = {
     }),
 
   getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
-  getLeads: (token: string) => request<PagedResult<Lead>>("/leads?page=1&pageSize=50", { token }),
+  getLeads: (
+    token: string,
+    params?: { search?: string; source?: string; status?: string },
+  ) => {
+    const query = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (params?.search) query.set("search", params.search);
+    if (params?.source) query.set("source", params.source);
+    if (params?.status) query.set("status", params.status);
+    return request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
+  },
   createLead: (
     token: string,
     payload: { name: string; email?: string; phone?: string; source: string; status: number },
@@ -57,7 +68,26 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     }),
-  getDeals: (token: string) => request<PagedResult<Deal>>("/negocios?page=1&pageSize=50", { token }),
+  updateLead: (
+    token: string,
+    id: number,
+    payload: { name: string; email?: string; phone?: string; source: string; status: number; ownerUserId?: number | null },
+  ) =>
+    request<Lead>(`/leads/${id}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  getDeals: (
+    token: string,
+    params?: { search?: string; stageId?: number; status?: string },
+  ) => {
+    const query = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (params?.search) query.set("search", params.search);
+    if (params?.stageId) query.set("stageId", String(params.stageId));
+    if (params?.status) query.set("status", params.status);
+    return request<PagedResult<Deal>>(`/negocios?${query.toString()}`, { token });
+  },
   createDeal: (
     token: string,
     payload: { leadId: number; stageId: number; value: number; ownerUserId?: number },
@@ -67,14 +97,28 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     }),
+  updateDeal: (
+    token: string,
+    id: number,
+    payload: { value: number; status: number; ownerUserId?: number | null },
+  ) =>
+    request<Deal>(`/negocios/${id}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(payload),
+    }),
   moveDeal: (token: string, id: number, payload: { stageId: number; status: number }) =>
     request<Deal>(`/negocios/${id}/mover`, {
       method: "PUT",
       token,
       body: JSON.stringify(payload),
     }),
-  getActivities: (token: string) =>
-    request<PagedResult<Activity>>("/atividades?page=1&pageSize=50", { token }),
+  getActivities: (token: string, params?: { search?: string; status?: string }) => {
+    const query = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (params?.search) query.set("search", params.search);
+    if (params?.status) query.set("status", params.status);
+    return request<PagedResult<Activity>>(`/atividades?${query.toString()}`, { token });
+  },
   createActivity: (
     token: string,
     payload: {
@@ -87,6 +131,22 @@ export const api = {
   ) =>
     request<Activity>("/atividades", {
       method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  updateActivity: (
+    token: string,
+    id: number,
+    payload: {
+      type: number;
+      description: string;
+      dueAtUtc: string;
+      status: number;
+      assignedUserId?: number | null;
+    },
+  ) =>
+    request<Activity>(`/atividades/${id}`, {
+      method: "PUT",
       token,
       body: JSON.stringify(payload),
     }),
@@ -105,6 +165,32 @@ export const api = {
   ) =>
     request<Automation>("/automacoes", {
       method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  getHistory: (token: string, params?: { leadId?: number; dealId?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.leadId) query.set("leadId", String(params.leadId));
+    if (params?.dealId) query.set("dealId", String(params.dealId));
+    return request<HistoryItem[]>(`/historico?${query.toString()}`, { token });
+  },
+  getWhatsAppIntegration: (token: string) => request<WhatsAppIntegration>("/whatsapp/integracao", { token }),
+  saveWhatsAppIntegration: (
+    token: string,
+    payload: {
+      provider: number;
+      instanceName: string;
+      phoneNumber: string;
+      webhookUrl?: string;
+      apiBaseUrl?: string;
+      apiToken?: string;
+      captureLeadsEnabled: boolean;
+      broadcastEnabled: boolean;
+      status: number;
+    },
+  ) =>
+    request<WhatsAppIntegration>("/whatsapp/integracao", {
+      method: "PUT",
       token,
       body: JSON.stringify(payload),
     }),

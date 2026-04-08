@@ -10,7 +10,8 @@ namespace AtlasCRM.Infrastructure.Persistence;
 public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
 {
     private readonly ICurrentUserService _currentUserService;
-    private long? CurrentCompanyId => _currentUserService.User?.CompanyId;
+    private long TenantCompanyId => _currentUserService.User?.CompanyId ?? 0;
+    private bool TenantFilterEnabled => _currentUserService.User is not null;
 
     public AtlasCrmDbContext(DbContextOptions<AtlasCrmDbContext> options, ICurrentUserService currentUserService) : base(options)
     {
@@ -29,6 +30,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Stage> Stages => Set<Stage>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<WhatsAppIntegration> WhatsAppIntegrations => Set<WhatsAppIntegration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,7 +54,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Name).HasMaxLength(140);
             entity.Property(x => x.Email).HasMaxLength(180);
             entity.HasIndex(x => new { x.CompanyId, x.Email }).IsUnique();
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Lead>(entity =>
@@ -64,14 +66,14 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Source).HasMaxLength(100);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.ToTable("customers");
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Pipeline>(entity =>
@@ -79,7 +81,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("pipelines");
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Stage>(entity =>
@@ -87,6 +89,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("stages");
             entity.Property(x => x.Name).HasMaxLength(100);
             entity.HasIndex(x => new { x.PipelineId, x.Order });
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.Pipeline!.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Deal>(entity =>
@@ -95,7 +98,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Value).HasColumnType("numeric(18,2)");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.StageId });
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Activity>(entity =>
@@ -104,7 +107,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Description).HasMaxLength(500);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<Automation>(entity =>
@@ -112,7 +115,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("automations");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.EventType });
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<EventLog>(entity =>
@@ -120,7 +123,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.ToTable("event_logs");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Type });
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -129,7 +132,16 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Token).HasMaxLength(200);
             entity.HasIndex(x => x.Token).IsUnique();
             entity.HasIndex(x => x.CompanyId);
-            entity.HasQueryFilter(x => !CurrentCompanyId.HasValue || x.CompanyId == CurrentCompanyId.Value);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<WhatsAppIntegration>(entity =>
+        {
+            entity.ToTable("whatsapp_integrations");
+            entity.Property(x => x.InstanceName).HasMaxLength(120);
+            entity.Property(x => x.PhoneNumber).HasMaxLength(40);
+            entity.HasIndex(x => x.CompanyId).IsUnique();
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
         SeedData(modelBuilder);
@@ -359,6 +371,23 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
                 Type = EventLogType.DealCreated,
                 DataJson = "{\"dealId\":1,\"value\":96000}",
                 OccurredAtUtc = seedDate,
+                CreatedAtUtc = seedDate
+            });
+
+        modelBuilder.Entity<WhatsAppIntegration>().HasData(
+            new WhatsAppIntegration
+            {
+                Id = 1,
+                CompanyId = 1,
+                Provider = WhatsAppProvider.Evolution,
+                InstanceName = "atlas-demo",
+                PhoneNumber = "+55 11 99999-8888",
+                WebhookUrl = "https://example.com/whatsapp/webhook",
+                ApiBaseUrl = "https://api.exemplo-whatsapp.com",
+                ApiToken = "demo-token",
+                CaptureLeadsEnabled = true,
+                BroadcastEnabled = true,
+                Status = WhatsAppConnectionStatus.Pending,
                 CreatedAtUtc = seedDate
             });
     }

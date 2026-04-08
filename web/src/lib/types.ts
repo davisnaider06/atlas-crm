@@ -29,6 +29,13 @@ export type Lead = {
   createdAtUtc: string;
 };
 
+export type HistoryItem = {
+  id: number;
+  type: string;
+  dataJson: string;
+  occurredAtUtc: string;
+};
+
 export type Deal = {
   id: number;
   leadId: number;
@@ -84,4 +91,16 @@ export type Dashboard = {
     dealCount: number;
     totalValue: number;
   }[];
+};
+
+export type WhatsAppIntegration = {
+  id: number;
+  provider: string;
+  instanceName: string;
+  phoneNumber: string;
+  webhookUrl?: string | null;
+  apiBaseUrl?: string | null;
+  captureLeadsEnabled: boolean;
+  broadcastEnabled: boolean;
+  status: string;
 };

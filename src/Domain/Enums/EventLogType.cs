@@ -9,5 +9,8 @@ public enum EventLogType
     DealMoved = 5,
     ActivityCreated = 6,
     AutomationCreated = 7,
-    AutomationExecuted = 8
+    AutomationExecuted = 8,
+    DealUpdated = 9,
+    ActivityUpdated = 10,
+    WhatsAppIntegrationUpdated = 11
 }

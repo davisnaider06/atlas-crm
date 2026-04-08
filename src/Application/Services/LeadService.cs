@@ -4,6 +4,7 @@ using AtlasCRM.Application.Common.Pagination;
 using AtlasCRM.Application.Contracts.Leads;
 using AtlasCRM.Domain.Entities;
 using AtlasCRM.Domain.Enums;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace AtlasCRM.Application.Services;
@@ -21,13 +22,39 @@ public sealed class LeadService : ILeadService
         _eventLogService = eventLogService;
     }
 
-    public async Task<PagedResult<LeadDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<LeadDto>> GetPagedAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? source = null,
+        string? status = null,
+        CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Leads.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).AsQueryable();
 
         if (_currentUser.User?.Role == UserRole.Sales)
         {
             query = query.Where(x => x.OwnerUserId == _currentUser.User.UserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(normalized) ||
+                (x.Email != null && x.Email.ToLower().Contains(normalized)) ||
+                (x.Phone != null && x.Phone.Contains(normalized)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            var normalizedSource = source.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Source.ToLower() == normalizedSource);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<LeadStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(x => x.Status == parsedStatus);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -66,6 +93,7 @@ public sealed class LeadService : ILeadService
 
         _dbContext.Leads.Add(lead);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await ApplyLeadCreatedAutomationsAsync(lead, cancellationToken);
         await _eventLogService.LogAsync(
             EventLogType.LeadCreated,
             new { lead.Id, lead.Name, lead.Status },
@@ -114,5 +142,113 @@ public sealed class LeadService : ILeadService
             OwnerUserId = lead.OwnerUserId,
             CreatedAtUtc = lead.CreatedAtUtc
         };
+    }
+
+    private async Task ApplyLeadCreatedAutomationsAsync(Lead lead, CancellationToken cancellationToken)
+    {
+        var automations = await _dbContext.Automations
+            .Where(x => x.EventType == AutomationEventType.LeadCreated && x.IsActive)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var automation in automations)
+        {
+            if (!MatchesLeadCondition(automation.ConditionJson, lead))
+            {
+                continue;
+            }
+
+            var executed = await TryExecuteLeadAutomationAsync(automation, lead, cancellationToken);
+            if (!executed)
+            {
+                continue;
+            }
+
+            await _eventLogService.LogAsync(
+                EventLogType.AutomationExecuted,
+                new { AutomationId = automation.Id, lead.Id, Trigger = "LeadCreated" },
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task<bool> TryExecuteLeadAutomationAsync(Automation automation, Lead lead, CancellationToken cancellationToken)
+    {
+        using var actionDoc = JsonDocument.Parse(automation.ActionJson);
+        var root = actionDoc.RootElement;
+
+        if (root.TryGetProperty("assignOwnerUserId", out var assignOwnerElement) && assignOwnerElement.TryGetInt64(out var ownerId))
+        {
+            lead.OwnerUserId = ownerId;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        if (root.TryGetProperty("userIds", out var userIdsElement) && userIdsElement.ValueKind == JsonValueKind.Array)
+        {
+            var userIds = userIdsElement.EnumerateArray()
+                .Where(x => x.TryGetInt64(out _))
+                .Select(x => x.GetInt64())
+                .ToList();
+
+            if (userIds.Count > 0)
+            {
+                var leadCount = await _dbContext.Leads.CountAsync(cancellationToken);
+                lead.OwnerUserId = userIds[(leadCount - 1) % userIds.Count];
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                return true;
+            }
+        }
+
+        if (root.TryGetProperty("createTask", out var createTaskElement) && createTaskElement.ValueKind == JsonValueKind.True)
+        {
+            var description = root.TryGetProperty("taskDescription", out var taskDescription)
+                ? taskDescription.GetString() ?? $"Atender lead {lead.Name}"
+                : $"Atender lead {lead.Name}";
+
+            _dbContext.Activities.Add(new Activity
+            {
+                CompanyId = lead.CompanyId,
+                DealId = null,
+                Type = ActivityType.Task,
+                Description = description,
+                DueAtUtc = DateTime.UtcNow.AddHours(1),
+                Status = ActivityStatus.Pending,
+                AssignedUserId = lead.OwnerUserId
+            });
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool MatchesLeadCondition(string conditionJson, Lead lead)
+    {
+        using var conditionDoc = JsonDocument.Parse(conditionJson);
+        var root = conditionDoc.RootElement;
+
+        if (root.TryGetProperty("source", out var sourceElement))
+        {
+            var source = sourceElement.GetString();
+            if (!string.IsNullOrWhiteSpace(source) &&
+                !string.Equals(source, "any", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(source, lead.Source, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        if (root.TryGetProperty("status", out var statusElement))
+        {
+            var status = statusElement.GetString();
+            if (!string.IsNullOrWhiteSpace(status) &&
+                !string.Equals(status, lead.Status.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

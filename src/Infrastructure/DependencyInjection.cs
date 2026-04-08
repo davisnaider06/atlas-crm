@@ -17,7 +17,9 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
 
         services.AddDbContext<AtlasCrmDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options
+                .UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+                .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AtlasCrmDbContext>());
         services.AddScoped<ICurrentUserService, CurrentUserService>();

@@ -19,15 +19,27 @@ public sealed class DealsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PagedResult<DealDto>>> Get([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<PagedResult<DealDto>>> Get(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] long? stageId = null,
+        [FromQuery] string? status = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await _dealService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), cancellationToken));
+        return Ok(await _dealService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), search, stageId, status, cancellationToken));
     }
 
     [HttpPost]
     public async Task<ActionResult<DealDto>> Post([FromBody] CreateDealRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _dealService.CreateAsync(request, cancellationToken));
+    }
+
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult<DealDto>> Put(long id, [FromBody] UpdateDealRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _dealService.UpdateAsync(id, request, cancellationToken));
     }
 
     [HttpPut("{id:long}/mover")]

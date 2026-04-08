@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useTheme } from "@/components/theme/theme-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
-import type { Automation, PagedResult } from "@/lib/types";
+import type { Automation, PagedResult, WhatsAppIntegration } from "@/lib/types";
 
 const automationEvents = [
   { value: 1, label: "DealMoved" },
@@ -12,17 +13,42 @@ const automationEvents = [
   { value: 3, label: "ActivityCompleted" },
 ];
 
+const whatsAppProviders = [
+  { value: 1, label: "Evolution" },
+  { value: 2, label: "MetaCloud" },
+  { value: 3, label: "ZApi" },
+];
+
+const whatsAppStatus = [
+  { value: 1, label: "Disconnected" },
+  { value: 2, label: "Pending" },
+  { value: 3, label: "Connected" },
+];
+
 export default function SettingsPage() {
   const { token, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [whatsApp, setWhatsApp] = useState<WhatsAppIntegration | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
+  const [automationForm, setAutomationForm] = useState({
     name: "",
-    eventType: "1",
-    conditionJson: '{"stage":"Fechado"}',
-    actionJson: '{"type":"create_task","name":"Iniciar onboarding"}',
+    eventType: "2",
+    conditionJson: '{"source":"Instagram Ads"}',
+    actionJson: '{"userIds":[2,3]}',
+  });
+  const [whatsAppForm, setWhatsAppForm] = useState({
+    provider: "1",
+    instanceName: "atlas-demo",
+    phoneNumber: "",
+    webhookUrl: "",
+    apiBaseUrl: "",
+    apiToken: "",
+    captureLeadsEnabled: true,
+    broadcastEnabled: true,
+    status: "2",
   });
 
   const load = useCallback(async () => {
@@ -33,10 +59,25 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = (await api.getAutomations(token)) as PagedResult<Automation>;
-      setAutomations(response.items);
+      const [automationsResponse, whatsAppResponse] = await Promise.all([
+        api.getAutomations(token),
+        api.getWhatsAppIntegration(token),
+      ]);
+      setAutomations((automationsResponse as PagedResult<Automation>).items);
+      setWhatsApp(whatsAppResponse);
+      setWhatsAppForm({
+        provider: String(whatsAppProviders.find((item) => item.label === whatsAppResponse.provider)?.value ?? 1),
+        instanceName: whatsAppResponse.instanceName ?? "",
+        phoneNumber: whatsAppResponse.phoneNumber ?? "",
+        webhookUrl: whatsAppResponse.webhookUrl ?? "",
+        apiBaseUrl: whatsAppResponse.apiBaseUrl ?? "",
+        apiToken: "",
+        captureLeadsEnabled: whatsAppResponse.captureLeadsEnabled,
+        broadcastEnabled: whatsAppResponse.broadcastEnabled,
+        status: String(whatsAppStatus.find((item) => item.label === whatsAppResponse.status)?.value ?? 1),
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar automacoes.");
+      setError(err instanceof Error ? err.message : "Erro ao carregar configuracoes.");
     } finally {
       setLoading(false);
     }
@@ -46,7 +87,7 @@ export default function SettingsPage() {
     void load();
   }, [load]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleAutomationSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) {
       return;
@@ -56,16 +97,44 @@ export default function SettingsPage() {
     setError(null);
     try {
       await api.createAutomation(token, {
-        name: form.name,
-        eventType: Number(form.eventType),
-        conditionJson: form.conditionJson,
-        actionJson: form.actionJson,
+        name: automationForm.name,
+        eventType: Number(automationForm.eventType),
+        conditionJson: automationForm.conditionJson,
+        actionJson: automationForm.actionJson,
         isActive: true,
       });
-      setForm((current) => ({ ...current, name: "" }));
+      setAutomationForm((current) => ({ ...current, name: "" }));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar automacao.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleWhatsAppSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.saveWhatsAppIntegration(token, {
+        provider: Number(whatsAppForm.provider),
+        instanceName: whatsAppForm.instanceName,
+        phoneNumber: whatsAppForm.phoneNumber,
+        webhookUrl: whatsAppForm.webhookUrl || undefined,
+        apiBaseUrl: whatsAppForm.apiBaseUrl || undefined,
+        apiToken: whatsAppForm.apiToken || undefined,
+        captureLeadsEnabled: whatsAppForm.captureLeadsEnabled,
+        broadcastEnabled: whatsAppForm.broadcastEnabled,
+        status: Number(whatsAppForm.status),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao salvar integracao WhatsApp.");
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +144,7 @@ export default function SettingsPage() {
     return <LoadingState label="Carregando configuracoes..." />;
   }
 
-  if (error && automations.length === 0) {
+  if (error && automations.length === 0 && !whatsApp) {
     return <ErrorState message={error} onRetry={() => void load()} />;
   }
 
@@ -93,18 +162,29 @@ export default function SettingsPage() {
 
         <article className="settings-card">
           <div className="card-header">
-            <h3>Seguranca</h3>
-            <span className="tag">JWT</span>
+            <h3>Aparencia</h3>
+            <span className="tag">{theme === "light" ? "Light" : "Dark"}</span>
           </div>
-          <p>Token persistido no frontend e enviado em cada chamada protegida.</p>
+          <p>Alterne entre modo claro e escuro quando quiser.</p>
+          <button type="button" className="ghost-button inline-button" onClick={toggleTheme}>
+            Trocar para modo {theme === "light" ? "escuro" : "claro"}
+          </button>
         </article>
 
         <article className="settings-card">
           <div className="card-header">
-            <h3>Tenant</h3>
-            <span className="tag">#{user?.companyId}</span>
+            <h3>WhatsApp</h3>
+            <span className="tag">{whatsApp?.status ?? "Disconnected"}</span>
           </div>
-          <p>As consultas da API estao sendo filtradas pela empresa do usuario logado.</p>
+          <p>Base pronta para captura, disparo e recolhimento de leads via canal conectado.</p>
+        </article>
+
+        <article className="settings-card">
+          <div className="card-header">
+            <h3>Automacao de leads</h3>
+            <span className="tag">{automations.length} regras</span>
+          </div>
+          <p>Ja da para distribuir leads automaticamente usando `actionJson` com `userIds`.</p>
         </article>
       </section>
 
@@ -113,7 +193,7 @@ export default function SettingsPage() {
           <div className="card-header">
             <div>
               <h3>Automacoes existentes</h3>
-              <p>Lista real do endpoint `/automacoes`</p>
+              <p>Base para distribuicao e tarefas automaticas</p>
             </div>
             <span className="tag">{automations.length} regras</span>
           </div>
@@ -138,30 +218,22 @@ export default function SettingsPage() {
           </table>
         </div>
 
-        <form className="settings-card form-card" onSubmit={handleSubmit}>
+        <form className="settings-card form-card" onSubmit={handleAutomationSubmit}>
           <div className="card-header">
             <div>
               <h3>Nova automacao</h3>
-              <p>Motor inicial de evento + condicao + acao</p>
+              <p>Exemplo: distribuir lead por round-robin</p>
             </div>
-            <span className="tag">POST /automacoes</span>
+            <span className="tag">Lead routing</span>
           </div>
 
           <label className="field">
             <span>Nome</span>
-            <input
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              required
-            />
+            <input value={automationForm.name} onChange={(event) => setAutomationForm((current) => ({ ...current, name: event.target.value }))} required />
           </label>
-
           <label className="field">
             <span>Evento</span>
-            <select
-              value={form.eventType}
-              onChange={(event) => setForm((current) => ({ ...current, eventType: event.target.value }))}
-            >
+            <select value={automationForm.eventType} onChange={(event) => setAutomationForm((current) => ({ ...current, eventType: event.target.value }))}>
               {automationEvents.map((eventOption) => (
                 <option key={eventOption.value} value={eventOption.value}>
                   {eventOption.label}
@@ -169,33 +241,106 @@ export default function SettingsPage() {
               ))}
             </select>
           </label>
-
           <label className="field">
             <span>Condicao JSON</span>
-            <textarea
-              value={form.conditionJson}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, conditionJson: event.target.value }))
-              }
-              required
-            />
+            <textarea value={automationForm.conditionJson} onChange={(event) => setAutomationForm((current) => ({ ...current, conditionJson: event.target.value }))} required />
           </label>
-
           <label className="field">
             <span>Acao JSON</span>
-            <textarea
-              value={form.actionJson}
-              onChange={(event) => setForm((current) => ({ ...current, actionJson: event.target.value }))}
-              required
-            />
+            <textarea value={automationForm.actionJson} onChange={(event) => setAutomationForm((current) => ({ ...current, actionJson: event.target.value }))} required />
           </label>
-
           {error ? <p className="form-error">{error}</p> : null}
-
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Salvando..." : "Criar automacao"}
           </button>
         </form>
+      </section>
+
+      <section className="two-column">
+        <form className="settings-card form-card" onSubmit={handleWhatsAppSubmit}>
+          <div className="card-header">
+            <div>
+              <h3>Integracao com WhatsApp</h3>
+              <p>Base para disparo e recolhimento de leads</p>
+            </div>
+            <span className="tag">{whatsApp?.provider ?? "Sem provedor"}</span>
+          </div>
+
+          <label className="field">
+            <span>Provedor</span>
+            <select value={whatsAppForm.provider} onChange={(event) => setWhatsAppForm((current) => ({ ...current, provider: event.target.value }))}>
+              {whatsAppProviders.map((provider) => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Nome da instancia</span>
+            <input value={whatsAppForm.instanceName} onChange={(event) => setWhatsAppForm((current) => ({ ...current, instanceName: event.target.value }))} required />
+          </label>
+          <label className="field">
+            <span>Numero</span>
+            <input value={whatsAppForm.phoneNumber} onChange={(event) => setWhatsAppForm((current) => ({ ...current, phoneNumber: event.target.value }))} required />
+          </label>
+          <label className="field">
+            <span>Webhook URL</span>
+            <input value={whatsAppForm.webhookUrl} onChange={(event) => setWhatsAppForm((current) => ({ ...current, webhookUrl: event.target.value }))} />
+          </label>
+          <label className="field">
+            <span>API Base URL</span>
+            <input value={whatsAppForm.apiBaseUrl} onChange={(event) => setWhatsAppForm((current) => ({ ...current, apiBaseUrl: event.target.value }))} />
+          </label>
+          <label className="field">
+            <span>API Token</span>
+            <input value={whatsAppForm.apiToken} onChange={(event) => setWhatsAppForm((current) => ({ ...current, apiToken: event.target.value }))} />
+          </label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={whatsAppForm.captureLeadsEnabled} onChange={(event) => setWhatsAppForm((current) => ({ ...current, captureLeadsEnabled: event.target.checked }))} />
+            <span>Capturar leads do WhatsApp</span>
+          </label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={whatsAppForm.broadcastEnabled} onChange={(event) => setWhatsAppForm((current) => ({ ...current, broadcastEnabled: event.target.checked }))} />
+            <span>Permitir disparos</span>
+          </label>
+          <label className="field">
+            <span>Status</span>
+            <select value={whatsAppForm.status} onChange={(event) => setWhatsAppForm((current) => ({ ...current, status: event.target.value }))}>
+              {whatsAppStatus.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="primary-button" disabled={submitting}>
+            {submitting ? "Salvando..." : "Salvar integracao"}
+          </button>
+        </form>
+
+        <div className="timeline-card">
+          <div className="card-header">
+            <div>
+              <h3>Como vender isso</h3>
+              <p>Pontos fortes da fase 3</p>
+            </div>
+          </div>
+          <div className="timeline">
+            <article className="timeline-item">
+              <strong>Captura de leads</strong>
+              <p>Entrada centralizada a partir do WhatsApp e outros canais.</p>
+            </article>
+            <article className="timeline-item">
+              <strong>Disparo comercial</strong>
+              <p>Base pronta para campanhas e envio operacional por instancia conectada.</p>
+            </article>
+            <article className="timeline-item">
+              <strong>Distribuicao automatica</strong>
+              <p>Automacoes ja conseguem distribuir leads entre usuarios definidos.</p>
+            </article>
+          </div>
+        </div>
       </section>
     </div>
   );

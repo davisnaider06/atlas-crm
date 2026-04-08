@@ -15,6 +15,8 @@ public static class DependencyInjection
         services.AddScoped<IPipelineService, PipelineService>();
         services.AddScoped<IAutomationService, AutomationService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IHistoryService, HistoryService>();
+        services.AddScoped<IWhatsAppIntegrationService, WhatsAppIntegrationService>();
 
         return services;
     }

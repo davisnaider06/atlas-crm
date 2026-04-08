@@ -19,9 +19,15 @@ public sealed class LeadsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PagedResult<LeadDto>>> Get([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<PagedResult<LeadDto>>> Get(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string? source = null,
+        [FromQuery] string? status = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), cancellationToken));
+        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), search, source, status, cancellationToken));
     }
 
     [HttpPost]

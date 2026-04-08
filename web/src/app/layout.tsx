@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AppFrame } from "@/components/auth/app-frame";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <AuthProvider>
-          <AppFrame>{children}</AppFrame>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppFrame>{children}</AppFrame>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

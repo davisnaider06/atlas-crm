@@ -21,13 +21,29 @@ public sealed class ActivityService : IActivityService
         _eventLogService = eventLogService;
     }
 
-    public async Task<PagedResult<ActivityDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<ActivityDto>> GetPagedAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Activities.AsNoTracking().OrderBy(x => x.DueAtUtc).AsQueryable();
 
         if (_currentUser.User?.Role == UserRole.Sales)
         {
             query = query.Where(x => x.AssignedUserId == _currentUser.User.UserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Description.ToLower().Contains(normalized));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ActivityStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(x => x.Status == parsedStatus);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -79,6 +95,37 @@ public sealed class ActivityService : IActivityService
         await _eventLogService.LogAsync(
             EventLogType.ActivityCreated,
             new { activity.Id, activity.Type, activity.Status },
+            cancellationToken: cancellationToken);
+
+        return new ActivityDto
+        {
+            Id = activity.Id,
+            DealId = activity.DealId,
+            Type = activity.Type,
+            Description = activity.Description,
+            DueAtUtc = activity.DueAtUtc,
+            Status = activity.Status,
+            AssignedUserId = activity.AssignedUserId,
+            CreatedAtUtc = activity.CreatedAtUtc
+        };
+    }
+
+    public async Task<ActivityDto> UpdateAsync(long id, UpdateActivityRequest request, CancellationToken cancellationToken = default)
+    {
+        var activity = await _dbContext.Activities.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Atividade nao encontrada.", 404);
+
+        activity.Type = request.Type;
+        activity.Description = request.Description.Trim();
+        activity.DueAtUtc = request.DueAtUtc;
+        activity.Status = request.Status;
+        activity.AssignedUserId = request.AssignedUserId;
+        activity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.ActivityUpdated,
+            new { activity.Id, activity.Status, activity.Type },
             cancellationToken: cancellationToken);
 
         return new ActivityDto

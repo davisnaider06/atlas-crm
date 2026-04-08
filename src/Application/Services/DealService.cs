@@ -21,7 +21,13 @@ public sealed class DealService : IDealService
         _eventLogService = eventLogService;
     }
 
-    public async Task<PagedResult<DealDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<DealDto>> GetPagedAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        long? stageId = null,
+        string? status = null,
+        CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Deals
             .AsNoTracking()
@@ -33,6 +39,22 @@ public sealed class DealService : IDealService
         if (_currentUser.User?.Role == UserRole.Sales)
         {
             query = query.Where(x => x.OwnerUserId == _currentUser.User.UserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Lead!.Name.ToLower().Contains(normalized) || x.Stage!.Name.ToLower().Contains(normalized));
+        }
+
+        if (stageId.HasValue)
+        {
+            query = query.Where(x => x.StageId == stageId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<DealStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(x => x.Status == parsedStatus);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -98,6 +120,39 @@ public sealed class DealService : IDealService
             OwnerUserId = deal.OwnerUserId,
             StageName = stage.Name,
             LeadName = lead.Name,
+            CreatedAtUtc = deal.CreatedAtUtc
+        };
+    }
+
+    public async Task<DealDto> UpdateAsync(long id, UpdateDealRequest request, CancellationToken cancellationToken = default)
+    {
+        var deal = await _dbContext.Deals
+            .Include(x => x.Lead)
+            .Include(x => x.Stage)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Negocio nao encontrado.", 404);
+
+        deal.Value = request.Value;
+        deal.Status = request.Status;
+        deal.OwnerUserId = request.OwnerUserId;
+        deal.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.DealUpdated,
+            new { deal.Id, deal.Value, deal.Status },
+            cancellationToken: cancellationToken);
+
+        return new DealDto
+        {
+            Id = deal.Id,
+            LeadId = deal.LeadId,
+            StageId = deal.StageId,
+            Value = deal.Value,
+            Status = deal.Status,
+            OwnerUserId = deal.OwnerUserId,
+            StageName = deal.Stage!.Name,
+            LeadName = deal.Lead!.Name,
             CreatedAtUtc = deal.CreatedAtUtc
         };
     }
