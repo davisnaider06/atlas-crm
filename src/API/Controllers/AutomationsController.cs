@@ -29,4 +29,11 @@ public sealed class AutomationsController : ControllerBase
     {
         return Ok(await _automationService.CreateAsync(request, cancellationToken));
     }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
+    {
+        await _automationService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

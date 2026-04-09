@@ -140,4 +140,17 @@ public sealed class ActivityService : IActivityService
             CreatedAtUtc = activity.CreatedAtUtc
         };
     }
+
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var activity = await _dbContext.Activities.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Atividade nao encontrada.", 404);
+
+        _dbContext.Activities.Remove(activity);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.ActivityDeleted,
+            new { activity.Id, activity.Description },
+            cancellationToken: cancellationToken);
+    }
 }

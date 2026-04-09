@@ -144,6 +144,25 @@ public sealed class LeadService : ILeadService
         };
     }
 
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Lead nao encontrado.", 404);
+
+        var hasDeals = await _dbContext.Deals.AnyAsync(x => x.LeadId == id, cancellationToken);
+        if (hasDeals)
+        {
+            throw new AppException("Nao e possivel excluir um lead com negocios vinculados.", 409);
+        }
+
+        _dbContext.Leads.Remove(lead);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.LeadDeleted,
+            new { lead.Id, lead.Name },
+            cancellationToken: cancellationToken);
+    }
+
     private async Task ApplyLeadCreatedAutomationsAsync(Lead lead, CancellationToken cancellationToken)
     {
         var automations = await _dbContext.Automations

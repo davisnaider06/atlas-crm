@@ -9,6 +9,7 @@ CRM SaaS com ASP.NET Core, PostgreSQL e Next.js.
 - Banco: PostgreSQL
 - Auth: JWT + Refresh Token
 - Arquitetura: Clean Architecture
+- WhatsApp: Evolution API via QR Code + campanhas por planilha
 
 ## Estrutura
 
@@ -78,3 +79,51 @@ docker compose -f docker-compose.local-db.yml up -d
 ```
 
 O script [init.sql](c:\Users\davi.snaider\Documents\atlas_crm\database\init.sql) e executado automaticamente no primeiro start desse container.
+
+## Fase 4
+
+O projeto agora cobre:
+
+- dashboard com dados reais de leads, negocios, atividades e origem dos leads
+- CRUD operacional de leads, negocios, atividades e automacoes
+- historico por lead e negocio
+- configuracao de tema claro/escuro
+- modulo dedicado `Conectar WhatsApp`
+- conexao por QR Code usando Evolution API
+- captura de leads por webhook do WhatsApp
+- disparo em massa por planilha Excel/CSV
+- endpoint de healthcheck em `GET /health`
+
+## WhatsApp
+
+Para o QR Code e disparos funcionarem em producao:
+
+1. Suba sua Evolution API
+2. No CRM, abra `Conectar WhatsApp`
+3. Preencha:
+   - `API Base URL`
+   - `API Token`
+   - `Nome da instancia`
+   - `Webhook URL`
+4. Salve a configuracao
+5. Clique em `Gerar QR Code`
+6. Escaneie com o WhatsApp
+7. Importe uma planilha com colunas `nome` e `telefone`
+8. Envie a campanha
+
+Webhook de captura:
+
+```text
+POST /whatsapp/webhook/{companyId}
+```
+
+Payload simples aceito:
+
+```json
+{
+  "event": "messages.upsert",
+  "phoneNumber": "5511999999999",
+  "pushName": "Lead capturado",
+  "messageText": "Oi, quero saber mais"
+}
+```

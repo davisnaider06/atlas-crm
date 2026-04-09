@@ -7,12 +7,40 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", section: "core" },
-  { href: "/leads", label: "Contacts", section: "core" },
-  { href: "/pipeline", label: "CRM", section: "core" },
-  { href: "/atividades", label: "Sales", section: "ops" },
-  { href: "/configuracoes", label: "Settings", section: "ops" },
+  { href: "/dashboard", label: "Overview", icon: "O" },
+  { href: "/leads", label: "Leads", icon: "L" },
+  { href: "/pipeline", label: "Pipeline", icon: "P" },
+  { href: "/atividades", label: "Activities", icon: "A" },
+  { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W" },
+  { href: "/configuracoes", label: "Settings", icon: "S" },
 ];
+
+const pageTitles: Record<string, { title: string; subtitle: string }> = {
+  "/dashboard": {
+    title: "Good to see you again",
+    subtitle: "Monitore o desempenho comercial e acompanhe o crescimento do time.",
+  },
+  "/leads": {
+    title: "Lead management",
+    subtitle: "Organize entradas, filtros e responsaveis sem perder contexto.",
+  },
+  "/pipeline": {
+    title: "Pipeline control",
+    subtitle: "Visualize cada oportunidade com mais clareza e espaco para agir.",
+  },
+  "/atividades": {
+    title: "Activity flow",
+    subtitle: "Priorize tarefas, follow-ups e proximos passos da operacao.",
+  },
+  "/whatsapp": {
+    title: "Connect WhatsApp",
+    subtitle: "Conecte a instancia por QR Code e dispare campanhas com base em planilhas.",
+  },
+  "/configuracoes": {
+    title: "Workspace settings",
+    subtitle: "Controle integracoes, automacoes e aparencia do seu ambiente.",
+  },
+};
 
 export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -40,77 +68,69 @@ export function AppFrame({ children }: { children: ReactNode }) {
     return <div className="screen-center">Redirecionando para login...</div>;
   }
 
+  const currentPage = pageTitles[pathname] ?? pageTitles["/dashboard"];
+  const firstName = user.name.split(" ")[0];
+
   return (
     <div className="shell-bg">
-      <div className="shell-panel">
-        <aside className="sidebar">
-          <div className="brand compact-brand">
-            <span className="brand-mark">A</span>
+      <div className="shell-panel rockart-shell">
+        <aside className="sidebar rockart-sidebar">
+          <div className="brand rockart-brand">
+            <span className="brand-mark">R</span>
             <div>
-              <strong>Atlas CRM</strong>
-              <p className="muted-mini">Revenue workspace</p>
+              <strong>Rockart CRM</strong>
+              <p className="muted-mini">Sales workspace</p>
             </div>
           </div>
 
-          <div className="search-mini">
-            <span className="search-icon" />
-            <span>Search</span>
-          </div>
-
-          <nav className="nav grouped-nav">
-            <p className="nav-group-title">Workspace</p>
-            {navItems
-              .filter((item) => item.section === "core")
-              .map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-link soft-link${pathname === item.href ? " active" : ""}`}
-                >
-                  <span className="nav-bullet" />
-                  {item.label}
-                </Link>
-              ))}
-
-            <p className="nav-group-title">Operations</p>
-            {navItems
-              .filter((item) => item.section === "ops")
-              .map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-link soft-link${pathname === item.href ? " active" : ""}`}
-                >
-                  <span className="nav-bullet" />
-                  {item.label}
-                </Link>
-              ))}
+          <nav className="nav rockart-nav">
+            <p className="nav-group-title">Main menu</p>
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-link rockart-link${pathname === item.href ? " active" : ""}`}
+              >
+                <span className="icon-box">{item.icon}</span>
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          <div className="sidebar-footer">
-            <div className="user-chip">
-              <div className="avatar-block">{user.name.slice(0, 1)}</div>
-              <div>
-                <strong>{user.name}</strong>
-                <p>{user.email}</p>
-              </div>
-            </div>
-            <button type="button" className="ghost-button flush" onClick={logout}>
+          <div className="sidebar-preferences">
+            <p className="nav-group-title">Preference</p>
+            <Link href="/configuracoes" className="nav-link rockart-link">
+              <span className="icon-box">?</span>
+              Help center
+            </Link>
+            <button type="button" className="nav-link rockart-link logout-link" onClick={logout}>
+              <span className="icon-box">X</span>
               Sair
             </button>
           </div>
+
+          <div className="sidebar-footer rockart-user">
+            <div className="avatar-block">{firstName.slice(0, 1)}</div>
+            <div>
+              <strong>{user.name}</strong>
+              <p>{user.email}</p>
+            </div>
+          </div>
         </aside>
 
-        <div className="main-shell">
-          <header className="topbar analytics-topbar">
-            <div>
-              <p className="eyebrow">Atlas CRM</p>
-              <h1>{pathname === "/dashboard" ? "Email Analytics" : "Revenue Analytics"}</h1>
+        <div className="main-shell rockart-main">
+          <header className="topbar rockart-topbar">
+            <div className="page-intro">
+              <h1>{currentPage.title}, {firstName}!</h1>
+              <p>{currentPage.subtitle}</p>
             </div>
 
-            <div className="topbar-actions">
+            <div className="topbar-tools">
+              <div className="dashboard-search">
+                <span className="search-icon" />
+                <span>Search anything...</span>
+              </div>
               <span className="status-pill">{user.role}</span>
-              <span className="status-pill accent">Last 30 Days</span>
             </div>
           </header>
 

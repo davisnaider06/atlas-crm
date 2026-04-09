@@ -89,4 +89,17 @@ public sealed class AutomationService : IAutomationService
             CreatedAtUtc = automation.CreatedAtUtc
         };
     }
+
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var automation = await _dbContext.Automations.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Automacao nao encontrada.", 404);
+
+        _dbContext.Automations.Remove(automation);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.AutomationDeleted,
+            new { automation.Id, automation.Name },
+            cancellationToken: cancellationToken);
+    }
 }

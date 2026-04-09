@@ -13,4 +13,5 @@ public interface IActivityService
         CancellationToken cancellationToken = default);
     Task<ActivityDto> CreateAsync(CreateActivityRequest request, CancellationToken cancellationToken = default);
     Task<ActivityDto> UpdateAsync(long id, UpdateActivityRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAsync(long id, CancellationToken cancellationToken = default);
 }

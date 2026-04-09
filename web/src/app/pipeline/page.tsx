@@ -148,6 +148,25 @@ export default function PipelinePage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!token || !selectedDeal) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.deleteDeal(token, selectedDeal.id);
+      setSelectedDeal(null);
+      setHistory([]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir negocio.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState label="Carregando pipeline..." />;
   }
@@ -277,6 +296,9 @@ export default function PipelinePage() {
               </label>
               <button type="submit" className="primary-button" disabled={submitting}>
                 {submitting ? "Atualizando..." : "Salvar negocio"}
+              </button>
+              <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                Excluir negocio
               </button>
             </form>
           ) : (

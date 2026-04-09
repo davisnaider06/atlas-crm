@@ -40,4 +40,11 @@ public sealed class ActivitiesController : ControllerBase
     {
         return Ok(await _activityService.UpdateAsync(id, request, cancellationToken));
     }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
+    {
+        await _activityService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

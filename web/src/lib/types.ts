@@ -104,3 +104,32 @@ export type WhatsAppIntegration = {
   broadcastEnabled: boolean;
   status: string;
 };
+
+export type WhatsAppConnectionSession = {
+  instanceName: string;
+  status: string;
+  qrCodeBase64?: string | null;
+  pairingCode?: string | null;
+  phoneNumber?: string | null;
+  expiresAtUtc?: string | null;
+};
+
+export type WhatsAppCampaignRecipient = {
+  name: string;
+  phoneNumber: string;
+};
+
+export type WhatsAppCampaignDispatch = {
+  name: string;
+  phoneNumber: string;
+  success: boolean;
+  externalId?: string | null;
+  error?: string | null;
+};
+
+export type WhatsAppCampaignResult = {
+  totalRecipients: number;
+  sentCount: number;
+  failedCount: number;
+  results: WhatsAppCampaignDispatch[];
+};

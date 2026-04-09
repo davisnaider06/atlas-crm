@@ -28,43 +28,57 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-screen">
-      <section className="login-card">
-        <p className="eyebrow">Atlas CRM</p>
-        <h1>Entrar no tenant demo</h1>
-        <p>
-          A fase 2 ja esta ligada na API real. Use as credenciais seed para entrar e testar os
-          endpoints protegidos.
-        </p>
+    <div className="login-scene">
+      <div className="login-shell">
+        <section className="login-promo">
+          <div className="login-promo-copy">
+            <p className="login-kicker">Atlas CRM</p>
+            <h1>Transforme sua operacao comercial em crescimento previsivel.</h1>
+          </div>
+          <div className="login-glow" />
+        </section>
 
-        <form className="form-card" onSubmit={handleSubmit}>
-          <label className="field">
-            <span>Email</span>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} required />
-          </label>
+        <section className="login-modal">
+          <div className="login-logo">
+            <span />
+          </div>
+          <div className="login-header">
+            <h2>Get Started</h2>
+            <p>Entre no ambiente demo e valide o CRM completo pelo front.</p>
+          </div>
 
-          <label className="field">
-            <span>Senha</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </label>
+          <form className="form-card login-form" onSubmit={handleSubmit}>
+            <label className="field">
+              <span>Your email</span>
+              <input value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </label>
 
-          {error ? <p className="form-error">{error}</p> : null}
+            <label className="field">
+              <span>Create new password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </label>
 
-          <button type="submit" className="primary-button" disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+            {error ? <p className="form-error">{error}</p> : null}
 
-        <div className="login-hint">
-          <span>`admin@atlascrm.local`</span>
-          <span>`Atlas@123`</span>
-        </div>
-      </section>
+            <button type="submit" className="primary-button login-submit" disabled={loading}>
+              {loading ? "Entrando..." : "Create new account"}
+            </button>
+          </form>
+
+          <p className="login-footnote">
+            Already have account? <strong>Login</strong>
+          </p>
+          <div className="login-credentials">
+            <span>admin@atlascrm.local</span>
+            <span>Atlas@123</span>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

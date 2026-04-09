@@ -41,4 +41,11 @@ public sealed class LeadsController : ControllerBase
     {
         return Ok(await _leadService.UpdateAsync(id, request, cancellationToken));
     }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
+    {
+        await _leadService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

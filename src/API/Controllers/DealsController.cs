@@ -47,4 +47,11 @@ public sealed class DealsController : ControllerBase
     {
         return Ok(await _dealService.MoveAsync(id, request, cancellationToken));
     }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
+    {
+        await _dealService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

@@ -15,4 +15,5 @@ public interface IDealService
     Task<DealDto> CreateAsync(CreateDealRequest request, CancellationToken cancellationToken = default);
     Task<DealDto> UpdateAsync(long id, UpdateDealRequest request, CancellationToken cancellationToken = default);
     Task<DealDto> MoveAsync(long id, MoveDealRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAsync(long id, CancellationToken cancellationToken = default);
 }

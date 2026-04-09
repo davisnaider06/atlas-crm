@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -112,6 +113,23 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteAutomation = async (id: number) => {
+    if (!token) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.deleteAutomation(token, id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir automacao.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleWhatsAppSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) {
@@ -176,15 +194,10 @@ export default function SettingsPage() {
             <h3>WhatsApp</h3>
             <span className="tag">{whatsApp?.status ?? "Disconnected"}</span>
           </div>
-          <p>Base pronta para captura, disparo e recolhimento de leads via canal conectado.</p>
-        </article>
-
-        <article className="settings-card">
-          <div className="card-header">
-            <h3>Automacao de leads</h3>
-            <span className="tag">{automations.length} regras</span>
-          </div>
-          <p>Ja da para distribuir leads automaticamente usando `actionJson` com `userIds`.</p>
+          <p>Conexao por QR, captura de lead e disparo em massa ficam no modulo dedicado.</p>
+          <Link href="/whatsapp" className="ghost-button inline-link-button">
+            Abrir modulo WhatsApp
+          </Link>
         </article>
       </section>
 
@@ -193,7 +206,7 @@ export default function SettingsPage() {
           <div className="card-header">
             <div>
               <h3>Automacoes existentes</h3>
-              <p>Base para distribuicao e tarefas automaticas</p>
+              <p>Distribuicao e tarefas automaticas ja ativas no CRM</p>
             </div>
             <span className="tag">{automations.length} regras</span>
           </div>
@@ -204,6 +217,7 @@ export default function SettingsPage() {
                 <th>Nome</th>
                 <th>Evento</th>
                 <th>Ativa</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody>
@@ -212,6 +226,11 @@ export default function SettingsPage() {
                   <td>{automation.name}</td>
                   <td>{automation.eventType}</td>
                   <td>{automation.isActive ? "Sim" : "Nao"}</td>
+                  <td>
+                    <button type="button" className="table-action danger" onClick={() => void handleDeleteAutomation(automation.id)}>
+                      Excluir
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -260,8 +279,8 @@ export default function SettingsPage() {
         <form className="settings-card form-card" onSubmit={handleWhatsAppSubmit}>
           <div className="card-header">
             <div>
-              <h3>Integracao com WhatsApp</h3>
-              <p>Base para disparo e recolhimento de leads</p>
+              <h3>Base da integracao com WhatsApp</h3>
+              <p>Esses dados alimentam a conexao QR e o disparo do modulo dedicado</p>
             </div>
             <span className="tag">{whatsApp?.provider ?? "Sem provedor"}</span>
           </div>
@@ -322,22 +341,22 @@ export default function SettingsPage() {
         <div className="timeline-card">
           <div className="card-header">
             <div>
-              <h3>Como vender isso</h3>
-              <p>Pontos fortes da fase 3</p>
+              <h3>Fase 4 pronta para deploy</h3>
+              <p>Entregas que fecham o comercial e a operacao</p>
             </div>
           </div>
           <div className="timeline">
             <article className="timeline-item">
-              <strong>Captura de leads</strong>
-              <p>Entrada centralizada a partir do WhatsApp e outros canais.</p>
+              <strong>CRUD operacional completo</strong>
+              <p>Leads, negocios, atividades e automacoes com criacao, edicao e exclusao.</p>
             </article>
             <article className="timeline-item">
-              <strong>Disparo comercial</strong>
-              <p>Base pronta para campanhas e envio operacional por instancia conectada.</p>
+              <strong>Dashboard com dado real</strong>
+              <p>Graficos e cards puxando pipeline, origem de leads e atividade comercial.</p>
             </article>
             <article className="timeline-item">
-              <strong>Distribuicao automatica</strong>
-              <p>Automacoes ja conseguem distribuir leads entre usuarios definidos.</p>
+              <strong>Modulo WhatsApp dedicado</strong>
+              <p>Conexao por QR e campanha em massa por planilha em uma tela propria.</p>
             </article>
           </div>
         </div>

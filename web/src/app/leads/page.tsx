@@ -135,6 +135,25 @@ export default function LeadsPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!token || !selectedLead) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.deleteLead(token, selectedLead.id);
+      setSelectedLead(null);
+      setHistory([]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir lead.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState label="Carregando leads..." />;
   }
@@ -183,6 +202,7 @@ export default function LeadsPage() {
                 <th>Origem</th>
                 <th>Status</th>
                 <th>Criado em</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody>
@@ -196,6 +216,18 @@ export default function LeadsPage() {
                   <td>{lead.source}</td>
                   <td>{lead.status}</td>
                   <td>{formatDate(lead.createdAtUtc)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="table-action danger"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedLead(lead);
+                      }}
+                    >
+                      Selecionar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -284,6 +316,9 @@ export default function LeadsPage() {
                 </label>
                 <button type="submit" className="primary-button" disabled={submitting}>
                   {submitting ? "Atualizando..." : "Salvar alteracoes"}
+                </button>
+                <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                  Excluir lead
                 </button>
               </form>
 

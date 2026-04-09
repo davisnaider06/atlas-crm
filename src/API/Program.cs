@@ -23,6 +23,7 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+builder.Services.AddHttpClient("whatsapp");
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
 {
@@ -87,5 +88,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("web");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();

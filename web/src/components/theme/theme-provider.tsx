@@ -21,7 +21,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 const STORAGE_KEY = "atlascrm.theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("light");
+  const [theme, setThemeState] = useState<ThemeMode>("dark");
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    document.documentElement.dataset.theme = "light";
+    document.documentElement.dataset.theme = "dark";
   }, []);
 
   const setTheme = (nextTheme: ThemeMode) => {

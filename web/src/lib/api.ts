@@ -8,6 +8,9 @@ import type {
   Lead,
   PagedResult,
   Pipeline,
+  WhatsAppCampaignRecipient,
+  WhatsAppCampaignResult,
+  WhatsAppConnectionSession,
   WhatsAppIntegration,
 } from "@/lib/types";
 
@@ -38,7 +41,16 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new Error(body?.error ?? "Falha ao comunicar com a API.");
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 export const api = {
@@ -78,6 +90,11 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     }),
+  deleteLead: (token: string, id: number) =>
+    request<void>(`/leads/${id}`, {
+      method: "DELETE",
+      token,
+    }),
   getDeals: (
     token: string,
     params?: { search?: string; stageId?: number; status?: string },
@@ -112,6 +129,11 @@ export const api = {
       method: "PUT",
       token,
       body: JSON.stringify(payload),
+    }),
+  deleteDeal: (token: string, id: number) =>
+    request<void>(`/negocios/${id}`, {
+      method: "DELETE",
+      token,
     }),
   getActivities: (token: string, params?: { search?: string; status?: string }) => {
     const query = new URLSearchParams({ page: "1", pageSize: "50" });
@@ -150,6 +172,11 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     }),
+  deleteActivity: (token: string, id: number) =>
+    request<void>(`/atividades/${id}`, {
+      method: "DELETE",
+      token,
+    }),
   getPipelines: (token: string) => request<Pipeline[]>("/pipelines", { token }),
   getAutomations: (token: string) =>
     request<PagedResult<Automation>>("/automacoes?page=1&pageSize=50", { token }),
@@ -168,6 +195,11 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     }),
+  deleteAutomation: (token: string, id: number) =>
+    request<void>(`/automacoes/${id}`, {
+      method: "DELETE",
+      token,
+    }),
   getHistory: (token: string, params?: { leadId?: number; dealId?: number }) => {
     const query = new URLSearchParams();
     if (params?.leadId) query.set("leadId", String(params.leadId));
@@ -175,6 +207,13 @@ export const api = {
     return request<HistoryItem[]>(`/historico?${query.toString()}`, { token });
   },
   getWhatsAppIntegration: (token: string) => request<WhatsAppIntegration>("/whatsapp/integracao", { token }),
+  connectWhatsApp: (token: string) =>
+    request<WhatsAppConnectionSession>("/whatsapp/conectar", {
+      method: "POST",
+      token,
+    }),
+  getWhatsAppSession: (token: string) =>
+    request<WhatsAppConnectionSession>("/whatsapp/sessao", { token }),
   saveWhatsAppIntegration: (
     token: string,
     payload: {
@@ -191,6 +230,18 @@ export const api = {
   ) =>
     request<WhatsAppIntegration>("/whatsapp/integracao", {
       method: "PUT",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  sendWhatsAppCampaign: (
+    token: string,
+    payload: {
+      message: string;
+      recipients: WhatsAppCampaignRecipient[];
+    },
+  ) =>
+    request<WhatsAppCampaignResult>("/whatsapp/campanhas/disparo", {
+      method: "POST",
       token,
       body: JSON.stringify(payload),
     }),

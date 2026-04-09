@@ -209,4 +209,23 @@ public sealed class DealService : IDealService
             CreatedAtUtc = deal.CreatedAtUtc
         };
     }
+
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var deal = await _dbContext.Deals.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Negocio nao encontrado.", 404);
+
+        var linkedActivities = await _dbContext.Activities.Where(x => x.DealId == id).ToListAsync(cancellationToken);
+        if (linkedActivities.Count > 0)
+        {
+            _dbContext.Activities.RemoveRange(linkedActivities);
+        }
+
+        _dbContext.Deals.Remove(deal);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.DealDeleted,
+            new { deal.Id },
+            cancellationToken: cancellationToken);
+    }
 }

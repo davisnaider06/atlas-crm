@@ -136,6 +136,24 @@ export default function ActivitiesPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!token || !selectedActivity) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.deleteActivity(token, selectedActivity.id);
+      setSelectedActivity(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir atividade.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState label="Carregando atividades..." />;
   }
@@ -267,6 +285,9 @@ export default function ActivitiesPage() {
               </label>
               <button type="submit" className="primary-button" disabled={submitting}>
                 {submitting ? "Atualizando..." : "Salvar atividade"}
+              </button>
+              <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                Excluir atividade
               </button>
             </form>
           ) : (
