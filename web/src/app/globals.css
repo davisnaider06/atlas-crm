@@ -892,31 +892,33 @@ textarea {
 }
 
 .login-scene {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
-  place-items: center;
-  padding: 32px;
+  place-items: stretch;
+  padding: 0;
+  overflow: hidden;
   background:
     linear-gradient(180deg, rgba(79, 28, 2, 0.9), rgba(32, 11, 1, 0.96)),
     radial-gradient(circle at bottom left, rgba(255, 124, 27, 0.18), transparent 30%);
 }
 
 .login-shell {
-  width: min(1180px, 100%);
+  width: 100%;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 0.95fr 1.05fr;
-  gap: 26px;
-  padding: 22px;
-  border-radius: 32px;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
   background: rgba(255, 247, 241, 0.98);
-  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
 .login-promo {
   position: relative;
-  min-height: 700px;
-  padding: 42px 36px;
-  border-radius: 28px;
+  min-height: 100dvh;
+  padding: clamp(28px, 4vw, 48px);
+  border-radius: 0;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.86)),
@@ -969,8 +971,8 @@ textarea {
 .login-modal {
   display: grid;
   align-content: center;
-  gap: 26px;
-  padding: 28px 34px;
+  gap: 22px;
+  padding: clamp(28px, 5vw, 64px);
   color: #16100d;
 }
 
@@ -998,7 +1000,7 @@ textarea {
 }
 
 .login-form {
-  padding-top: 22px;
+  padding-top: 18px;
   border-top: 1px solid rgba(32, 19, 13, 0.08);
 }
 
@@ -1107,10 +1109,11 @@ textarea {
 
   .login-shell {
     grid-template-columns: 1fr;
+    min-height: 100dvh;
   }
 
   .login-promo {
-    min-height: 420px;
+    min-height: 38dvh;
   }
 }
 
@@ -1142,11 +1145,20 @@ textarea {
   }
 
   .login-scene {
-    padding: 14px;
+    padding: 0;
+  }
+
+  .login-shell {
+    min-height: 100dvh;
+  }
+
+  .login-promo {
+    min-height: 34dvh;
+    padding: 24px 20px;
   }
 
   .login-modal {
-    padding: 18px 12px;
+    padding: 24px 18px 18px;
   }
 
   .session-meta {
