@@ -29,6 +29,16 @@ export type Lead = {
   createdAtUtc: string;
 };
 
+export type Customer = {
+  id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  leadId?: number | null;
+  leadName?: string | null;
+  createdAtUtc: string;
+};
+
 export type HistoryItem = {
   id: number;
   type: string;

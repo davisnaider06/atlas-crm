@@ -232,7 +232,7 @@ export default function PipelinePage() {
               <h3>Novo negocio</h3>
               <p>Cria item no funil</p>
             </div>
-            <span className="tag">POST</span>
+            <span className="tag">Novo</span>
           </div>
 
           <label className="field">

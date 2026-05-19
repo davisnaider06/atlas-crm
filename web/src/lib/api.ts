@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   Automation,
   Dashboard,
+  Customer,
   Deal,
   HistoryItem,
   Lead,
@@ -92,6 +93,40 @@ export const api = {
     }),
   deleteLead: (token: string, id: number) =>
     request<void>(`/leads/${id}`, {
+      method: "DELETE",
+      token,
+    }),
+  getCustomers: (token: string, params?: { search?: string }) => {
+    const query = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (params?.search) query.set("search", params.search);
+    return request<PagedResult<Customer>>(`/clientes?${query.toString()}`, { token });
+  },
+  createCustomer: (
+    token: string,
+    payload: { name: string; email?: string; phone?: string; leadId?: number | null },
+  ) =>
+    request<Customer>("/clientes", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  convertLeadToCustomer: (token: string, leadId: number) =>
+    request<Customer>(`/clientes/converter-lead/${leadId}`, {
+      method: "POST",
+      token,
+    }),
+  updateCustomer: (
+    token: string,
+    id: number,
+    payload: { name: string; email?: string; phone?: string; leadId?: number | null },
+  ) =>
+    request<Customer>(`/clientes/${id}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  deleteCustomer: (token: string, id: number) =>
+    request<void>(`/clientes/${id}`, {
       method: "DELETE",
       token,
     }),

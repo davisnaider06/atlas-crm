@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { read, utils } from "xlsx";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -286,10 +287,13 @@ export default function WhatsAppPage() {
 
           <div className="qr-panel">
             {session?.qrCodeBase64 ? (
-              <img
+              <Image
                 className="qr-image"
                 src={`data:image/png;base64,${session.qrCodeBase64}`}
                 alt="QR Code para conectar WhatsApp"
+                width={280}
+                height={280}
+                unoptimized
               />
             ) : (
               <div className="qr-placeholder">

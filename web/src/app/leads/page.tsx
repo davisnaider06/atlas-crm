@@ -14,6 +14,22 @@ const leadStatusOptions = [
   { value: 5, label: "Converted" },
 ];
 
+const leadStatusLabels: Record<string, string> = {
+  New: "Novo",
+  Contacted: "Contato feito",
+  Qualified: "Qualificado",
+  Lost: "Perdido",
+  Converted: "Convertido",
+};
+
+const statusTones: Record<string, string> = {
+  New: "orange",
+  Contacted: "blue",
+  Qualified: "gold",
+  Lost: "danger",
+  Converted: "success",
+};
+
 export default function LeadsPage() {
   const { token } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -47,6 +63,25 @@ export default function LeadsPage() {
   useEffect(() => {
     setEditState(editForm);
   }, [editForm]);
+
+  const groupedLeads = useMemo(
+    () =>
+      leadStatusOptions.map((status) => ({
+        ...status,
+        items: leads.filter((lead) => lead.status === status.label),
+      })),
+    [leads],
+  );
+
+  const leadMetrics = useMemo(
+    () => ({
+      total: leads.length,
+      qualified: leads.filter((lead) => lead.status === "Qualified").length,
+      converted: leads.filter((lead) => lead.status === "Converted").length,
+      lost: leads.filter((lead) => lead.status === "Lost").length,
+    }),
+    [leads],
+  );
 
   const load = useCallback(async () => {
     if (!token) {
@@ -154,6 +189,47 @@ export default function LeadsPage() {
     }
   };
 
+  const handleMoveLead = async (lead: Lead, statusValue: number) => {
+    if (!token) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.updateLead(token, lead.id, {
+        name: lead.name,
+        email: lead.email || undefined,
+        phone: lead.phone || undefined,
+        source: lead.source,
+        status: statusValue,
+        ownerUserId: lead.ownerUserId ?? null,
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao mover lead.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConvertToCustomer = async () => {
+    if (!token || !selectedLead) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.convertLeadToCustomer(token, selectedLead.id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao converter lead em cliente.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState label="Carregando leads..." />;
   }
@@ -164,7 +240,32 @@ export default function LeadsPage() {
 
   return (
     <div className="page-grid">
-      <section className="toolbar-card">
+      <section className="lead-command-card">
+        <div>
+          <p className="eyebrow">Central de leads</p>
+          <h2>Entrada, qualificacao e conversao em uma visao unica.</h2>
+        </div>
+        <div className="lead-metrics">
+          <article>
+            <span>Total</span>
+            <strong>{leadMetrics.total}</strong>
+          </article>
+          <article>
+            <span>Qualificados</span>
+            <strong>{leadMetrics.qualified}</strong>
+          </article>
+          <article>
+            <span>Convertidos</span>
+            <strong>{leadMetrics.converted}</strong>
+          </article>
+          <article>
+            <span>Perdidos</span>
+            <strong>{leadMetrics.lost}</strong>
+          </article>
+        </div>
+      </section>
+
+      <section className="toolbar-card lead-toolbar">
         <label className="field compact">
           <span>Buscar</span>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, email ou telefone" />
@@ -175,7 +276,7 @@ export default function LeadsPage() {
             <option value="">Todos</option>
             {leadStatusOptions.map((option) => (
               <option key={option.value} value={option.label}>
-                {option.label}
+                {leadStatusLabels[option.label] ?? option.label}
               </option>
             ))}
           </select>
@@ -185,12 +286,68 @@ export default function LeadsPage() {
         </button>
       </section>
 
-      <section className="three-column">
+      <section className="table-card lead-kanban-section">
+        <div className="card-header">
+          <div>
+            <h3>Kanban de leads</h3>
+            <p>Mova o status pelo seletor em cada card e acompanhe o funil de entrada.</p>
+          </div>
+          <span className="tag">{leads.length} leads</span>
+        </div>
+
+        <div className="lead-kanban">
+          {groupedLeads.map((column) => (
+            <div key={column.label} className="lead-column">
+              <header>
+                <div>
+                  <span className={`status-dot ${statusTones[column.label] ?? "orange"}`} />
+                  <strong>{leadStatusLabels[column.label] ?? column.label}</strong>
+                </div>
+                <small>{column.items.length}</small>
+              </header>
+
+              <div className="lead-card-list">
+                {column.items.map((lead) => (
+                  <article
+                    key={lead.id}
+                    className={`lead-card selectable-card${selectedLead?.id === lead.id ? " row-active" : ""}`}
+                    onClick={() => setSelectedLead(lead)}
+                  >
+                    <div className="lead-card-top">
+                      <strong>{lead.name}</strong>
+                      <span>{lead.source}</span>
+                    </div>
+                    <p>{lead.email || lead.phone || "Contato nao informado"}</p>
+                    <div className="lead-card-footer">
+                      <small>{formatDate(lead.createdAtUtc)}</small>
+                      <select
+                        value={leadStatusOptions.find((option) => option.label === lead.status)?.value ?? 1}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => void handleMoveLead(lead, Number(event.target.value))}
+                        disabled={submitting}
+                      >
+                        {leadStatusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {leadStatusLabels[option.label] ?? option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </article>
+                ))}
+                {column.items.length === 0 ? <div className="empty-card compact-empty">Sem leads aqui.</div> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="lead-workspace">
         <div className="table-card">
           <div className="card-header">
             <div>
-              <h3>Leads do tenant</h3>
-              <p>Busca, filtro e selecao para edicao</p>
+              <h3>Lista completa</h3>
+              <p>Selecione um lead para editar ou ver historico</p>
             </div>
             <span className="tag">{leads.length} itens</span>
           </div>
@@ -214,7 +371,7 @@ export default function LeadsPage() {
                 >
                   <td>{lead.name}</td>
                   <td>{lead.source}</td>
-                  <td>{lead.status}</td>
+                  <td>{leadStatusLabels[lead.status] ?? lead.status}</td>
                   <td>{formatDate(lead.createdAtUtc)}</td>
                   <td>
                     <button
@@ -234,13 +391,13 @@ export default function LeadsPage() {
           </table>
         </div>
 
-        <form className="settings-card form-card" onSubmit={handleCreate}>
+        <form className="settings-card form-card lead-side-panel" onSubmit={handleCreate}>
           <div className="card-header">
             <div>
               <h3>Novo lead</h3>
               <p>Entrada comercial</p>
             </div>
-            <span className="tag">Criacao</span>
+            <span className="tag">Novo</span>
           </div>
 
           <label className="field">
@@ -264,7 +421,7 @@ export default function LeadsPage() {
             <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
               {leadStatusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {leadStatusLabels[option.label] ?? option.label}
                 </option>
               ))}
             </select>
@@ -276,7 +433,7 @@ export default function LeadsPage() {
           </button>
         </form>
 
-        <div className="settings-card form-card">
+        <div className="settings-card form-card lead-side-panel">
           <div className="card-header">
             <div>
               <h3>{selectedLead ? "Editar lead" : "Historico"}</h3>
@@ -309,13 +466,21 @@ export default function LeadsPage() {
                   <select value={editState.status} onChange={(event) => setEditState((current) => ({ ...current, status: event.target.value }))}>
                     {leadStatusOptions.map((option) => (
                       <option key={option.value} value={option.label}>
-                        {option.label}
+                        {leadStatusLabels[option.label] ?? option.label}
                       </option>
                     ))}
                   </select>
                 </label>
                 <button type="submit" className="primary-button" disabled={submitting}>
                   {submitting ? "Atualizando..." : "Salvar alteracoes"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => void handleConvertToCustomer()}
+                  disabled={submitting || selectedLead.status === "Converted"}
+                >
+                  {selectedLead.status === "Converted" ? "Lead ja convertido" : "Converter em cliente"}
                 </button>
                 <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
                   Excluir lead

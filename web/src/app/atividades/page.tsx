@@ -194,7 +194,7 @@ export default function ActivitiesPage() {
                 <strong>{activity.description}</strong>
                 <p>{activity.type}</p>
                 <span>
-                  {activity.status} · {formatDate(activity.dueAtUtc)}
+                  {activity.status} - {formatDate(activity.dueAtUtc)}
                 </span>
               </article>
             ))}
@@ -207,7 +207,7 @@ export default function ActivitiesPage() {
               <h3>Nova atividade</h3>
               <p>Cria tarefas e follow-ups</p>
             </div>
-            <span className="tag">Criacao</span>
+            <span className="tag">Nova</span>
           </div>
 
           <label className="field">
@@ -216,7 +216,7 @@ export default function ActivitiesPage() {
               <option value="">Sem vinculo</option>
               {deals.map((deal) => (
                 <option key={deal.id} value={deal.id}>
-                  {deal.leadName} · {deal.stageName}
+                  {deal.leadName} - {deal.stageName}
                 </option>
               ))}
             </select>

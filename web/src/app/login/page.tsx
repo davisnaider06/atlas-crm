@@ -43,18 +43,18 @@ export default function LoginPage() {
             <span />
           </div>
           <div className="login-header">
-            <h2>Get Started</h2>
+            <h2>Acesse sua conta</h2>
             <p>Entre no ambiente demo e valide o CRM completo pelo front.</p>
           </div>
 
           <form className="form-card login-form" onSubmit={handleSubmit}>
             <label className="field">
-              <span>Your email</span>
+              <span>Email</span>
               <input value={email} onChange={(event) => setEmail(event.target.value)} required />
             </label>
 
             <label className="field">
-              <span>Create new password</span>
+              <span>Senha</span>
               <input
                 type="password"
                 value={password}
@@ -66,12 +66,12 @@ export default function LoginPage() {
             {error ? <p className="form-error">{error}</p> : null}
 
             <button type="submit" className="primary-button login-submit" disabled={loading}>
-              {loading ? "Entrando..." : "Create new account"}
+              {loading ? "Entrando..." : "Entrar no CRM"}
             </button>
           </form>
 
           <p className="login-footnote">
-            Already have account? <strong>Login</strong>
+            Use as credenciais demo para acessar o ambiente.
           </p>
           <div className="login-credentials">
             <span>admin@atlascrm.local</span>

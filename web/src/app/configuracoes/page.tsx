@@ -14,6 +14,37 @@ const automationEvents = [
   { value: 3, label: "ActivityCompleted" },
 ];
 
+const automationPresets = [
+  {
+    value: "roundRobin",
+    label: "Distribuir leads entre vendedores",
+    eventType: "2",
+    conditionJson: '{"source":"any"}',
+    actionJson: '{"userIds":[2,3]}',
+  },
+  {
+    value: "createTask",
+    label: "Criar tarefa para novo lead",
+    eventType: "2",
+    conditionJson: '{"source":"any"}',
+    actionJson: '{"createTask":true,"taskDescription":"Fazer primeiro contato com o lead"}',
+  },
+  {
+    value: "assignOwner",
+    label: "Atribuir lead para um responsavel",
+    eventType: "2",
+    conditionJson: '{"status":"New"}',
+    actionJson: '{"assignOwnerUserId":2}',
+  },
+  {
+    value: "dealMoved",
+    label: "Registrar automacao quando negocio muda de etapa",
+    eventType: "1",
+    conditionJson: '{"stage":"Fechado"}',
+    actionJson: '{"type":"log","message":"Negocio movido para etapa importante"}',
+  },
+];
+
 const whatsAppProviders = [
   { value: 1, label: "Evolution" },
   { value: 2, label: "MetaCloud" },
@@ -35,9 +66,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [automationForm, setAutomationForm] = useState({
+    preset: "roundRobin",
     name: "",
     eventType: "2",
-    conditionJson: '{"source":"Instagram Ads"}',
+    conditionJson: '{"source":"any"}',
     actionJson: '{"userIds":[2,3]}',
   });
   const [whatsAppForm, setWhatsAppForm] = useState({
@@ -111,6 +143,18 @@ export default function SettingsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleAutomationPresetChange = (value: string) => {
+    const preset = automationPresets.find((item) => item.value === value) ?? automationPresets[0];
+    setAutomationForm((current) => ({
+      ...current,
+      preset: preset.value,
+      eventType: preset.eventType,
+      conditionJson: preset.conditionJson,
+      actionJson: preset.actionJson,
+      name: current.name || preset.label,
+    }));
   };
 
   const handleDeleteAutomation = async (id: number) => {
@@ -246,6 +290,16 @@ export default function SettingsPage() {
             <span className="tag">Lead routing</span>
           </div>
 
+          <label className="field">
+            <span>Modelo</span>
+            <select value={automationForm.preset} onChange={(event) => handleAutomationPresetChange(event.target.value)}>
+              {automationPresets.map((preset) => (
+                <option key={preset.value} value={preset.value}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="field">
             <span>Nome</span>
             <input value={automationForm.name} onChange={(event) => setAutomationForm((current) => ({ ...current, name: event.target.value }))} required />

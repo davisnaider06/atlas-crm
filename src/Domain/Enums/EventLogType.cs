@@ -19,5 +19,9 @@ public enum EventLogType
     AutomationDeleted = 15,
     WhatsAppQrRequested = 16,
     WhatsAppCampaignSent = 17,
-    WhatsAppLeadCaptured = 18
+    WhatsAppLeadCaptured = 18,
+    CustomerCreated = 19,
+    CustomerUpdated = 20,
+    CustomerDeleted = 21,
+    LeadConverted = 22
 }

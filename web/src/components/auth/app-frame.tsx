@@ -2,42 +2,47 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview", icon: "O" },
+  { href: "/dashboard", label: "Dashboard", icon: "D" },
   { href: "/leads", label: "Leads", icon: "L" },
+  { href: "/clientes", label: "Clientes", icon: "C" },
   { href: "/pipeline", label: "Pipeline", icon: "P" },
-  { href: "/atividades", label: "Activities", icon: "A" },
+  { href: "/atividades", label: "Atividades", icon: "A" },
   { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W" },
-  { href: "/configuracoes", label: "Settings", icon: "S" },
+  { href: "/configuracoes", label: "Configuracoes", icon: "S" },
 ];
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
-    title: "Good to see you again",
+    title: "Bom te ver de novo",
     subtitle: "Monitore o desempenho comercial e acompanhe o crescimento do time.",
   },
   "/leads": {
-    title: "Lead management",
+    title: "Gestao de leads",
     subtitle: "Organize entradas, filtros e responsaveis sem perder contexto.",
   },
+  "/clientes": {
+    title: "Base de clientes",
+    subtitle: "Acompanhe contas convertidas e contatos ativos da operacao.",
+  },
   "/pipeline": {
-    title: "Pipeline control",
+    title: "Controle do pipeline",
     subtitle: "Visualize cada oportunidade com mais clareza e espaco para agir.",
   },
   "/atividades": {
-    title: "Activity flow",
+    title: "Fluxo de atividades",
     subtitle: "Priorize tarefas, follow-ups e proximos passos da operacao.",
   },
   "/whatsapp": {
-    title: "Connect WhatsApp",
+    title: "Conectar WhatsApp",
     subtitle: "Conecte a instancia por QR Code e dispare campanhas com base em planilhas.",
   },
   "/configuracoes": {
-    title: "Workspace settings",
+    title: "Configuracoes",
     subtitle: "Controle integracoes, automacoes e aparencia do seu ambiente.",
   },
 };
@@ -46,6 +51,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/login") {
@@ -73,18 +79,27 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   return (
     <div className="shell-bg">
-      <div className="shell-panel rockart-shell">
+      <div className={`shell-panel rockart-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         <aside className="sidebar rockart-sidebar">
           <div className="brand rockart-brand">
-            <span className="brand-mark">R</span>
-            <div>
-              <strong>Rockart CRM</strong>
-              <p className="muted-mini">Sales workspace</p>
+            <span className="brand-mark">A</span>
+            <div className="brand-copy">
+              <strong>Atlas CRM</strong>
+              <p className="muted-mini">Workspace comercial</p>
             </div>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+              title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+              onClick={() => setSidebarCollapsed((current) => !current)}
+            >
+              {sidebarCollapsed ? ">" : "<"}
+            </button>
           </div>
 
           <nav className="nav rockart-nav">
-            <p className="nav-group-title">Main menu</p>
+            <p className="nav-group-title">Menu principal</p>
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -92,26 +107,26 @@ export function AppFrame({ children }: { children: ReactNode }) {
                 className={`nav-link rockart-link${pathname === item.href ? " active" : ""}`}
               >
                 <span className="icon-box">{item.icon}</span>
-                {item.label}
+                <span className="nav-label">{item.label}</span>
               </Link>
             ))}
           </nav>
 
           <div className="sidebar-preferences">
-            <p className="nav-group-title">Preference</p>
+            <p className="nav-group-title">Preferencias</p>
             <Link href="/configuracoes" className="nav-link rockart-link">
               <span className="icon-box">?</span>
-              Help center
+              <span className="nav-label">Central de ajuda</span>
             </Link>
             <button type="button" className="nav-link rockart-link logout-link" onClick={logout}>
               <span className="icon-box">X</span>
-              Sair
+              <span className="nav-label">Sair</span>
             </button>
           </div>
 
           <div className="sidebar-footer rockart-user">
             <div className="avatar-block">{firstName.slice(0, 1)}</div>
-            <div>
+            <div className="user-copy">
               <strong>{user.name}</strong>
               <p>{user.email}</p>
             </div>
@@ -128,7 +143,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             <div className="topbar-tools">
               <div className="dashboard-search">
                 <span className="search-icon" />
-                <span>Search anything...</span>
+                <span>Buscar no CRM...</span>
               </div>
               <span className="status-pill">{user.role}</span>
             </div>
