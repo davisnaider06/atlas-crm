@@ -22,6 +22,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<Automation> Automations => Set<Automation>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CrmDocument> Documents => Set<CrmDocument>();
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<EventLog> EventLogs => Set<EventLog>();
     public DbSet<Lead> Leads => Set<Lead>();
@@ -73,6 +74,18 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
         {
             entity.ToTable("customers");
             entity.HasIndex(x => x.CompanyId);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<CrmDocument>(entity =>
+        {
+            entity.ToTable("documents");
+            entity.Property(x => x.Title).HasMaxLength(180);
+            entity.Property(x => x.OriginalFileName).HasMaxLength(260);
+            entity.Property(x => x.StoredFileName).HasMaxLength(260);
+            entity.Property(x => x.ContentType).HasMaxLength(120);
+            entity.HasIndex(x => x.CompanyId);
+            entity.HasIndex(x => new { x.CompanyId, x.Type });
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 

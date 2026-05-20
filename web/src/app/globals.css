@@ -367,6 +367,19 @@ textarea,
   max-width: 100%;
 }
 
+.theme-switch {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .search-icon {
   width: 13px;
   height: 13px;
@@ -515,6 +528,12 @@ textarea,
   gap: 12px;
 }
 
+.lead-command-actions {
+  display: grid;
+  justify-items: end;
+  gap: 14px;
+}
+
 .lead-metrics article {
   min-height: 84px;
   display: grid;
@@ -657,6 +676,10 @@ textarea,
   grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.82fr) minmax(280px, 0.82fr);
   gap: 22px;
   align-items: start;
+}
+
+.lead-workspace.single {
+  grid-template-columns: 1fr;
 }
 
 .lead-side-panel {
@@ -1312,6 +1335,30 @@ textarea,
   border-top: 1px solid rgba(32, 19, 13, 0.08);
 }
 
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgba(32, 19, 13, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.auth-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #8f7d73;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+}
+
 .login-form .field input {
   background: white;
   border-color: rgba(85, 46, 18, 0.14);
@@ -1387,6 +1434,37 @@ textarea,
   flex-wrap: wrap;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.modal-panel {
+  width: min(100%, 720px);
+  max-height: min(86vh, 820px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.lead-detail-modal {
+  width: min(100%, 1040px);
+}
+
+.modal-columns {
+  margin-top: 18px;
+  align-items: start;
+}
+
 @media (max-width: 1260px) {
   .dashboard-grid,
   .stats-strip,
@@ -1401,6 +1479,10 @@ textarea,
 
   .lead-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lead-command-actions {
+    justify-items: stretch;
   }
 
   .dashboard-panel.wide,
@@ -1497,6 +1579,16 @@ textarea,
 
   .lead-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    place-items: end center;
+  }
+
+  .modal-panel {
+    max-height: 92vh;
+    padding: 18px;
   }
 
   .login-scene {

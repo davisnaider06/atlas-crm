@@ -78,6 +78,11 @@ using (var scope = app.Services.CreateScope())
         var dbContext = scope.ServiceProvider.GetRequiredService<AtlasCrmDbContext>();
         await DatabaseInitializer.InitializeAsync(dbContext);
     }
+    else
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AtlasCrmDbContext>();
+        await DatabaseInitializer.EnsureRuntimeSchemaAsync(dbContext);
+    }
 }
 
 if (app.Environment.IsDevelopment())

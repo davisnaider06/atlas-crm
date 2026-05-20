@@ -21,6 +21,12 @@ public sealed class AuthController : ControllerBase
         return Ok(await _authService.LoginAsync(request, cancellationToken));
     }
 
+    [HttpPost("register")]
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _authService.RegisterAsync(request, cancellationToken));
+    }
+
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {

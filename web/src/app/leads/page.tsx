@@ -38,6 +38,7 @@ export default function LeadsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState({
@@ -96,15 +97,13 @@ export default function LeadsPage() {
         status: statusFilter || undefined,
       })) as PagedResult<Lead>;
       setLeads(response.items);
-      if (selectedLead) {
-        setSelectedLead(response.items.find((item) => item.id === selectedLead.id) ?? null);
-      }
+      setSelectedLead((current) => current ? response.items.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar leads.");
     } finally {
       setLoading(false);
     }
-  }, [token, search, selectedLead, statusFilter]);
+  }, [token, search, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -136,6 +135,7 @@ export default function LeadsPage() {
         status: Number(form.status),
       });
       setForm({ name: "", email: "", phone: "", source: "", status: "1" });
+      setCreateModalOpen(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar lead.");
@@ -245,23 +245,28 @@ export default function LeadsPage() {
           <p className="eyebrow">Central de leads</p>
           <h2>Entrada, qualificacao e conversao em uma visao unica.</h2>
         </div>
-        <div className="lead-metrics">
-          <article>
-            <span>Total</span>
-            <strong>{leadMetrics.total}</strong>
-          </article>
-          <article>
-            <span>Qualificados</span>
-            <strong>{leadMetrics.qualified}</strong>
-          </article>
-          <article>
-            <span>Convertidos</span>
-            <strong>{leadMetrics.converted}</strong>
-          </article>
-          <article>
-            <span>Perdidos</span>
-            <strong>{leadMetrics.lost}</strong>
-          </article>
+        <div className="lead-command-actions">
+          <div className="lead-metrics">
+            <article>
+              <span>Total</span>
+              <strong>{leadMetrics.total}</strong>
+            </article>
+            <article>
+              <span>Qualificados</span>
+              <strong>{leadMetrics.qualified}</strong>
+            </article>
+            <article>
+              <span>Convertidos</span>
+              <strong>{leadMetrics.converted}</strong>
+            </article>
+            <article>
+              <span>Perdidos</span>
+              <strong>{leadMetrics.lost}</strong>
+            </article>
+          </div>
+          <button type="button" className="primary-button" onClick={() => setCreateModalOpen(true)}>
+            Novo lead
+          </button>
         </div>
       </section>
 
@@ -342,7 +347,7 @@ export default function LeadsPage() {
         </div>
       </section>
 
-      <section className="lead-workspace">
+      <section className="lead-workspace single">
         <div className="table-card">
           <div className="card-header">
             <div>
@@ -390,60 +395,67 @@ export default function LeadsPage() {
             </tbody>
           </table>
         </div>
+      </section>
 
-        <form className="settings-card form-card lead-side-panel" onSubmit={handleCreate}>
-          <div className="card-header">
-            <div>
-              <h3>Novo lead</h3>
-              <p>Entrada comercial</p>
+      {createModalOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCreateModalOpen(false)}>
+          <form className="modal-panel form-card" onSubmit={handleCreate} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="card-header">
+              <div>
+                <h3>Novo lead</h3>
+                <p>Cadastre uma nova entrada comercial.</p>
+              </div>
+              <button type="button" className="table-action" onClick={() => setCreateModalOpen(false)}>
+                Fechar
+              </button>
             </div>
-            <span className="tag">Novo</span>
-          </div>
+            <label className="field">
+              <span>Nome</span>
+              <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+            </label>
+            <label className="field">
+              <span>Email</span>
+              <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Telefone</span>
+              <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Origem</span>
+              <input value={form.source} onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))} required />
+            </label>
+            <label className="field">
+              <span>Status</span>
+              <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
+                {leadStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {leadStatusLabels[option.label] ?? option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? "Salvando..." : "Criar lead"}
+            </button>
+          </form>
+        </div>
+      ) : null}
 
-          <label className="field">
-            <span>Nome</span>
-            <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
-          </label>
-          <label className="field">
-            <span>Email</span>
-            <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
-          </label>
-          <label className="field">
-            <span>Telefone</span>
-            <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
-          </label>
-          <label className="field">
-            <span>Origem</span>
-            <input value={form.source} onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))} required />
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
-              {leadStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {leadStatusLabels[option.label] ?? option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" className="primary-button" disabled={submitting}>
-            {submitting ? "Salvando..." : "Criar lead"}
-          </button>
-        </form>
-
-        <div className="settings-card form-card lead-side-panel">
-          <div className="card-header">
-            <div>
-              <h3>{selectedLead ? "Editar lead" : "Historico"}</h3>
-              <p>{selectedLead ? "Atualizacao do lead selecionado" : "Selecione um lead na lista"}</p>
+      {selectedLead ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedLead(null)}>
+          <div className="modal-panel lead-detail-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="card-header">
+              <div>
+                <h3>Detalhes do lead</h3>
+                <p>Atualize informacoes, converta em cliente ou consulte o historico.</p>
+              </div>
+              <button type="button" className="table-action" onClick={() => setSelectedLead(null)}>
+                Fechar
+              </button>
             </div>
-            {selectedLead ? <span className="tag">#{selectedLead.id}</span> : null}
-          </div>
-
-          {selectedLead ? (
-            <>
+            <div className="two-column modal-columns">
               <form className="form-card" onSubmit={handleUpdate}>
                 <label className="field">
                   <span>Nome</span>
@@ -488,6 +500,13 @@ export default function LeadsPage() {
               </form>
 
               <div className="timeline">
+                <div className="card-header">
+                  <div>
+                    <h3>Historico</h3>
+                    <p>Eventos registrados para este lead.</p>
+                  </div>
+                  <span className="tag">#{selectedLead.id}</span>
+                </div>
                 {history.map((item) => (
                   <article key={item.id} className="timeline-item">
                     <strong>{item.type}</strong>
@@ -495,13 +514,12 @@ export default function LeadsPage() {
                     <span>{formatDate(item.occurredAtUtc)}</span>
                   </article>
                 ))}
+                {history.length === 0 ? <div className="empty-card">Sem historico encontrado.</div> : null}
               </div>
-            </>
-          ) : (
-            <div className="empty-card">Selecione um lead para editar e ver historico.</div>
-          )}
+            </div>
+          </div>
         </div>
-      </section>
+      ) : null}
     </div>
   );
 }

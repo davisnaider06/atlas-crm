@@ -5,10 +5,12 @@ import type {
   Dashboard,
   Customer,
   Deal,
+  DocumentItem,
   HistoryItem,
   Lead,
   PagedResult,
   Pipeline,
+  RegisterPayload,
   WhatsAppCampaignRecipient,
   WhatsAppCampaignResult,
   WhatsAppConnectionSession,
@@ -24,7 +26,7 @@ type RequestOptions = RequestInit & {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
 
-  if (!headers.has("Content-Type") && options.body) {
+  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -59,6 +61,11 @@ export const api = {
     request<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    }),
+  register: (payload: RegisterPayload) =>
+    request<AuthResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 
   getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
@@ -130,6 +137,32 @@ export const api = {
       method: "DELETE",
       token,
     }),
+  getDocuments: (token: string, params?: { search?: string }) => {
+    const query = new URLSearchParams({ page: "1", pageSize: "50" });
+    if (params?.search) query.set("search", params.search);
+    return request<PagedResult<DocumentItem>>(`/documentos?${query.toString()}`, { token });
+  },
+  createDocumentLink: (
+    token: string,
+    payload: { title: string; description?: string; url: string },
+  ) =>
+    request<DocumentItem>("/documentos/links", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  uploadDocumentFile: (token: string, payload: FormData) =>
+    request<DocumentItem>("/documentos/arquivos", {
+      method: "POST",
+      token,
+      body: payload,
+    }),
+  deleteDocument: (token: string, id: number) =>
+    request<void>(`/documentos/${id}`, {
+      method: "DELETE",
+      token,
+    }),
+  getDocumentDownloadUrl: (id: number) => `${API_URL}/documentos/${id}/download`,
   getDeals: (
     token: string,
     params?: { search?: string; stageId?: number; status?: string },

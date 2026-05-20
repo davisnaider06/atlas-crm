@@ -213,7 +213,7 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-grid">
-      <section className="hero-card">
+      <section className="hero-card" style={{ padding: "1rem", minHeight: "auto" }}>
         <div>
           <p className="hero-kicker">Performance comercial</p>
           <h2>Painel executivo do CRM</h2>

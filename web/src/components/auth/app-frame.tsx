@@ -5,11 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useTheme } from "@/components/theme/theme-provider";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
   { href: "/leads", label: "Leads", icon: "L" },
   { href: "/clientes", label: "Clientes", icon: "C" },
+  { href: "/documentos", label: "Documentos", icon: "D" },
   { href: "/pipeline", label: "Pipeline", icon: "P" },
   { href: "/atividades", label: "Atividades", icon: "A" },
   { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W" },
@@ -28,6 +30,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/clientes": {
     title: "Base de clientes",
     subtitle: "Acompanhe contas convertidas e contatos ativos da operacao.",
+  },
+  "/documentos": {
+    title: "Documentos",
+    subtitle: "Centralize arquivos e links importantes da Atlas.",
   },
   "/pipeline": {
     title: "Controle do pipeline",
@@ -51,6 +57,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -141,6 +148,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </div>
 
             <div className="topbar-tools">
+              <button type="button" className="theme-switch" onClick={toggleTheme}>
+                {theme === "light" ? "Modo escuro" : "Modo claro"}
+              </button>
               <div className="dashboard-search">
                 <span className="search-icon" />
                 <span>Buscar no CRM...</span>

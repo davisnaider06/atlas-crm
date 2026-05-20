@@ -3,19 +3,21 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { api } from "@/lib/api";
-import type { AuthResponse } from "@/lib/types";
+import type { AuthResponse, RegisterPayload } from "@/lib/types";
 
 type AuthContextValue = {
   user: AuthResponse | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 };
 
@@ -51,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password);
     setUser(response);
     setToken(response.accessToken);
@@ -59,17 +61,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       STORAGE_KEY,
       JSON.stringify({ token: response.accessToken, user: response }),
     );
-  };
+  }, []);
 
-  const logout = () => {
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const response = await api.register(payload);
+    setUser(response);
+    setToken(response.accessToken);
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ token: response.accessToken, user: response }),
+    );
+  }, []);
+
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     window.localStorage.removeItem(STORAGE_KEY);
-  };
+  }, []);
 
   const value = useMemo(
-    () => ({ user, token, loading, login, logout }),
-    [loading, token, user],
+    () => ({ user, token, loading, login, register, logout }),
+    [loading, login, logout, register, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

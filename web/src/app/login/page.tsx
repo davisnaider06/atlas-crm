@@ -6,9 +6,12 @@ import { useAuth } from "@/components/auth/auth-provider";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("admin@atlascrm.local");
-  const [password, setPassword] = useState("Atlas@123");
+  const { login, register } = useAuth();
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [companyName, setCompanyName] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -18,10 +21,14 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await login(email, password);
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        await register({ companyName, name, email, password });
+      }
       router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha no login.");
+      setError(err instanceof Error ? err.message : "Falha na autenticacao.");
     } finally {
       setLoading(false);
     }
@@ -43,14 +50,36 @@ export default function LoginPage() {
             <span />
           </div>
           <div className="login-header">
-            <h2>Acesse sua conta</h2>
-            <p>Entre no ambiente demo e valide o CRM completo pelo front.</p>
+            <h2>{mode === "login" ? "Acesse sua conta" : "Crie sua conta"}</h2>
+            <p>{mode === "login" ? "Entre com seu usuario para acessar o CRM." : "Cadastre sua empresa e comece com um workspace limpo."}</p>
+          </div>
+
+          <div className="auth-tabs">
+            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
+              Entrar
+            </button>
+            <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>
+              Criar conta
+            </button>
           </div>
 
           <form className="form-card login-form" onSubmit={handleSubmit}>
+            {mode === "register" ? (
+              <>
+                <label className="field">
+                  <span>Empresa</span>
+                  <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
+                </label>
+                <label className="field">
+                  <span>Seu nome</span>
+                  <input value={name} onChange={(event) => setName(event.target.value)} required />
+                </label>
+              </>
+            ) : null}
+
             <label className="field">
               <span>Email</span>
-              <input value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </label>
 
             <label className="field">
@@ -66,17 +95,13 @@ export default function LoginPage() {
             {error ? <p className="form-error">{error}</p> : null}
 
             <button type="submit" className="primary-button login-submit" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar no CRM"}
+              {loading ? "Aguarde..." : mode === "login" ? "Entrar no CRM" : "Criar workspace"}
             </button>
           </form>
 
           <p className="login-footnote">
-            Use as credenciais demo para acessar o ambiente.
+            {mode === "login" ? "Ainda nao tem conta? Use a aba Criar conta." : "Depois do cadastro voce entra direto no CRM."}
           </p>
-          <div className="login-credentials">
-            <span>admin@atlascrm.local</span>
-            <span>Atlas@123</span>
-          </div>
         </section>
       </div>
     </div>

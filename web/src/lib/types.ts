@@ -11,6 +11,13 @@ export type AuthResponse = {
   role: UserRole;
 };
 
+export type RegisterPayload = {
+  companyName: string;
+  name: string;
+  email: string;
+  password: string;
+};
+
 export type PagedResult<T> = {
   items: T[];
   page: number;
@@ -36,6 +43,18 @@ export type Customer = {
   phone?: string | null;
   leadId?: number | null;
   leadName?: string | null;
+  createdAtUtc: string;
+};
+
+export type DocumentItem = {
+  id: number;
+  title: string;
+  description?: string | null;
+  type: "File" | "Link";
+  url?: string | null;
+  originalFileName?: string | null;
+  contentType?: string | null;
+  sizeBytes?: number | null;
   createdAtUtc: string;
 };
 

@@ -64,6 +64,84 @@ public sealed class AuthService : IAuthService
         };
     }
 
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(request.CompanyName) ||
+            string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(email) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new AppException("Preencha empresa, nome, email e senha.", 400);
+        }
+
+        var emailExists = await _dbContext.Users.IgnoreQueryFilters().AnyAsync(x => x.Email == email, cancellationToken);
+        if (emailExists)
+        {
+            throw new AppException("Ja existe um usuario com este email.", 409);
+        }
+
+        var company = new Company
+        {
+            Name = request.CompanyName.Trim(),
+            Plan = PlanType.Growth
+        };
+
+        _dbContext.Companies.Add(company);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var user = new User
+        {
+            CompanyId = company.Id,
+            Name = request.Name.Trim(),
+            Email = email,
+            PasswordHash = _passwordHasher.Hash(request.Password),
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        var pipeline = new Pipeline
+        {
+            CompanyId = company.Id,
+            Name = "Pipeline Principal"
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.Pipelines.Add(pipeline);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _dbContext.Stages.AddRange(
+            new Stage { PipelineId = pipeline.Id, Name = "Entrada", Order = 1 },
+            new Stage { PipelineId = pipeline.Id, Name = "Proposta", Order = 2 },
+            new Stage { PipelineId = pipeline.Id, Name = "Fechado", Order = 3 });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var tokens = _tokenService.CreateTokens(user);
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            CompanyId = user.CompanyId,
+            UserId = user.Id,
+            Token = tokens.RefreshToken,
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(14)
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(EventLogType.AuthLogin, new { user.Id, user.CompanyId, Registered = true }, user.CompanyId, cancellationToken);
+
+        return new AuthResponse
+        {
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            ExpiresAtUtc = tokens.ExpiresAtUtc,
+            UserId = user.Id,
+            CompanyId = user.CompanyId,
+            Name = user.Name,
+            Email = user.Email,
+            Role = user.Role
+        };
+    }
+
     public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
     {
         var refresh = await _dbContext.RefreshTokens

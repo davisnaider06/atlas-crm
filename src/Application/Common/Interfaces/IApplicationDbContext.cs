@@ -9,6 +9,7 @@ public interface IApplicationDbContext
     DbSet<Automation> Automations { get; }
     DbSet<Company> Companies { get; }
     DbSet<Customer> Customers { get; }
+    DbSet<CrmDocument> Documents { get; }
     DbSet<Deal> Deals { get; }
     DbSet<EventLog> EventLogs { get; }
     DbSet<Lead> Leads { get; }
