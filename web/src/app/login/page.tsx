@@ -40,7 +40,7 @@ export default function LoginPage() {
         <section className="login-promo">
           <div className="login-promo-copy">
             <p className="login-kicker">Atlas CRM</p>
-            <h1>Transforme sua operacao comercial em crescimento previsivel.</h1>
+            <h1>Transforme sua operação comercial em crescimento previsível.</h1>
           </div>
           <div className="login-glow" />
         </section>
