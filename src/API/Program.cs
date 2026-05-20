@@ -30,7 +30,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
     {
-        policy.WithOrigins(builder.Configuration["FrontendUrl"] ?? "http://localhost:3000")
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "https://atlas-crm-theta.vercel.app"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
