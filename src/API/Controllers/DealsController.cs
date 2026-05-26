@@ -19,7 +19,9 @@ public sealed class DealsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PagedResult<DealDto>>> Get(
+
+// AUMENTAR OU DIMINUIR DEPENDENDO DO VALOR DA QUERY STRING E DE QUANTOS SDRS O MATHEUS PEGAR PRA ATLAS FORA A MARIA   
+ public async Task<ActionResult<PagedResult<DealDto>>> Get(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
