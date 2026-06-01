@@ -69,6 +69,9 @@ public sealed class LeadService : ILeadService
                 Phone = x.Phone,
                 Source = x.Source,
                 Status = x.Status,
+                QualificationTemperature = x.QualificationTemperature,
+                QualificationScore = x.QualificationScore,
+                QualificationNotes = x.QualificationNotes,
                 OwnerUserId = x.OwnerUserId,
                 CreatedAtUtc = x.CreatedAtUtc
             })
@@ -88,6 +91,10 @@ public sealed class LeadService : ILeadService
             Phone = request.Phone?.Trim(),
             Source = request.Source.Trim(),
             Status = request.Status,
+            QualificationTemperature = request.QualificationTemperature,
+            QualificationScore = Math.Clamp(request.QualificationScore, 0, 100),
+            QualificationNotes = request.QualificationNotes?.Trim(),
+            ExtraDataJson = request.ExtraDataJson,
             OwnerUserId = request.OwnerUserId ?? user.UserId
         };
 
@@ -107,6 +114,9 @@ public sealed class LeadService : ILeadService
             Phone = lead.Phone,
             Source = lead.Source,
             Status = lead.Status,
+            QualificationTemperature = lead.QualificationTemperature,
+            QualificationScore = lead.QualificationScore,
+            QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
             CreatedAtUtc = lead.CreatedAtUtc
         };
@@ -122,6 +132,10 @@ public sealed class LeadService : ILeadService
         lead.Phone = request.Phone?.Trim();
         lead.Source = request.Source.Trim();
         lead.Status = request.Status;
+        lead.QualificationTemperature = request.QualificationTemperature;
+        lead.QualificationScore = Math.Clamp(request.QualificationScore, 0, 100);
+        lead.QualificationNotes = request.QualificationNotes?.Trim();
+        lead.ExtraDataJson = request.ExtraDataJson ?? lead.ExtraDataJson;
         lead.OwnerUserId = request.OwnerUserId;
         lead.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -139,6 +153,9 @@ public sealed class LeadService : ILeadService
             Phone = lead.Phone,
             Source = lead.Source,
             Status = lead.Status,
+            QualificationTemperature = lead.QualificationTemperature,
+            QualificationScore = lead.QualificationScore,
+            QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
             CreatedAtUtc = lead.CreatedAtUtc
         };
@@ -166,7 +183,7 @@ public sealed class LeadService : ILeadService
     private async Task ApplyLeadCreatedAutomationsAsync(Lead lead, CancellationToken cancellationToken)
     {
         var automations = await _dbContext.Automations
-            .Where(x => x.EventType == AutomationEventType.LeadCreated && x.IsActive)
+            .Where(x => x.CompanyId == lead.CompanyId && x.EventType == AutomationEventType.LeadCreated && x.IsActive)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 

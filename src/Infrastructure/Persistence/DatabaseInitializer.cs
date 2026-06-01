@@ -29,6 +29,12 @@ public static class DatabaseInitializer
             );
             CREATE INDEX IF NOT EXISTS ix_documents_company_id ON documents (company_id);
             CREATE INDEX IF NOT EXISTS ix_documents_company_type ON documents (company_id, type);
+
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS qualification_temperature INTEGER NOT NULL DEFAULT 2;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS qualification_score INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS qualification_notes VARCHAR(500) NULL;
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS extra_data_json TEXT NULL;
+            CREATE INDEX IF NOT EXISTS ix_leads_company_qualification_temperature ON leads (company_id, qualification_temperature);
             """);
     }
 }

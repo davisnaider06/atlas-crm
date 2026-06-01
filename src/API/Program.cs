@@ -13,7 +13,9 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<PublicLeadCaptureOptions>(builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName));
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+var publicLeadOptions = builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName).Get<PublicLeadCaptureOptions>() ?? new PublicLeadCaptureOptions();
 
 builder.Services
     .AddApplication()
@@ -35,6 +37,22 @@ builder.Services.AddCors(options =>
                 "http://localhost:3000",
                 "https://atlas-crm-theta.vercel.app"
             )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+
+    options.AddPolicy("public-leads", policy =>
+    {
+        if (publicLeadOptions.CorsOrigins.Length > 0)
+        {
+            policy.WithOrigins(publicLeadOptions.CorsOrigins);
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
+
+        policy
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

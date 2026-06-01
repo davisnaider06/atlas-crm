@@ -30,6 +30,27 @@ const statusTones: Record<string, string> = {
   Converted: "success",
 };
 
+const qualificationLabels: Record<string, string> = {
+  Hot: "Quente",
+  Warm: "Morno",
+  Cold: "Frio",
+  Unqualified: "Sem fit",
+};
+
+const qualificationTones: Record<string, string> = {
+  Hot: "danger",
+  Warm: "gold",
+  Cold: "blue",
+  Unqualified: "muted",
+};
+
+const qualificationValues: Record<string, number> = {
+  Unqualified: 1,
+  Cold: 2,
+  Warm: 3,
+  Hot: 4,
+};
+
 export default function LeadsPage() {
   const { token } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -160,6 +181,9 @@ export default function LeadsPage() {
         phone: editState.phone || undefined,
         source: editState.source,
         status: matchedStatus,
+        qualificationTemperature: qualificationValues[selectedLead.qualificationTemperature] ?? 2,
+        qualificationScore: selectedLead.qualificationScore ?? 0,
+        qualificationNotes: selectedLead.qualificationNotes ?? null,
         ownerUserId: selectedLead.ownerUserId ?? null,
       });
       await load();
@@ -203,6 +227,9 @@ export default function LeadsPage() {
         phone: lead.phone || undefined,
         source: lead.source,
         status: statusValue,
+        qualificationTemperature: qualificationValues[lead.qualificationTemperature] ?? 2,
+        qualificationScore: lead.qualificationScore ?? 0,
+        qualificationNotes: lead.qualificationNotes ?? null,
         ownerUserId: lead.ownerUserId ?? null,
       });
       await load();
@@ -323,6 +350,12 @@ export default function LeadsPage() {
                       <span>{lead.source}</span>
                     </div>
                     <p>{lead.email || lead.phone || "Contato nao informado"}</p>
+                    <div className="lead-qualification-row">
+                      <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
+                        {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature}
+                      </span>
+                      <small>{lead.qualificationScore} pts</small>
+                    </div>
                     <div className="lead-card-footer">
                       <small>{formatDate(lead.createdAtUtc)}</small>
                       <select
@@ -362,6 +395,7 @@ export default function LeadsPage() {
               <tr>
                 <th>Nome</th>
                 <th>Origem</th>
+                <th>Temperatura</th>
                 <th>Status</th>
                 <th>Criado em</th>
                 <th>Acoes</th>
@@ -376,6 +410,9 @@ export default function LeadsPage() {
                 >
                   <td>{lead.name}</td>
                   <td>{lead.source}</td>
+                  <td>
+                    {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature} ({lead.qualificationScore})
+                  </td>
                   <td>{leadStatusLabels[lead.status] ?? lead.status}</td>
                   <td>{formatDate(lead.createdAtUtc)}</td>
                   <td>
@@ -483,6 +520,13 @@ export default function LeadsPage() {
                     ))}
                   </select>
                 </label>
+                <div className="insight-card compact-insight">
+                  <span>Pre-qualificacao</span>
+                  <strong>
+                    {qualificationLabels[selectedLead.qualificationTemperature] ?? selectedLead.qualificationTemperature} · {selectedLead.qualificationScore} pts
+                  </strong>
+                  <p>{selectedLead.qualificationNotes || "Sem notas de qualificacao."}</p>
+                </div>
                 <button type="submit" className="primary-button" disabled={submitting}>
                   {submitting ? "Atualizando..." : "Salvar alteracoes"}
                 </button>

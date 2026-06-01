@@ -81,7 +81,16 @@ export const api = {
   },
   createLead: (
     token: string,
-    payload: { name: string; email?: string; phone?: string; source: string; status: number },
+    payload: {
+      name: string;
+      email?: string;
+      phone?: string;
+      source: string;
+      status: number;
+      qualificationTemperature?: number;
+      qualificationScore?: number;
+      qualificationNotes?: string | null;
+    },
   ) =>
     request<Lead>("/leads", {
       method: "POST",
@@ -91,7 +100,17 @@ export const api = {
   updateLead: (
     token: string,
     id: number,
-    payload: { name: string; email?: string; phone?: string; source: string; status: number; ownerUserId?: number | null },
+    payload: {
+      name: string;
+      email?: string;
+      phone?: string;
+      source: string;
+      status: number;
+      qualificationTemperature?: number;
+      qualificationScore?: number;
+      qualificationNotes?: string | null;
+      ownerUserId?: number | null;
+    },
   ) =>
     request<Lead>(`/leads/${id}`, {
       method: "PUT",

@@ -612,6 +612,7 @@ textarea,
 .status-dot.gold { background: var(--gold); }
 .status-dot.danger { background: var(--danger); }
 .status-dot.success { background: var(--success); }
+.status-dot.muted { background: var(--muted); }
 
 .lead-card-list {
   display: grid;
@@ -648,6 +649,13 @@ textarea,
 .lead-card small {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.lead-qualification-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .lead-card-footer {
@@ -1007,6 +1015,45 @@ textarea,
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 0.78rem;
+}
+
+.tag.danger {
+  background: rgba(255, 125, 116, 0.14);
+  color: var(--danger);
+}
+
+.tag.gold {
+  background: rgba(255, 193, 101, 0.14);
+  color: var(--gold);
+}
+
+.tag.blue {
+  background: rgba(78, 127, 255, 0.14);
+  color: var(--cool);
+}
+
+.tag.muted {
+  background: rgba(166, 155, 145, 0.12);
+  color: var(--muted);
+}
+
+.compact-insight {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.compact-insight span,
+.compact-insight p {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.compact-insight p {
+  margin: 0;
 }
 
 .table {

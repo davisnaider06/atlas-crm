@@ -11,6 +11,8 @@ services:
       Jwt__Issuer: ${ATLASCRM_JWT_ISSUER:-AtlasCRM}
       Jwt__Audience: ${ATLASCRM_JWT_AUDIENCE:-AtlasCRM.Web}
       Jwt__SecretKey: ${ATLASCRM_JWT_SECRET:-atlascrm-super-secret-key-change-me}
+      PublicLeadCapture__ApiKey: ${ATLASCRM_PUBLIC_LEAD_KEY:-change-this-public-lead-key}
+      PublicLeadCapture__CompanyId: ${ATLASCRM_PUBLIC_LEAD_COMPANY_ID:-1}
       FrontendUrl: ${ATLASCRM_FRONTEND_URL:-http://localhost:3000}
     ports:
       - "${ATLASCRM_API_PORT:-8081}:8080"

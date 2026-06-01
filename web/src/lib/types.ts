@@ -32,6 +32,9 @@ export type Lead = {
   phone?: string | null;
   source: string;
   status: string;
+  qualificationTemperature: "Unqualified" | "Cold" | "Warm" | "Hot";
+  qualificationScore: number;
+  qualificationNotes?: string | null;
   ownerUserId?: number | null;
   createdAtUtc: string;
 };

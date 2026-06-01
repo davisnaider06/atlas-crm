@@ -65,8 +65,12 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Email).HasMaxLength(180);
             entity.Property(x => x.Phone).HasMaxLength(40);
             entity.Property(x => x.Source).HasMaxLength(100);
+            entity.Property(x => x.QualificationScore).HasDefaultValue(0);
+            entity.Property(x => x.QualificationTemperature).HasDefaultValue(LeadTemperature.Cold);
+            entity.Property(x => x.QualificationNotes).HasMaxLength(500);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
+            entity.HasIndex(x => new { x.CompanyId, x.QualificationTemperature });
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
