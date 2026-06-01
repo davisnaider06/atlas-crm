@@ -35,7 +35,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "http://localhost:3000",
-                "https://atlas-crm-theta.vercel.app"
+                "https://atlas-crm-theta.vercel.app",
+                "https://atlas-ten-smoky.vercel.app/"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
