@@ -328,6 +328,17 @@ textarea,
   min-width: 0;
 }
 
+/* Layout fixes for sidebar collapse: allow title/tools to shrink without breaking layout */
+.topbar .page-intro {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.shell-panel,
+.rockart-main {
+  min-width: 0;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
