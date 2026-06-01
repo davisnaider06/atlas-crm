@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { hasPermission, permissions } from "@/lib/permissions";
 import type { HistoryItem, Lead, PagedResult } from "@/lib/types";
 
 const leadStatusOptions = [
@@ -52,7 +53,7 @@ const qualificationValues: Record<string, number> = {
 };
 
 export default function LeadsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -104,6 +105,10 @@ export default function LeadsPage() {
     }),
     [leads],
   );
+  const canCreate = hasPermission(user, permissions.leadsCreate);
+  const canEdit = hasPermission(user, permissions.leadsEdit);
+  const canDelete = hasPermission(user, permissions.leadsDelete);
+  const canCreateCustomer = hasPermission(user, permissions.customersCreate);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -291,9 +296,11 @@ export default function LeadsPage() {
               <strong>{leadMetrics.lost}</strong>
             </article>
           </div>
-          <button type="button" className="primary-button" onClick={() => setCreateModalOpen(true)}>
-            Novo lead
-          </button>
+          {canCreate ? (
+            <button type="button" className="primary-button" onClick={() => setCreateModalOpen(true)}>
+              Novo lead
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -362,7 +369,7 @@ export default function LeadsPage() {
                         value={leadStatusOptions.find((option) => option.label === lead.status)?.value ?? 1}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => void handleMoveLead(lead, Number(event.target.value))}
-                        disabled={submitting}
+                        disabled={submitting || !canEdit}
                       >
                         {leadStatusOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -434,7 +441,7 @@ export default function LeadsPage() {
         </div>
       </section>
 
-      {createModalOpen ? (
+      {createModalOpen && canCreate ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setCreateModalOpen(false)}>
           <form className="modal-panel form-card" onSubmit={handleCreate} onMouseDown={(event) => event.stopPropagation()}>
             <div className="card-header">
@@ -527,20 +534,24 @@ export default function LeadsPage() {
                   </strong>
                   <p>{selectedLead.qualificationNotes || "Sem notas de qualificacao."}</p>
                 </div>
-                <button type="submit" className="primary-button" disabled={submitting}>
+                <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                   {submitting ? "Atualizando..." : "Salvar alteracoes"}
                 </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => void handleConvertToCustomer()}
-                  disabled={submitting || selectedLead.status === "Converted"}
-                >
-                  {selectedLead.status === "Converted" ? "Lead ja convertido" : "Converter em cliente"}
-                </button>
-                <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
-                  Excluir lead
-                </button>
+                {canCreateCustomer ? (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => void handleConvertToCustomer()}
+                    disabled={submitting || selectedLead.status === "Converted"}
+                  >
+                    {selectedLead.status === "Converted" ? "Lead ja convertido" : "Converter em cliente"}
+                  </button>
+                ) : null}
+                {canDelete ? (
+                  <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                    Excluir lead
+                  </button>
+                ) : null}
               </form>
 
               <div className="timeline">

@@ -4,5 +4,5 @@ public sealed class PipelineDto
 {
     public long Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    public IReadOnlyList<StageDto> Stages { get; init; } = [];
+    public IReadOnlyList<StageDto> Stages { get; init; } = Array.Empty<StageDto>();
 }

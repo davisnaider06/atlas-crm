@@ -15,4 +15,5 @@ public sealed class User : TenantEntity
     public ICollection<Lead> OwnedLeads { get; set; } = new List<Lead>();
     public ICollection<Deal> OwnedDeals { get; set; } = new List<Deal>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<UserPermission> Permissions { get; set; } = new List<UserPermission>();
 }

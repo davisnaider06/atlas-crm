@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Common.Pagination;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Documents;
 using AtlasCRM.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.DocumentsView)]
 [Route("documentos")]
 public sealed class DocumentsController : ControllerBase
 {
@@ -35,12 +36,14 @@ public sealed class DocumentsController : ControllerBase
     }
 
     [HttpPost("links")]
+    [Authorize(Policy = CrmPermissions.DocumentsCreate)]
     public async Task<ActionResult<DocumentDto>> CreateLink([FromBody] CreateDocumentLinkRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _documentService.CreateLinkAsync(request, cancellationToken));
     }
 
     [HttpPost("arquivos")]
+    [Authorize(Policy = CrmPermissions.DocumentsCreate)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<DocumentDto>> UploadFile(
         [FromForm] string title,
@@ -94,6 +97,7 @@ public sealed class DocumentsController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Policy = CrmPermissions.DocumentsDelete)]
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         var document = await _dbContext.Documents.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

@@ -31,6 +31,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Stage> Stages => Set<Stage>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<WhatsAppIntegration> WhatsAppIntegrations => Set<WhatsAppIntegration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -55,6 +56,18 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Name).HasMaxLength(140);
             entity.Property(x => x.Email).HasMaxLength(180);
             entity.HasIndex(x => new { x.CompanyId, x.Email }).IsUnique();
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<UserPermission>(entity =>
+        {
+            entity.ToTable("user_permissions");
+            entity.Property(x => x.Permission).HasMaxLength(80);
+            entity.HasIndex(x => new { x.CompanyId, x.UserId, x.Permission }).IsUnique();
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.Permissions)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 

@@ -18,6 +18,7 @@ public interface IApplicationDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Stage> Stages { get; }
     DbSet<User> Users { get; }
+    DbSet<UserPermission> UserPermissions { get; }
     DbSet<WhatsAppIntegration> WhatsAppIntegrations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

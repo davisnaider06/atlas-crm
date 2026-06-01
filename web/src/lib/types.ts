@@ -9,6 +9,7 @@ export type AuthResponse = {
   name: string;
   email: string;
   role: UserRole;
+  permissions: string[];
 };
 
 export type RegisterPayload = {
@@ -164,4 +165,20 @@ export type WhatsAppCampaignResult = {
   sentCount: number;
   failedCount: number;
   results: WhatsAppCampaignDispatch[];
+};
+
+export type TeamMember = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  permissions: string[];
+  createdAtUtc: string;
+};
+
+export type PermissionCatalogItem = {
+  key: string;
+  label: string;
+  group: string;
 };

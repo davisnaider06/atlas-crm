@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Common.Pagination;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Activities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.ActivitiesView)]
 [Route("atividades")]
 public sealed class ActivitiesController : ControllerBase
 {
@@ -30,18 +31,21 @@ public sealed class ActivitiesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = CrmPermissions.ActivitiesCreate)]
     public async Task<ActionResult<ActivityDto>> Post([FromBody] CreateActivityRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _activityService.CreateAsync(request, cancellationToken));
     }
 
     [HttpPut("{id:long}")]
+    [Authorize(Policy = CrmPermissions.ActivitiesEdit)]
     public async Task<ActionResult<ActivityDto>> Put(long id, [FromBody] UpdateActivityRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _activityService.UpdateAsync(id, request, cancellationToken));
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Policy = CrmPermissions.ActivitiesDelete)]
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         await _activityService.DeleteAsync(id, cancellationToken);

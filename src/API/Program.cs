@@ -3,9 +3,11 @@ using System.Text.Json.Serialization;
 using AtlasCRM.Application;
 using AtlasCRM.Application.Common.Exceptions;
 using AtlasCRM.Application.Common.Security;
+using AtlasCRM.API.Security;
 using AtlasCRM.Infrastructure;
 using AtlasCRM.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,6 +18,18 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<PublicLeadCaptureOptions>(builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName));
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 var publicLeadOptions = builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName).Get<PublicLeadCaptureOptions>() ?? new PublicLeadCaptureOptions();
+var webCorsOrigins = new[]
+{
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://atlas-crm-theta.vercel.app",
+    "https://atlas-ten-smoky.vercel.app",
+    builder.Configuration["FrontendUrl"]
+}
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => NormalizeOrigin(origin!))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
 
 builder.Services
     .AddApplication()
@@ -33,11 +47,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("web", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:3000",
-                "https://atlas-crm-theta.vercel.app",
-                "https://atlas-ten-smoky.vercel.app/"
-            )
+            .WithOrigins(webCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -46,7 +56,7 @@ builder.Services.AddCors(options =>
     {
         if (publicLeadOptions.CorsOrigins.Length > 0)
         {
-            policy.WithOrigins(publicLeadOptions.CorsOrigins);
+            policy.WithOrigins(publicLeadOptions.CorsOrigins.Select(NormalizeOrigin).ToArray());
         }
         else
         {
@@ -75,7 +85,14 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var permission in CrmPermissions.All)
+    {
+        options.AddPermissionPolicy(permission);
+    }
+});
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
@@ -127,3 +144,5 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();
+
+static string NormalizeOrigin(string origin) => origin.Trim().TrimEnd('/');

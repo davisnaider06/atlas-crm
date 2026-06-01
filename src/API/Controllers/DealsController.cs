@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Common.Pagination;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Deals;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.DealsView)]
 [Route("negocios")]
 public sealed class DealsController : ControllerBase
 {
@@ -33,24 +34,28 @@ public sealed class DealsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = CrmPermissions.DealsCreate)]
     public async Task<ActionResult<DealDto>> Post([FromBody] CreateDealRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _dealService.CreateAsync(request, cancellationToken));
     }
 
     [HttpPut("{id:long}")]
+    [Authorize(Policy = CrmPermissions.DealsEdit)]
     public async Task<ActionResult<DealDto>> Put(long id, [FromBody] UpdateDealRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _dealService.UpdateAsync(id, request, cancellationToken));
     }
 
     [HttpPut("{id:long}/mover")]
+    [Authorize(Policy = CrmPermissions.DealsEdit)]
     public async Task<ActionResult<DealDto>> Move(long id, [FromBody] MoveDealRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _dealService.MoveAsync(id, request, cancellationToken));
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Policy = CrmPermissions.DealsDelete)]
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         await _dealService.DeleteAsync(id, cancellationToken);

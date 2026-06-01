@@ -1,4 +1,5 @@
 using AtlasCRM.Application.Common.Interfaces;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.WhatsApp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,14 +17,14 @@ public sealed class WhatsAppController : ControllerBase
         _whatsAppIntegrationService = whatsAppIntegrationService;
     }
 
-    [Authorize]
+    [Authorize(Policy = CrmPermissions.WhatsAppManage)]
     [HttpGet("integracao")]
     public async Task<ActionResult<WhatsAppIntegrationDto>> Get(CancellationToken cancellationToken)
     {
         return Ok(await _whatsAppIntegrationService.GetAsync(cancellationToken));
     }
 
-    [Authorize]
+    [Authorize(Policy = CrmPermissions.WhatsAppManage)]
     [HttpPut("integracao")]
     public async Task<ActionResult<WhatsAppIntegrationDto>> Put(
         [FromBody] UpdateWhatsAppIntegrationRequest request,
@@ -32,21 +33,21 @@ public sealed class WhatsAppController : ControllerBase
         return Ok(await _whatsAppIntegrationService.SaveAsync(request, cancellationToken));
     }
 
-    [Authorize]
+    [Authorize(Policy = CrmPermissions.WhatsAppManage)]
     [HttpPost("conectar")]
     public async Task<ActionResult<WhatsAppConnectionSessionDto>> StartConnection(CancellationToken cancellationToken)
     {
         return Ok(await _whatsAppIntegrationService.StartQrConnectionAsync(cancellationToken));
     }
 
-    [Authorize]
+    [Authorize(Policy = CrmPermissions.WhatsAppManage)]
     [HttpGet("sessao")]
     public async Task<ActionResult<WhatsAppConnectionSessionDto>> GetSession(CancellationToken cancellationToken)
     {
         return Ok(await _whatsAppIntegrationService.GetConnectionSessionAsync(cancellationToken));
     }
 
-    [Authorize]
+    [Authorize(Policy = CrmPermissions.WhatsAppManage)]
     [HttpPost("campanhas/disparo")]
     public async Task<ActionResult<WhatsAppCampaignResultDto>> SendCampaign(
         [FromBody] SendWhatsAppCampaignRequest request,

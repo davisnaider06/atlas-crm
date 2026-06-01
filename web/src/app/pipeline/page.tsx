@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { hasPermission, permissions } from "@/lib/permissions";
 import type { Deal, HistoryItem, Lead, PagedResult, Pipeline } from "@/lib/types";
 
 const dealStatusOptions = [
@@ -13,7 +14,7 @@ const dealStatusOptions = [
 ];
 
 export default function PipelinePage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -51,15 +52,13 @@ export default function PipelinePage() {
       setDeals(dealItems);
       setPipelines(pipelinesResponse);
       setLeads((leadsResponse as PagedResult<Lead>).items);
-      if (selectedDeal) {
-        setSelectedDeal(dealItems.find((item) => item.id === selectedDeal.id) ?? null);
-      }
+      setSelectedDeal((current) => current ? dealItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar pipeline.");
     } finally {
       setLoading(false);
     }
-  }, [token, search, selectedDeal]);
+  }, [token, search]);
 
   useEffect(() => {
     void load();
@@ -84,6 +83,9 @@ export default function PipelinePage() {
       })),
     [deals, stages],
   );
+  const canCreate = hasPermission(user, permissions.dealsCreate);
+  const canEdit = hasPermission(user, permissions.dealsEdit);
+  const canDelete = hasPermission(user, permissions.dealsDelete);
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -210,7 +212,12 @@ export default function PipelinePage() {
                     <strong>{deal.leadName}</strong>
                     <span>{formatCurrency(deal.value)}</span>
                     <small>{deal.status}</small>
-                    <select value={deal.stageId} onChange={(event) => void handleMove(deal.id, Number(event.target.value))}>
+                    <select
+                      value={deal.stageId}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => void handleMove(deal.id, Number(event.target.value))}
+                      disabled={!canEdit || submitting}
+                    >
                       {stages.map((moveStage) => (
                         <option key={moveStage.id} value={moveStage.id}>
                           {moveStage.name}
@@ -226,6 +233,7 @@ export default function PipelinePage() {
           </div>
         </div>
 
+        {canCreate ? (
         <form className="settings-card form-card" onSubmit={handleCreate}>
           <div className="card-header">
             <div>
@@ -267,6 +275,7 @@ export default function PipelinePage() {
             {submitting ? "Salvando..." : "Criar negocio"}
           </button>
         </form>
+        ) : null}
       </section>
 
       <section className="two-column">
@@ -294,12 +303,14 @@ export default function PipelinePage() {
                   ))}
                 </select>
               </label>
-              <button type="submit" className="primary-button" disabled={submitting}>
+              <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar negocio"}
               </button>
-              <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
-                Excluir negocio
-              </button>
+              {canDelete ? (
+                <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                  Excluir negocio
+                </button>
+              ) : null}
             </form>
           ) : (
             <div className="empty-card">Selecione um negocio para editar.</div>

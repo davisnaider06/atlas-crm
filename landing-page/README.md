@@ -5,14 +5,20 @@ Coloque o arquivo `atlas-crm-lead-capture.js` na mesma pasta do HTML da pagina d
 No HTML, adicione esta linha logo antes de `</body>`, depois do script atual da pagina:
 
 ```html
-<script src="./atlas-crm-lead-capture.js"></script>
+<script
+  src="./atlas-crm-lead-capture.js"
+  data-api-url="https://sua-api.com"
+  data-public-key="troque-por-uma-chave-da-landing-page"
+></script>
 ```
 
-No arquivo `atlas-crm-lead-capture.js`, ajuste:
+Configure pelo `script` acima ou por variaveis globais antes de carregar o arquivo:
 
-```js
-const CRM_API_URL = "http://localhost:8081";
-const CRM_PUBLIC_LEAD_KEY = "troque-por-uma-chave-da-landing-page";
+```html
+<script>
+  window.ATLAS_CRM_API_URL = "https://sua-api.com";
+  window.ATLAS_CRM_PUBLIC_LEAD_KEY = "troque-por-uma-chave-da-landing-page";
+</script>
 ```
 
 A chave precisa ser a mesma configurada no CRM:

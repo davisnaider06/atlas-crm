@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Common.Pagination;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Leads;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.LeadsView)]
 [Route("leads")]
 public sealed class LeadsController : ControllerBase
 {
@@ -34,18 +35,21 @@ public sealed class LeadsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = CrmPermissions.LeadsCreate)]
     public async Task<ActionResult<LeadDto>> Post([FromBody] CreateLeadRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _leadService.CreateAsync(request, cancellationToken));
     }
 
     [HttpPut("{id:long}")]
+    [Authorize(Policy = CrmPermissions.LeadsEdit)]
     public async Task<ActionResult<LeadDto>> Put(long id, [FromBody] UpdateLeadRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _leadService.UpdateAsync(id, request, cancellationToken));
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Policy = CrmPermissions.LeadsDelete)]
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         await _leadService.DeleteAsync(id, cancellationToken);

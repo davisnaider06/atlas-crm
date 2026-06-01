@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { hasPermission, permissions } from "@/lib/permissions";
 import type { Customer, Lead, PagedResult } from "@/lib/types";
 
 export default function CustomersPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -43,15 +44,13 @@ export default function CustomersPage() {
       const customerItems = (customersResponse as PagedResult<Customer>).items;
       setCustomers(customerItems);
       setLeads((leadsResponse as PagedResult<Lead>).items);
-      if (selectedCustomer) {
-        setSelectedCustomer(customerItems.find((item) => item.id === selectedCustomer.id) ?? null);
-      }
+      setSelectedCustomer((current) => current ? customerItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar clientes.");
     } finally {
       setLoading(false);
     }
-  }, [token, search, selectedCustomer]);
+  }, [token, search]);
 
   useEffect(() => {
     void load();
@@ -74,6 +73,9 @@ export default function CustomersPage() {
     () => leads.filter((lead) => lead.status !== "Converted" && !customers.some((customer) => customer.leadId === lead.id)),
     [customers, leads],
   );
+  const canCreate = hasPermission(user, permissions.customersCreate);
+  const canEdit = hasPermission(user, permissions.customersEdit);
+  const canDelete = hasPermission(user, permissions.customersDelete);
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -215,6 +217,7 @@ export default function CustomersPage() {
           {customers.length === 0 ? <div className="empty-card">Nenhum cliente cadastrado ainda.</div> : null}
         </div>
 
+        {canCreate ? (
         <form className="settings-card form-card" onSubmit={handleCreate}>
           <div className="card-header">
             <div>
@@ -253,7 +256,9 @@ export default function CustomersPage() {
             {submitting ? "Salvando..." : "Criar cliente"}
           </button>
         </form>
+        ) : null}
 
+        {canCreate ? (
         <div className="settings-card form-card">
           <div className="card-header">
             <div>
@@ -278,6 +283,7 @@ export default function CustomersPage() {
             {convertibleLeads.length === 0 ? <div className="empty-card">Nao ha leads pendentes para converter.</div> : null}
           </div>
         </div>
+        ) : null}
       </section>
 
       <section className="two-column">
@@ -315,12 +321,14 @@ export default function CustomersPage() {
                   ))}
                 </select>
               </label>
-              <button type="submit" className="primary-button" disabled={submitting}>
+              <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar cliente"}
               </button>
-              <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
-                Excluir cliente
-              </button>
+              {canDelete ? (
+                <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                  Excluir cliente
+                </button>
+              ) : null}
             </form>
           ) : (
             <div className="empty-card">Selecione um cliente para editar.</div>

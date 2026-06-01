@@ -8,5 +8,5 @@ public sealed class PublicLeadCaptureOptions
     public string ApiKey { get; set; } = string.Empty;
     public long CompanyId { get; set; } = 1;
     public string DefaultSource { get; set; } = "Landing Page";
-    public string[] CorsOrigins { get; set; } = [];
+    public string[] CorsOrigins { get; set; } = Array.Empty<string>();
 }

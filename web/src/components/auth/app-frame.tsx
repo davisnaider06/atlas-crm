@@ -6,16 +6,18 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useTheme } from "@/components/theme/theme-provider";
+import { hasPermission, permissions } from "@/lib/permissions";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "D" },
-  { href: "/leads", label: "Leads", icon: "L" },
-  { href: "/clientes", label: "Clientes", icon: "C" },
-  { href: "/documentos", label: "Documentos", icon: "D" },
-  { href: "/pipeline", label: "Pipeline", icon: "P" },
-  { href: "/atividades", label: "Atividades", icon: "A" },
-  { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W" },
-  { href: "/configuracoes", label: "Configuracoes", icon: "S" },
+  { href: "/dashboard", label: "Dashboard", icon: "D", permission: permissions.dashboardView },
+  { href: "/leads", label: "Leads", icon: "L", permission: permissions.leadsView },
+  { href: "/clientes", label: "Clientes", icon: "C", permission: permissions.customersView },
+  { href: "/documentos", label: "Documentos", icon: "D", permission: permissions.documentsView },
+  { href: "/pipeline", label: "Pipeline", icon: "P", permission: permissions.dealsView },
+  { href: "/atividades", label: "Atividades", icon: "A", permission: permissions.activitiesView },
+  { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W", permission: permissions.whatsAppManage },
+  { href: "/equipe", label: "Equipe", icon: "E", permission: permissions.teamManage },
+  { href: "/configuracoes", label: "Configuracoes", icon: "S", permission: permissions.settingsView },
 ];
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -51,6 +53,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Configuracoes",
     subtitle: "Controle integracoes, automacoes e aparencia do seu ambiente.",
   },
+  "/equipe": {
+    title: "Equipe e permissoes",
+    subtitle: "Cadastre funcionarios e controle exatamente o que cada pessoa pode acessar.",
+  },
 };
 
 export function AppFrame({ children }: { children: ReactNode }) {
@@ -83,6 +89,13 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   const currentPage = pageTitles[pathname] ?? pageTitles["/dashboard"];
   const firstName = user.name.split(" ")[0];
+  const allowedNavItems = navItems.filter((item) => hasPermission(user, item.permission));
+  const currentNavItem = navItems.find((item) => item.href === pathname);
+  const canViewCurrentPage = !currentNavItem || hasPermission(user, currentNavItem.permission);
+
+  if (!canViewCurrentPage) {
+    return <div className="screen-center">Voce nao tem permissao para acessar esta pagina.</div>;
+  }
 
   return (
     <div className="shell-bg">
@@ -107,7 +120,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
           <nav className="nav rockart-nav">
             <p className="nav-group-title">Menu principal</p>
-            {navItems.map((item) => (
+            {allowedNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -121,10 +134,12 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
           <div className="sidebar-preferences">
             <p className="nav-group-title">Preferencias</p>
-            <Link href="/configuracoes" className="nav-link rockart-link">
-              <span className="icon-box">?</span>
-              <span className="nav-label">Central de ajuda</span>
-            </Link>
+            {hasPermission(user, permissions.settingsView) ? (
+              <Link href="/configuracoes" className="nav-link rockart-link">
+                <span className="icon-box">?</span>
+                <span className="nav-label">Central de ajuda</span>
+              </Link>
+            ) : null}
             <button type="button" className="nav-link rockart-link logout-link" onClick={logout}>
               <span className="icon-box">X</span>
               <span className="nav-label">Sair</span>

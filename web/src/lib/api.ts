@@ -9,8 +9,10 @@ import type {
   HistoryItem,
   Lead,
   PagedResult,
+  PermissionCatalogItem,
   Pipeline,
   RegisterPayload,
+  TeamMember,
   WhatsAppCampaignRecipient,
   WhatsAppCampaignResult,
   WhatsAppConnectionSession,
@@ -329,6 +331,40 @@ export const api = {
   ) =>
     request<WhatsAppCampaignResult>("/whatsapp/campanhas/disparo", {
       method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  getTeamMembers: (token: string) => request<TeamMember[]>("/equipe", { token }),
+  getPermissionCatalog: (token: string) =>
+    request<PermissionCatalogItem[]>("/equipe/permissoes", { token }),
+  createTeamMember: (
+    token: string,
+    payload: {
+      name: string;
+      email: string;
+      password: string;
+      role: string;
+      permissions: string[];
+    },
+  ) =>
+    request<TeamMember>("/equipe", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  updateTeamMember: (
+    token: string,
+    id: number,
+    payload: {
+      name: string;
+      password?: string;
+      role: string;
+      isActive: boolean;
+      permissions: string[];
+    },
+  ) =>
+    request<TeamMember>(`/equipe/${id}`, {
+      method: "PUT",
       token,
       body: JSON.stringify(payload),
     }),

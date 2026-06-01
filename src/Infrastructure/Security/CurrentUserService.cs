@@ -38,8 +38,12 @@ public sealed class CurrentUserService : ICurrentUserService
             var email = principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty;
             var roleText = principal.FindFirstValue(ClaimTypes.Role) ?? UserRole.Sales.ToString();
             Enum.TryParse<UserRole>(roleText, true, out var role);
+            var permissions = principal
+                .FindAll("permission")
+                .Select(x => x.Value)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            _user = new CurrentUser(userId, companyId, role, email);
+            _user = new CurrentUser(userId, companyId, role, email, permissions);
             return _user;
         }
     }

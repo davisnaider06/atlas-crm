@@ -32,6 +32,11 @@ public sealed class JwtTokenService : ITokenService
             new("company_id", user.CompanyId.ToString())
         };
 
+        foreach (var permission in GetEffectivePermissions(user))
+        {
+            claims.Add(new Claim("permission", permission));
+        }
+
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,
             audience: _options.Audience,
@@ -45,5 +50,15 @@ public sealed class JwtTokenService : ITokenService
     public string GenerateRefreshToken()
     {
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+    }
+
+    private static IEnumerable<string> GetEffectivePermissions(User user)
+    {
+        if (user.Role == Domain.Enums.UserRole.Admin)
+        {
+            return CrmPermissions.All;
+        }
+
+        return user.Permissions.Select(x => x.Permission).Distinct(StringComparer.OrdinalIgnoreCase);
     }
 }

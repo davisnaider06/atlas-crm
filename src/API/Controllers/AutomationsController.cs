@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Common.Pagination;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Automations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.AutomationsManage)]
 [Route("automacoes")]
 public sealed class AutomationsController : ControllerBase
 {

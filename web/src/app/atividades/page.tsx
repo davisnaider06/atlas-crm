@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { hasPermission, permissions } from "@/lib/permissions";
 import type { Activity, Deal, PagedResult } from "@/lib/types";
 
 const activityTypeOptions = [
@@ -21,7 +22,7 @@ const activityStatusOptions = [
 ];
 
 export default function ActivitiesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
@@ -41,6 +42,9 @@ export default function ActivitiesPage() {
     dueAtUtc: "",
     status: "Pending",
   });
+  const canCreate = hasPermission(user, permissions.activitiesCreate);
+  const canEdit = hasPermission(user, permissions.activitiesEdit);
+  const canDelete = hasPermission(user, permissions.activitiesDelete);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -58,15 +62,13 @@ export default function ActivitiesPage() {
       const activityItems = (activitiesResponse as PagedResult<Activity>).items;
       setActivities(activityItems);
       setDeals((dealsResponse as PagedResult<Deal>).items);
-      if (selectedActivity) {
-        setSelectedActivity(activityItems.find((item) => item.id === selectedActivity.id) ?? null);
-      }
+      setSelectedActivity((current) => current ? activityItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar atividades.");
     } finally {
       setLoading(false);
     }
-  }, [token, search, selectedActivity]);
+  }, [token, search]);
 
   useEffect(() => {
     void load();
@@ -201,6 +203,7 @@ export default function ActivitiesPage() {
           </div>
         </div>
 
+        {canCreate ? (
         <form className="settings-card form-card" onSubmit={handleCreate}>
           <div className="card-header">
             <div>
@@ -244,6 +247,7 @@ export default function ActivitiesPage() {
             {submitting ? "Salvando..." : "Criar atividade"}
           </button>
         </form>
+        ) : null}
 
         <div className="settings-card form-card">
           <div className="card-header">
@@ -283,12 +287,14 @@ export default function ActivitiesPage() {
                   ))}
                 </select>
               </label>
-              <button type="submit" className="primary-button" disabled={submitting}>
+              <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar atividade"}
               </button>
-              <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
-                Excluir atividade
-              </button>
+              {canDelete ? (
+                <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
+                  Excluir atividade
+                </button>
+              ) : null}
             </form>
           ) : (
             <div className="empty-card">Selecione uma atividade para editar.</div>

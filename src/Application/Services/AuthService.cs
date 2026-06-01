@@ -1,5 +1,6 @@
 using AtlasCRM.Application.Common.Exceptions;
 using AtlasCRM.Application.Common.Interfaces;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Auth;
 using AtlasCRM.Domain.Entities;
 using AtlasCRM.Domain.Enums;
@@ -31,6 +32,7 @@ public sealed class AuthService : IAuthService
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _dbContext.Users
             .AsNoTracking()
+            .Include(x => x.Permissions)
             .FirstOrDefaultAsync(x => x.Email == email && x.IsActive, cancellationToken);
 
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
@@ -60,7 +62,8 @@ public sealed class AuthService : IAuthService
             CompanyId = user.CompanyId,
             Name = user.Name,
             Email = user.Email,
-            Role = user.Role
+            Role = user.Role,
+            Permissions = GetEffectivePermissions(user)
         };
     }
 
@@ -138,7 +141,8 @@ public sealed class AuthService : IAuthService
             CompanyId = user.CompanyId,
             Name = user.Name,
             Email = user.Email,
-            Role = user.Role
+            Role = user.Role,
+            Permissions = GetEffectivePermissions(user)
         };
     }
 
@@ -146,6 +150,7 @@ public sealed class AuthService : IAuthService
     {
         var refresh = await _dbContext.RefreshTokens
             .Include(x => x.User)
+                .ThenInclude(x => x!.Permissions)
             .FirstOrDefaultAsync(x => x.Token == request.RefreshToken && !x.IsRevoked, cancellationToken);
 
         if (refresh?.User is null || refresh.ExpiresAtUtc <= DateTime.UtcNow)
@@ -176,7 +181,18 @@ public sealed class AuthService : IAuthService
             CompanyId = refresh.User.CompanyId,
             Name = refresh.User.Name,
             Email = refresh.User.Email,
-            Role = refresh.User.Role
+            Role = refresh.User.Role,
+            Permissions = GetEffectivePermissions(refresh.User)
         };
+    }
+
+    private static string[] GetEffectivePermissions(User user)
+    {
+        if (user.Role == UserRole.Admin)
+        {
+            return CrmPermissions.All;
+        }
+
+        return user.Permissions.Select(x => x.Permission).Order().ToArray();
     }
 }

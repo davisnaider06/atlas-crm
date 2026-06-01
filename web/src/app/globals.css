@@ -1672,9 +1672,47 @@ textarea,
     display: grid;
   }
 
-  .mini-row span,
-  .timeline-item span {
-    text-align: left;
-    white-space: normal;
-  }
+.mini-row span,
+.timeline-item span {
+  text-align: left;
+  white-space: normal;
+}
+}
+
+.permission-groups {
+  display: grid;
+  gap: 14px;
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.permission-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+}
+
+.permission-group legend {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0 6px;
+}
+
+.toggle-row {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.9rem;
+  gap: 10px;
+}
+
+.toggle-row input {
+  accent-color: var(--accent);
+  height: 16px;
+  width: 16px;
 }

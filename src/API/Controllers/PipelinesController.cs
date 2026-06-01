@@ -1,4 +1,5 @@
 using AtlasCRM.Application.Common.Interfaces;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Pipelines;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.DealsView)]
 [Route("pipelines")]
 public sealed class PipelinesController : ControllerBase
 {
@@ -24,6 +25,7 @@ public sealed class PipelinesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = CrmPermissions.DealsCreate)]
     public async Task<ActionResult<PipelineDto>> Post([FromBody] CreatePipelineRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _pipelineService.CreateAsync(request, cancellationToken));

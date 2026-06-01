@@ -1,4 +1,5 @@
 using AtlasCRM.Application.Common.Interfaces;
+using AtlasCRM.Application.Common.Security;
 using AtlasCRM.Application.Contracts.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AtlasCRM.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = CrmPermissions.DashboardView)]
 [Route("dashboard")]
 public sealed class DashboardController : ControllerBase
 {

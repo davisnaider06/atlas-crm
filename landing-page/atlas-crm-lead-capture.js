@@ -1,6 +1,14 @@
 (function () {
-  const CRM_API_URL = "http://localhost:8081";
-  const CRM_PUBLIC_LEAD_KEY = "troque-por-uma-chave-da-landing-page";
+  const script = document.currentScript;
+  const CRM_API_URL = (
+    script && script.dataset.apiUrl ||
+    window.ATLAS_CRM_API_URL ||
+    "http://localhost:8081"
+  ).replace(/\/$/, "");
+  const CRM_PUBLIC_LEAD_KEY =
+    script && script.dataset.publicKey ||
+    window.ATLAS_CRM_PUBLIC_LEAD_KEY ||
+    "troque-por-uma-chave-da-landing-page";
   const WHATSAPP_NUMBER = "5512991015266";
 
   function onlyDigits(value) {
