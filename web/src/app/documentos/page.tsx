@@ -108,7 +108,7 @@ export default function DocumentsPage() {
     setError(null);
     try {
       await api.uploadDocumentFile(token, payload);
-      setFileForm({ title: "", description: "", file: null });
+      setFileForm({ title: "", description: "", file: null, sector: "", tags: "", isOnboarding: false, visibility: "private" });
       event.currentTarget.reset();
       await load();
         notify({ type: "success", message: "Arquivo enviado com sucesso.", title: "Upload concluido" });

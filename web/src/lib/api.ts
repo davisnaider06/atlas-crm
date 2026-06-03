@@ -4,6 +4,7 @@ import type {
   Automation,
   Dashboard,
   Customer,
+  FinanceEntry,
   Deal,
   DocumentItem,
   HistoryItem,
