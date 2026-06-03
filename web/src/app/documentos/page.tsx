@@ -95,6 +95,8 @@ export default function DocumentsPage() {
     event.preventDefault();
     if (!token || !fileForm.file) return;
 
+    const formEl = event.currentTarget as HTMLFormElement;
+
     const payload = new FormData();
     payload.set("title", fileForm.title);
     payload.set("description", fileForm.description);
@@ -109,7 +111,7 @@ export default function DocumentsPage() {
     try {
       await api.uploadDocumentFile(token, payload);
       setFileForm({ title: "", description: "", file: null, sector: "", tags: "", isOnboarding: false, visibility: "private" });
-      event.currentTarget.reset();
+      formEl.reset();
       await load();
         notify({ type: "success", message: "Arquivo enviado com sucesso.", title: "Upload concluido" });
     } catch (err) {
