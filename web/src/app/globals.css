@@ -198,11 +198,31 @@ textarea,
   /* place a fixed toggle button visible when sidebar is collapsed */
   position: fixed;
   left: 8px;
-  top: 12px;
+  top: 18px;
   width: 34px;
   height: 34px;
   z-index: 60;
   border-radius: 10px;
+}
+
+/* When sidebar is collapsed keep the toggle visible but prevent it from overlapping header content */
+.shell-panel.sidebar-collapsed .main-shell {
+  padding-left: 64px;
+  transition: padding-left 180ms ease;
+}
+
+.dashboard-search .search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  width: 100%;
+  min-width: 0;
+  font-size: 0.95rem;
+}
+
+.dashboard-search {
+  transition: max-width 180ms ease;
 }
 
 .sidebar-collapsed .rockart-nav,

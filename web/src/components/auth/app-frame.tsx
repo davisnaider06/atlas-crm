@@ -70,6 +70,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    router.push(`/leads?search=${encodeURIComponent(searchTerm.trim())}`);
+    setSearchTerm("");
+  };
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/login") {
@@ -171,10 +179,16 @@ export function AppFrame({ children }: { children: ReactNode }) {
               <button type="button" className="theme-switch" onClick={toggleTheme}>
                 {theme === "light" ? "Modo escuro" : "Modo claro"}
               </button>
-              <div className="dashboard-search">
+              <form className="dashboard-search" onSubmit={handleSearch} role="search">
                 <span className="search-icon" />
-                <span>Buscar no CRM...</span>
-              </div>
+                <input
+                  aria-label="Buscar no CRM"
+                  placeholder="Buscar no CRM..."
+                  value={searchTerm}
+                  onChange={(ev) => setSearchTerm(ev.target.value)}
+                  className="search-input"
+                />
+              </form>
               <span className="status-pill">{user.role}</span>
             </div>
           </header>
