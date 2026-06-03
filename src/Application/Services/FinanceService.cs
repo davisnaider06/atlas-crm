@@ -20,7 +20,7 @@ public sealed class FinanceService : IFinanceService
 
     public async Task<PagedResult<FinanceEntryDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _dbContext.Set<FinanceEntry>().AsNoTracking().OrderByDescending(x => x.OccurredAtUtc).AsQueryable();
+        var query = _dbContext.FinanceEntries.AsNoTracking().OrderByDescending(x => x.OccurredAtUtc).AsQueryable();
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
@@ -55,7 +55,7 @@ public sealed class FinanceService : IFinanceService
             Notes = request.Notes
         };
 
-        _dbContext.Set<FinanceEntry>().Add(entry);
+        _dbContext.FinanceEntries.Add(entry);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new FinanceEntryDto
@@ -74,10 +74,10 @@ public sealed class FinanceService : IFinanceService
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
-        var entry = await _dbContext.Set<FinanceEntry>().FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var entry = await _dbContext.FinanceEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new AppException("Lancamento nao encontrado.", 404);
 
-        _dbContext.Set<FinanceEntry>().Remove(entry);
+        _dbContext.FinanceEntries.Remove(entry);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }
