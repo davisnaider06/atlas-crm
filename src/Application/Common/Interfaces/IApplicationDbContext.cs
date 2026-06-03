@@ -10,6 +10,7 @@ public interface IApplicationDbContext
     DbSet<Company> Companies { get; }
     DbSet<Customer> Customers { get; }
     DbSet<CrmDocument> Documents { get; }
+    DbSet<FinanceEntry> FinanceEntries { get; }
     DbSet<Deal> Deals { get; }
     DbSet<EventLog> EventLogs { get; }
     DbSet<Lead> Leads { get; }

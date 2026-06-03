@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useTheme } from "@/components/theme/theme-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import type { Automation, PagedResult, WhatsAppIntegration } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 const automationEvents = [
   { value: 1, label: "DealMoved" },
@@ -110,11 +111,15 @@ export default function SettingsPage() {
         status: String(whatsAppStatus.find((item) => item.label === whatsAppResponse.status)?.value ?? 1),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar configuracoes.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar configuracoes.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver as configuracoes." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar configuracoes" });
     } finally {
       setLoading(false);
     }
   }, [token]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();
@@ -138,8 +143,12 @@ export default function SettingsPage() {
       });
       setAutomationForm((current) => ({ ...current, name: "" }));
       await load();
+      notify({ type: "success", message: "Automacao criada.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar automacao.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao criar automacao.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar automacoes." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar automacao" });
     } finally {
       setSubmitting(false);
     }
@@ -167,8 +176,12 @@ export default function SettingsPage() {
     try {
       await api.deleteAutomation(token, id);
       await load();
+      notify({ type: "success", message: "Automacao excluida.", title: "Excluida" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir automacao.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao excluir automacao.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir automacoes." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir automacao" });
     } finally {
       setSubmitting(false);
     }
@@ -195,8 +208,12 @@ export default function SettingsPage() {
         status: Number(whatsAppForm.status),
       });
       await load();
+      notify({ type: "success", message: "Integracao WhatsApp salva.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar integracao WhatsApp.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao salvar integracao WhatsApp.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para alterar integracao WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao salvar WhatsApp" });
     } finally {
       setSubmitting(false);
     }

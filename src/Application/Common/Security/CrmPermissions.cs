@@ -24,6 +24,7 @@ public static class CrmPermissions
     public const string DocumentsDelete = "documents.delete";
     public const string AutomationsManage = "automations.manage";
     public const string WhatsAppManage = "whatsapp.manage";
+    public const string FinanceManage = "finance.manage";
     public const string SettingsView = "settings.view";
     public const string TeamManage = "team.manage";
 
@@ -49,6 +50,7 @@ public static class CrmPermissions
         DocumentsView,
         DocumentsCreate,
         DocumentsDelete,
+        FinanceManage,
         AutomationsManage,
         WhatsAppManage,
         SettingsView,

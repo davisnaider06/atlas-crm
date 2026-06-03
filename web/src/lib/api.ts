@@ -43,7 +43,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? "Falha ao comunicar com a API.");
+    const err = new Error(body?.error ?? "Falha ao comunicar com a API.");
+    (err as any).status = response.status;
+    throw err;
   }
 
   if (response.status === 204) {
@@ -158,14 +160,27 @@ export const api = {
       method: "DELETE",
       token,
     }),
-  getDocuments: (token: string, params?: { search?: string }) => {
+  getDocuments: (token: string, params?: { search?: string; sector?: string; tag?: string; visibility?: string }) => {
     const query = new URLSearchParams({ page: "1", pageSize: "50" });
     if (params?.search) query.set("search", params.search);
+    if (params?.sector) query.set("sector", params.sector);
+    if (params?.tag) query.set("tag", params.tag);
+    if (params?.visibility) query.set("visibility", params.visibility);
     return request<PagedResult<DocumentItem>>(`/documentos?${query.toString()}`, { token });
   },
+  getDocumentById: (token: string, id: number) => request<DocumentItem>(`/documentos/${id}`, { token }),
+  getDocumentRawUrl: (id: number) => `${API_URL}/documentos/${id}/raw`,
+  // Materials/Finance
+  getFinance: (token: string) => request<PagedResult<FinanceEntry>>(`/finance?page=1&pageSize=50`, { token }),
+  createFinanceEntry: (token: string, payload: { occurredAtUtc: string; type: string; category: string; amount: number; currency?: string; notes?: string }) =>
+    request<FinanceEntry>("/finance", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ ...payload, currency: payload.currency ?? "BRL" }),
+    }),
   createDocumentLink: (
     token: string,
-    payload: { title: string; description?: string; url: string },
+    payload: { title: string; description?: string; url: string; sector?: string; tags?: string[]; isOnboarding?: boolean; visibility?: string },
   ) =>
     request<DocumentItem>("/documentos/links", {
       method: "POST",

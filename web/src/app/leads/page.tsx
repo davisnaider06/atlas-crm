@@ -5,6 +5,7 @@ import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
+import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, PagedResult } from "@/lib/types";
 
 const leadStatusOptions = [
@@ -13,6 +14,10 @@ const leadStatusOptions = [
   { value: 3, label: "Qualified" },
   { value: 4, label: "Lost" },
   { value: 5, label: "Converted" },
+  { value: 6, label: "MessageSent" },
+  { value: 7, label: "FollowUp" },
+  { value: 8, label: "InNegotiation" },
+  { value: 9, label: "MeetingScheduled" },
 ];
 
 const leadStatusLabels: Record<string, string> = {
@@ -21,6 +26,10 @@ const leadStatusLabels: Record<string, string> = {
   Qualified: "Qualificado",
   Lost: "Perdido",
   Converted: "Convertido",
+  MessageSent: "Mensagem enviada",
+  FollowUp: "Fazer follow-up",
+  InNegotiation: "Em negociação",
+  MeetingScheduled: "Reunião marcada",
 };
 
 const statusTones: Record<string, string> = {
@@ -29,6 +38,10 @@ const statusTones: Record<string, string> = {
   Qualified: "gold",
   Lost: "danger",
   Converted: "success",
+  MessageSent: "orange",
+  FollowUp: "gold",
+  InNegotiation: "warning",
+  MeetingScheduled: "blue",
 };
 
 const qualificationLabels: Record<string, string> = {
@@ -61,6 +74,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const { notify } = useNotification();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState({
@@ -68,7 +82,7 @@ export default function LeadsPage() {
     email: "",
     phone: "",
     source: "",
-    status: "1",
+    status: "6",
   });
 
   const editForm = useMemo(
@@ -125,11 +139,14 @@ export default function LeadsPage() {
       setLeads(response.items);
       setSelectedLead((current) => current ? response.items.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar leads.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar leads.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar leads" });
     } finally {
       setLoading(false);
     }
-  }, [token, search, statusFilter]);
+  }, [token, search, statusFilter, notify]);
 
   useEffect(() => {
     void load();
@@ -163,8 +180,12 @@ export default function LeadsPage() {
       setForm({ name: "", email: "", phone: "", source: "", status: "1" });
       setCreateModalOpen(false);
       await load();
+      notify({ type: "success", message: "Lead criado com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar lead.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao criar lead.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar lead" });
     } finally {
       setSubmitting(false);
     }
@@ -192,8 +213,12 @@ export default function LeadsPage() {
         ownerUserId: selectedLead.ownerUserId ?? null,
       });
       await load();
+      notify({ type: "success", message: "Lead atualizado.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar lead.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao atualizar lead.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar lead" });
     } finally {
       setSubmitting(false);
     }
@@ -211,8 +236,12 @@ export default function LeadsPage() {
       setSelectedLead(null);
       setHistory([]);
       await load();
+      notify({ type: "success", message: "Lead excluido.", title: "Excluido" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir lead.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao excluir lead.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir lead" });
     } finally {
       setSubmitting(false);
     }
@@ -238,8 +267,12 @@ export default function LeadsPage() {
         ownerUserId: lead.ownerUserId ?? null,
       });
       await load();
+      notify({ type: "success", message: "Lead movido com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao mover lead.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao mover lead.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao mover lead" });
     } finally {
       setSubmitting(false);
     }
@@ -255,8 +288,12 @@ export default function LeadsPage() {
     try {
       await api.convertLeadToCustomer(token, selectedLead.id);
       await load();
+      notify({ type: "success", message: "Lead convertido em cliente.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao converter lead em cliente.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao converter lead em cliente.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para converter leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao converter lead" });
     } finally {
       setSubmitting(false);
     }

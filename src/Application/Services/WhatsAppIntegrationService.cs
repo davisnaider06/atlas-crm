@@ -234,7 +234,7 @@ public sealed class WhatsAppIntegrationService : IWhatsAppIntegrationService
             Name = string.IsNullOrWhiteSpace(request.PushName) ? phoneNumber : request.PushName.Trim(),
             Phone = phoneNumber,
             Source = "WhatsApp",
-            Status = LeadStatus.New
+            Status = LeadStatus.MessageSent
         };
 
         _dbContext.Leads.Add(lead);

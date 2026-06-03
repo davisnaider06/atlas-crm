@@ -13,6 +13,7 @@ const navItems = [
   { href: "/leads", label: "Leads", icon: "L", permission: permissions.leadsView },
   { href: "/clientes", label: "Clientes", icon: "C", permission: permissions.customersView },
   { href: "/documentos", label: "Documentos", icon: "D", permission: permissions.documentsView },
+  { href: "/financeiro", label: "Financeiro", icon: "F", permission: permissions.financeManage },
   { href: "/pipeline", label: "Pipeline", icon: "P", permission: permissions.dealsView },
   { href: "/atividades", label: "Atividades", icon: "A", permission: permissions.activitiesView },
   { href: "/whatsapp", label: "Conectar WhatsApp", icon: "W", permission: permissions.whatsAppManage },
@@ -34,8 +35,12 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     subtitle: "Acompanhe contas convertidas e contatos ativos da operacao.",
   },
   "/documentos": {
-    title: "Documentos",
-    subtitle: "Centralize arquivos e links importantes da Atlas.",
+    title: "Materiais",
+    subtitle: "Centralize arquivos, materiais e onboarding da Atlas.",
+  },
+  "/financeiro": {
+    title: "Financeiro",
+    subtitle: "Controle basico de receitas e despesas.",
   },
   "/pipeline": {
     title: "Controle do pipeline",

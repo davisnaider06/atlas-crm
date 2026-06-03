@@ -30,9 +30,18 @@ public sealed class DocumentsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         [FromQuery] string? search = null,
+        [FromQuery] string? sector = null,
+        [FromQuery] string? tag = null,
+        [FromQuery] string? visibility = null,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await _documentService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), search, cancellationToken));
+        return Ok(await _documentService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), search, sector, tag, visibility, cancellationToken));
+    }
+
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<DocumentDto>> GetById(long id, CancellationToken cancellationToken = default)
+    {
+        return Ok(await _documentService.GetByIdAsync(id, cancellationToken));
     }
 
     [HttpPost("links")]
@@ -49,7 +58,11 @@ public sealed class DocumentsController : ControllerBase
         [FromForm] string title,
         [FromForm] string? description,
         [FromForm] IFormFile file,
-        CancellationToken cancellationToken)
+        [FromForm] string? sector,
+        [FromForm] string? tagsJson,
+        [FromForm] bool isOnboarding = false,
+        [FromForm] string visibility = "private",
+        CancellationToken cancellationToken = default)
     {
         if (file.Length == 0)
         {
@@ -75,6 +88,10 @@ public sealed class DocumentsController : ControllerBase
             file.ContentType,
             file.Length,
             storedFileName,
+            sector,
+            string.IsNullOrWhiteSpace(tagsJson) ? null : System.Text.Json.JsonSerializer.Deserialize<string[]>(tagsJson),
+            isOnboarding,
+            visibility,
             cancellationToken));
     }
 
@@ -94,6 +111,25 @@ public sealed class DocumentsController : ControllerBase
         }
 
         return PhysicalFile(path, document.ContentType ?? "application/octet-stream", document.OriginalFileName);
+    }
+
+    [HttpGet("{id:long}/raw")]
+    public async Task<IActionResult> GetRaw(long id, CancellationToken cancellationToken)
+    {
+        var document = await _dbContext.Documents.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (document is null || string.IsNullOrWhiteSpace(document.StoredFileName))
+        {
+            return NotFound(new { error = "Documento nao encontrado." });
+        }
+
+        var path = Path.Combine(_environment.ContentRootPath, "uploads", document.StoredFileName);
+        if (!System.IO.File.Exists(path))
+        {
+            return NotFound(new { error = "Arquivo nao encontrado no servidor." });
+        }
+
+        // Serve the file without a download filename so browsers can render inline when supported
+        return PhysicalFile(path, document.ContentType ?? "application/octet-stream");
     }
 
     [HttpDelete("{id:long}")]

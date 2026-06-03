@@ -59,6 +59,22 @@ export type DocumentItem = {
   originalFileName?: string | null;
   contentType?: string | null;
   sizeBytes?: number | null;
+  sector?: string | null;
+  tags?: string[] | null;
+  isOnboarding?: boolean | null;
+  visibility?: string | null;
+  createdAtUtc: string;
+};
+
+export type FinanceEntry = {
+  id: number;
+  occurredAtUtc: string;
+  type: "income" | "expense";
+  category: string;
+  amount: number;
+  currency: string;
+  notes?: string | null;
+  attachmentFileName?: string | null;
   createdAtUtc: string;
 };
 

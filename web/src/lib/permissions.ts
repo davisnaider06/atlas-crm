@@ -21,6 +21,7 @@ export const permissions = {
   documentsView: "documents.view",
   documentsCreate: "documents.create",
   documentsDelete: "documents.delete",
+  financeManage: "finance.manage",
   automationsManage: "automations.manage",
   whatsAppManage: "whatsapp.manage",
   settingsView: "settings.view",

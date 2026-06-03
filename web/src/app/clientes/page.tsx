@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
 import type { Customer, Lead, PagedResult } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 export default function CustomersPage() {
   const { token, user } = useAuth();
@@ -22,6 +23,7 @@ export default function CustomersPage() {
     phone: "",
     leadId: "",
   });
+  const { notify } = useNotification();
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -46,7 +48,10 @@ export default function CustomersPage() {
       setLeads((leadsResponse as PagedResult<Lead>).items);
       setSelectedCustomer((current) => current ? customerItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar clientes.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar clientes.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar clientes" });
     } finally {
       setLoading(false);
     }
@@ -94,8 +99,12 @@ export default function CustomersPage() {
       });
       setForm({ name: "", email: "", phone: "", leadId: "" });
       await load();
+      notify({ type: "success", message: "Cliente criado com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar cliente.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao criar cliente.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar cliente" });
     } finally {
       setSubmitting(false);
     }
@@ -112,8 +121,12 @@ export default function CustomersPage() {
       const customer = await api.convertLeadToCustomer(token, leadId);
       setSelectedCustomer(customer);
       await load();
+      notify({ type: "success", message: "Lead convertido com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao converter lead.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao converter lead.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para converter leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao converter lead" });
     } finally {
       setSubmitting(false);
     }
@@ -135,8 +148,12 @@ export default function CustomersPage() {
         leadId: editForm.leadId ? Number(editForm.leadId) : null,
       });
       await load();
+      notify({ type: "success", message: "Cliente atualizado.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar cliente.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao atualizar cliente.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar cliente" });
     } finally {
       setSubmitting(false);
     }
@@ -153,8 +170,12 @@ export default function CustomersPage() {
       await api.deleteCustomer(token, selectedCustomer.id);
       setSelectedCustomer(null);
       await load();
+      notify({ type: "success", message: "Cliente excluido.", title: "Excluido" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir cliente.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao excluir cliente.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir cliente" });
     } finally {
       setSubmitting(false);
     }

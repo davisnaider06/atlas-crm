@@ -12,5 +12,9 @@ public sealed class DocumentDto
     public string? OriginalFileName { get; init; }
     public string? ContentType { get; init; }
     public long? SizeBytes { get; init; }
+    public string? Sector { get; init; }
+    public string[]? Tags { get; init; }
+    public bool IsOnboarding { get; init; }
+    public string Visibility { get; init; } = "private";
     public DateTime CreatedAtUtc { get; init; }
 }

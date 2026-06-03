@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
 import type { Activity, Deal, PagedResult } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 const activityTypeOptions = [
   { value: 1, label: "Task" },
@@ -64,11 +65,15 @@ export default function ActivitiesPage() {
       setDeals((dealsResponse as PagedResult<Deal>).items);
       setSelectedActivity((current) => current ? activityItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar atividades.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar atividades.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar atividades" });
     } finally {
       setLoading(false);
     }
   }, [token, search]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();
@@ -105,8 +110,12 @@ export default function ActivitiesPage() {
       });
       setForm({ dealId: "", type: "1", description: "", dueAtUtc: "" });
       await load();
+      notify({ type: "success", message: "Atividade criada.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar atividade.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao criar atividade.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar atividade" });
     } finally {
       setSubmitting(false);
     }
@@ -131,8 +140,12 @@ export default function ActivitiesPage() {
         assignedUserId: selectedActivity.assignedUserId ?? null,
       });
       await load();
+      notify({ type: "success", message: "Atividade atualizada.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar atividade.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao atualizar atividade.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar atividade" });
     } finally {
       setSubmitting(false);
     }
@@ -149,8 +162,12 @@ export default function ActivitiesPage() {
       await api.deleteActivity(token, selectedActivity.id);
       setSelectedActivity(null);
       await load();
+      notify({ type: "success", message: "Atividade excluida.", title: "Excluido" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir atividade.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao excluir atividade.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir atividade" });
     } finally {
       setSubmitting(false);
     }

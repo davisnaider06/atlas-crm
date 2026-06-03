@@ -5,6 +5,7 @@ import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import type { Activity, Dashboard, Deal, Lead, PagedResult } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 type TrendPoint = {
   label: string;
@@ -143,11 +144,15 @@ export default function DashboardPage() {
       setLeads((leadsData as PagedResult<Lead>).items);
       setActivities((activitiesData as PagedResult<Activity>).items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar dashboard.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar dashboard.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver o dashboard." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar dashboard" });
     } finally {
       setLoading(false);
     }
   }, [token]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
 import type { Deal, HistoryItem, Lead, PagedResult, Pipeline } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 const dealStatusOptions = [
   { value: 1, label: "Open" },
@@ -54,11 +55,15 @@ export default function PipelinePage() {
       setLeads((leadsResponse as PagedResult<Lead>).items);
       setSelectedDeal((current) => current ? dealItems.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar pipeline.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar pipeline.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver o pipeline." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar pipeline" });
     } finally {
       setLoading(false);
     }
   }, [token, search]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();
@@ -103,8 +108,12 @@ export default function PipelinePage() {
       });
       setForm({ leadId: "", stageId: "", value: "" });
       await load();
+      notify({ type: "success", message: "Negocio criado com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar negocio.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao criar negocio.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar negocios." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar negocio" });
     } finally {
       setSubmitting(false);
     }
@@ -126,8 +135,12 @@ export default function PipelinePage() {
         ownerUserId: selectedDeal.ownerUserId ?? null,
       });
       await load();
+      notify({ type: "success", message: "Negocio atualizado.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar negocio.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao atualizar negocio.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar negocios." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar negocio" });
     } finally {
       setSubmitting(false);
     }
@@ -143,8 +156,12 @@ export default function PipelinePage() {
     try {
       await api.moveDeal(token, dealId, { stageId, status: 1 });
       await load();
+      notify({ type: "success", message: "Negocio movido.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao mover negocio.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao mover negocio.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para mover negocios." : message, title: status === 403 ? "Permissao negada" : "Erro ao mover negocio" });
     } finally {
       setSubmitting(false);
     }
@@ -162,8 +179,12 @@ export default function PipelinePage() {
       setSelectedDeal(null);
       setHistory([]);
       await load();
+      notify({ type: "success", message: "Negocio excluido.", title: "Excluido" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir negocio.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao excluir negocio.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir negocios." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir negocio" });
     } finally {
       setSubmitting(false);
     }

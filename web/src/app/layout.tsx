@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AppFrame } from "@/components/auth/app-frame";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { NotificationProvider, NotificationModal } from "@/components/ui/notification-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,10 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <AuthProvider>
-            <AppFrame>{children}</AppFrame>
+            <NotificationProvider>
+              <AppFrame>{children}</AppFrame>
+              <NotificationModal />
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

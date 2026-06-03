@@ -19,7 +19,7 @@ public sealed class DocumentService : IDocumentService
         _currentUser = currentUser;
     }
 
-    public async Task<PagedResult<DocumentDto>> GetPagedAsync(int page, int pageSize, string? search = null, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<DocumentDto>> GetPagedAsync(int page, int pageSize, string? search = null, string? sector = null, string? tag = null, string? visibility = null, CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Documents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).AsQueryable();
 
@@ -31,6 +31,24 @@ public sealed class DocumentService : IDocumentService
                 (x.Description != null && x.Description.ToLower().Contains(normalized)) ||
                 (x.OriginalFileName != null && x.OriginalFileName.ToLower().Contains(normalized)) ||
                 (x.Url != null && x.Url.ToLower().Contains(normalized)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(sector))
+        {
+            var s = sector.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Sector != null && x.Sector.ToLower().Contains(s));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var t = tag.Trim().ToLowerInvariant();
+            query = query.Where(x => x.TagsJson != null && x.TagsJson.ToLower().Contains(t));
+        }
+
+        if (!string.IsNullOrWhiteSpace(visibility))
+        {
+            var v = visibility.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Visibility != null && x.Visibility.ToLower() == v);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -59,6 +77,10 @@ public sealed class DocumentService : IDocumentService
             Type = DocumentType.Link,
             Url = request.Url.Trim()
         };
+        document.Sector = request.Sector?.Trim();
+        document.TagsJson = request.Tags is null ? null : System.Text.Json.JsonSerializer.Serialize(request.Tags);
+        document.IsOnboarding = request.IsOnboarding;
+        document.Visibility = string.IsNullOrWhiteSpace(request.Visibility) ? "private" : request.Visibility.Trim();
 
         _dbContext.Documents.Add(document);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -72,6 +94,10 @@ public sealed class DocumentService : IDocumentService
         string contentType,
         long sizeBytes,
         string storedFileName,
+        string? sector = null,
+        string[]? tags = null,
+        bool isOnboarding = false,
+        string visibility = "private",
         CancellationToken cancellationToken = default)
     {
         var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
@@ -91,6 +117,10 @@ public sealed class DocumentService : IDocumentService
             ContentType = contentType,
             SizeBytes = sizeBytes
         };
+        document.Sector = sector?.Trim();
+        document.TagsJson = tags is null ? null : System.Text.Json.JsonSerializer.Serialize(tags);
+        document.IsOnboarding = isOnboarding;
+        document.Visibility = string.IsNullOrWhiteSpace(visibility) ? "private" : visibility.Trim();
 
         _dbContext.Documents.Add(document);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -106,6 +136,13 @@ public sealed class DocumentService : IDocumentService
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<DocumentDto> GetByIdAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var document = await _dbContext.Documents.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (document is null) throw new AppException("Documento nao encontrado.", 404);
+        return Map(document);
+    }
+
     private static DocumentDto Map(CrmDocument document)
     {
         return new DocumentDto
@@ -118,6 +155,10 @@ public sealed class DocumentService : IDocumentService
             OriginalFileName = document.OriginalFileName,
             ContentType = document.ContentType,
             SizeBytes = document.SizeBytes,
+            Sector = document.Sector,
+            Tags = string.IsNullOrWhiteSpace(document.TagsJson) ? null : System.Text.Json.JsonSerializer.Deserialize<string[]>(document.TagsJson),
+            IsOnboarding = document.IsOnboarding,
+            Visibility = document.Visibility,
             CreatedAtUtc = document.CreatedAtUtc
         };
     }

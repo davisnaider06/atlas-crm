@@ -12,6 +12,7 @@ import type {
   WhatsAppConnectionSession,
   WhatsAppIntegration,
 } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 const whatsAppProviders = [
   { value: 1, label: "Evolution" },
@@ -76,11 +77,15 @@ export default function WhatsAppPage() {
         status: String(whatsAppStatus.find((item) => item.label === integrationResponse.status)?.value ?? 1),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar modulo WhatsApp.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar modulo WhatsApp.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver o modulo WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar WhatsApp" });
     } finally {
       setLoading(false);
     }
   }, [token]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();
@@ -116,8 +121,12 @@ export default function WhatsAppPage() {
         status: Number(form.status),
       });
       await load();
+      notify({ type: "success", message: "Configuracao salva.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar configuracao do WhatsApp.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao salvar configuracao do WhatsApp.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para alterar a integracao do WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao salvar WhatsApp" });
     } finally {
       setSaving(false);
     }
@@ -134,8 +143,12 @@ export default function WhatsAppPage() {
       const response = await api.connectWhatsApp(token);
       setSession(response);
       await load();
+      notify({ type: "success", message: "Sessao iniciada.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao solicitar QR Code.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao solicitar QR Code.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para conectar WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao gerar QR" });
     } finally {
       setConnecting(false);
     }
@@ -152,8 +165,12 @@ export default function WhatsAppPage() {
       const response = await api.getWhatsAppSession(token);
       setSession(response);
       await load();
+      notify({ type: "success", message: "Sessao atualizada.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao atualizar sessao.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao atualizar sessao.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para atualizar sessao." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar sessao" });
     } finally {
       setConnecting(false);
     }
@@ -195,8 +212,12 @@ export default function WhatsAppPage() {
         recipients,
       });
       setCampaignResult(response);
+      notify({ type: "success", message: `Campanha enviada: ${response.sentCount} mensagens.`, title: "Campanha enviada" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao disparar campanha.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao disparar campanha.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para enviar campanhas." : message, title: status === 403 ? "Permissao negada" : "Erro ao enviar campanha" });
     } finally {
       setSending(false);
     }

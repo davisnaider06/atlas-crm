@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { permissions } from "@/lib/permissions";
 import type { PermissionCatalogItem, TeamMember, UserRole } from "@/lib/types";
+import { useNotification } from "@/components/ui/notification-context";
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: "Admin", label: "Administrador" },
@@ -90,11 +91,15 @@ export default function TeamPage() {
       setCatalog(catalogResponse);
       setSelectedMember((current) => current ? memberResponse.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar equipe.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao carregar equipe.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver a equipe." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar equipe" });
     } finally {
       setLoading(false);
     }
   }, [token]);
+  const { notify } = useNotification();
 
   useEffect(() => {
     void load();
@@ -175,8 +180,12 @@ export default function TeamPage() {
       setSelectedMember(null);
       setForm(emptyForm);
       await load();
+      notify({ type: "success", message: "Membro salvo com sucesso.", title: "Sucesso" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar membro.");
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao salvar membro.";
+      setError(message);
+      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para gerir membros." : message, title: status === 403 ? "Permissao negada" : "Erro ao salvar membro" });
     } finally {
       setSubmitting(false);
     }

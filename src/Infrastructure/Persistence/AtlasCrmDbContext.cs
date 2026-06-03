@@ -23,6 +23,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CrmDocument> Documents => Set<CrmDocument>();
+    public DbSet<FinanceEntry> FinanceEntries => Set<FinanceEntry>();
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<EventLog> EventLogs => Set<EventLog>();
     public DbSet<Lead> Leads => Set<Lead>();

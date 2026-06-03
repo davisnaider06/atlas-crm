@@ -129,6 +129,7 @@ public sealed class TeamMemberService : ITeamMemberService
             Item(CrmPermissions.DocumentsView, "Ver documentos", "Documentos"),
             Item(CrmPermissions.DocumentsCreate, "Criar documentos", "Documentos"),
             Item(CrmPermissions.DocumentsDelete, "Excluir documentos", "Documentos"),
+            Item(CrmPermissions.FinanceManage, "Gerenciar financeiro", "Financeiro"),
             Item(CrmPermissions.WhatsAppManage, "Gerenciar WhatsApp", "Integracoes"),
             Item(CrmPermissions.AutomationsManage, "Gerenciar automacoes", "Configuracoes"),
             Item(CrmPermissions.SettingsView, "Ver configuracoes", "Configuracoes"),

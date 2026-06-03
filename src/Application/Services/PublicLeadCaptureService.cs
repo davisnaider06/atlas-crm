@@ -71,7 +71,7 @@ public sealed class PublicLeadCaptureService : IPublicLeadCaptureService
             Email = request.Email?.Trim(),
             Phone = request.Phone?.Trim(),
             Source = source,
-            Status = qualification.Temperature == LeadTemperature.Hot ? LeadStatus.Qualified : LeadStatus.New,
+            Status = qualification.Temperature == LeadTemperature.Hot ? LeadStatus.Qualified : LeadStatus.MessageSent,
             QualificationTemperature = qualification.Temperature,
             QualificationScore = qualification.Score,
             QualificationNotes = qualification.Notes,
@@ -121,7 +121,7 @@ public sealed class PublicLeadCaptureService : IPublicLeadCaptureService
 
     private async Task<long?> ResolveOwnerUserIdAsync(long companyId, CancellationToken cancellationToken)
     {
-        var openStatuses = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.Qualified };
+        var openStatuses = new[] { LeadStatus.MessageSent, LeadStatus.New, LeadStatus.Contacted, LeadStatus.Qualified };
 
         var salesUsers = await _dbContext.Users
             .Where(x => x.CompanyId == companyId && x.IsActive && x.Role == UserRole.Sales)
