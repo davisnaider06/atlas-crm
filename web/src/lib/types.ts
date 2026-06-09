@@ -37,7 +37,16 @@ export type Lead = {
   qualificationScore: number;
   qualificationNotes?: string | null;
   ownerUserId?: number | null;
+  ownerName?: string | null;
   createdAtUtc: string;
+};
+
+export type LeadOwner = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  leadCount: number;
 };
 
 export type Customer = {

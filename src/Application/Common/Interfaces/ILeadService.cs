@@ -11,7 +11,9 @@ public interface ILeadService
         string? search = null,
         string? source = null,
         string? status = null,
+        long? ownerUserId = null,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LeadOwnerDto>> GetOwnersAsync(CancellationToken cancellationToken = default);
     Task<LeadDto> CreateAsync(CreateLeadRequest request, CancellationToken cancellationToken = default);
     Task<LeadDto> UpdateAsync(long id, UpdateLeadRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(long id, CancellationToken cancellationToken = default);

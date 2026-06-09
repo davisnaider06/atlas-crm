@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
-import type { HistoryItem, Lead, PagedResult } from "@/lib/types";
+import type { HistoryItem, Lead, LeadOwner, PagedResult } from "@/lib/types";
 
 const leadStatusOptions = [
   { value: 1, label: "New" },
@@ -68,6 +68,7 @@ const qualificationValues: Record<string, number> = {
 export default function LeadsPage() {
   const { token, user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [owners, setOwners] = useState<LeadOwner[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function LeadsPage() {
   const { notify } = useNotification();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -119,6 +121,14 @@ export default function LeadsPage() {
     }),
     [leads],
   );
+  const ownerMetrics = useMemo(
+    () =>
+      owners.map((owner) => ({
+        ...owner,
+        visibleLeadCount: leads.filter((lead) => lead.ownerUserId === owner.id).length,
+      })),
+    [leads, owners],
+  );
   const canCreate = hasPermission(user, permissions.leadsCreate);
   const canEdit = hasPermission(user, permissions.leadsEdit);
   const canDelete = hasPermission(user, permissions.leadsDelete);
@@ -135,8 +145,11 @@ export default function LeadsPage() {
       const response = (await api.getLeads(token, {
         search: search || undefined,
         status: statusFilter || undefined,
+        ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
       })) as PagedResult<Lead>;
       setLeads(response.items);
+      const ownerResponse = await api.getLeadOwners(token);
+      setOwners(ownerResponse);
       setSelectedLead((current) => current ? response.items.find((item) => item.id === current.id) ?? null : null);
     } catch (err) {
       const status = (err as any)?.status;
@@ -146,7 +159,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, search, statusFilter, notify]);
+  }, [token, search, statusFilter, ownerFilter, notify]);
 
   useEffect(() => {
     void load();
@@ -357,9 +370,44 @@ export default function LeadsPage() {
             ))}
           </select>
         </label>
+        <label className="field compact">
+          <span>Vendedor</span>
+          <select value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}>
+            <option value="">Todos</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>
+                {owner.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Aplicar filtros
         </button>
+      </section>
+
+      <section className="table-card">
+        <div className="card-header">
+          <div>
+            <h3>Leads por vendedor</h3>
+            <p>Acompanhe a distribuicao dos leads entre os responsaveis comerciais.</p>
+          </div>
+          <span className="tag">{owners.length} vendedores</span>
+        </div>
+        <div className="lead-metrics">
+          {ownerMetrics.map((owner) => (
+            <article key={owner.id}>
+              <span>{owner.name}</span>
+              <strong>{ownerFilter ? owner.visibleLeadCount : owner.leadCount}</strong>
+            </article>
+          ))}
+          {ownerMetrics.length === 0 ? (
+            <article>
+              <span>Sem vendedores</span>
+              <strong>0</strong>
+            </article>
+          ) : null}
+        </div>
       </section>
 
       <section className="table-card lead-kanban-section">
@@ -394,6 +442,7 @@ export default function LeadsPage() {
                       <span>{lead.source}</span>
                     </div>
                     <p>{lead.email || lead.phone || "Contato nao informado"}</p>
+                    <p>{lead.ownerName ? `Vendedor: ${lead.ownerName}` : "Sem vendedor definido"}</p>
                     <div className="lead-qualification-row">
                       <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
                         {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature}
@@ -441,6 +490,7 @@ export default function LeadsPage() {
                 <th>Origem</th>
                 <th>Temperatura</th>
                 <th>Status</th>
+                <th>Vendedor</th>
                 <th>Criado em</th>
                 <th>Acoes</th>
               </tr>
@@ -458,6 +508,7 @@ export default function LeadsPage() {
                     {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature} ({lead.qualificationScore})
                   </td>
                   <td>{leadStatusLabels[lead.status] ?? lead.status}</td>
+                  <td>{lead.ownerName ?? "Sem vendedor"}</td>
                   <td>{formatDate(lead.createdAtUtc)}</td>
                   <td>
                     <button

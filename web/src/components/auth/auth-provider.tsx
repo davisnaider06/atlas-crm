@@ -53,6 +53,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    const handleRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent<AuthResponse>;
+      setUser(customEvent.detail);
+      setToken(customEvent.detail.accessToken);
+    };
+
+    const handleLogout = () => {
+      setUser(null);
+      setToken(null);
+    };
+
+    window.addEventListener("atlascrm:auth:refresh", handleRefresh);
+    window.addEventListener("atlascrm:auth:logout", handleLogout);
+
+    return () => {
+      window.removeEventListener("atlascrm:auth:refresh", handleRefresh);
+      window.removeEventListener("atlascrm:auth:logout", handleLogout);
+    };
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password);
     setUser(response);

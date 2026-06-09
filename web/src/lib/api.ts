@@ -9,6 +9,7 @@ import type {
   DocumentItem,
   HistoryItem,
   Lead,
+  LeadOwner,
   PagedResult,
   PermissionCatalogItem,
   Pipeline,
@@ -26,6 +27,18 @@ type RequestOptions = RequestInit & {
   token?: string | null;
 };
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
 
@@ -37,10 +50,72 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.set("Authorization", `Bearer ${options.token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  let response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
   });
+
+  if (response.status === 401 && typeof window !== "undefined" && path !== "/auth/login" && path !== "/auth/refresh") {
+    const storageKey = "atlascrm.auth";
+    const raw = window.localStorage.getItem(storageKey);
+    
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.user?.refreshToken) {
+          if (!isRefreshing) {
+            isRefreshing = true;
+            try {
+              const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refreshToken: parsed.user.refreshToken }),
+              });
+
+              if (refreshResponse.ok) {
+                const newAuthData = await refreshResponse.json();
+                
+                window.localStorage.setItem(
+                  storageKey,
+                  JSON.stringify({ token: newAuthData.accessToken, user: newAuthData })
+                );
+                
+                window.dispatchEvent(new CustomEvent("atlascrm:auth:refresh", { detail: newAuthData }));
+                
+                isRefreshing = false;
+                onRefreshed(newAuthData.accessToken);
+              } else {
+                throw new Error("Refresh failed");
+              }
+            } catch (err) {
+              isRefreshing = false;
+              window.localStorage.removeItem(storageKey);
+              window.dispatchEvent(new Event("atlascrm:auth:logout"));
+              throw err;
+            }
+          }
+          
+          const newToken = await new Promise<string>((resolve) => {
+            subscribeTokenRefresh(resolve);
+          });
+          
+          const newHeaders = new Headers(options.headers);
+          if (!newHeaders.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+            newHeaders.set("Content-Type", "application/json");
+          }
+          newHeaders.set("Authorization", `Bearer ${newToken}`);
+          
+          response = await fetch(`${API_URL}${path}`, {
+            ...options,
+            headers: newHeaders,
+          });
+          
+        }
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
+  }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -76,14 +151,16 @@ export const api = {
   getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
   getLeads: (
     token: string,
-    params?: { search?: string; source?: string; status?: string },
+    params?: { search?: string; source?: string; status?: string; ownerUserId?: number },
   ) => {
     const query = new URLSearchParams({ page: "1", pageSize: "50" });
     if (params?.search) query.set("search", params.search);
     if (params?.source) query.set("source", params.source);
     if (params?.status) query.set("status", params.status);
+    if (params?.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
     return request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
   },
+  getLeadOwners: (token: string) => request<LeadOwner[]>("/leads/vendedores", { token }),
   createLead: (
     token: string,
     payload: {

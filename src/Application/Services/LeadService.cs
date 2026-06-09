@@ -28,6 +28,7 @@ public sealed class LeadService : ILeadService
         string? search = null,
         string? source = null,
         string? status = null,
+        long? ownerUserId = null,
         CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Leads.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).AsQueryable();
@@ -57,6 +58,11 @@ public sealed class LeadService : ILeadService
             query = query.Where(x => x.Status == parsedStatus);
         }
 
+        if (ownerUserId.HasValue)
+        {
+            query = query.Where(x => x.OwnerUserId == ownerUserId.Value);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .Skip((page - 1) * pageSize)
@@ -73,11 +79,31 @@ public sealed class LeadService : ILeadService
                 QualificationScore = x.QualificationScore,
                 QualificationNotes = x.QualificationNotes,
                 OwnerUserId = x.OwnerUserId,
+                OwnerName = x.OwnerUser != null ? x.OwnerUser.Name : null,
                 CreatedAtUtc = x.CreatedAtUtc
             })
             .ToListAsync(cancellationToken);
 
         return new PagedResult<LeadDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+    }
+
+    public async Task<IReadOnlyList<LeadOwnerDto>> GetOwnersAsync(CancellationToken cancellationToken = default)
+    {
+        var owners = await _dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.IsActive && (x.Role == UserRole.Sales || x.Role == UserRole.Manager || x.Role == UserRole.Admin))
+            .OrderBy(x => x.Name)
+            .Select(x => new LeadOwnerDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Email = x.Email,
+                Role = x.Role.ToString(),
+                LeadCount = _dbContext.Leads.Count(lead => lead.OwnerUserId == x.Id)
+            })
+            .ToListAsync(cancellationToken);
+
+        return owners;
     }
 
     public async Task<LeadDto> CreateAsync(CreateLeadRequest request, CancellationToken cancellationToken = default)
@@ -118,6 +144,7 @@ public sealed class LeadService : ILeadService
             QualificationScore = lead.QualificationScore,
             QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
+            OwnerName = null,
             CreatedAtUtc = lead.CreatedAtUtc
         };
     }
@@ -157,6 +184,7 @@ public sealed class LeadService : ILeadService
             QualificationScore = lead.QualificationScore,
             QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
+            OwnerName = null,
             CreatedAtUtc = lead.CreatedAtUtc
         };
     }

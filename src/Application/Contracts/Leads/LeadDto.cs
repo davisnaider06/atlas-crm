@@ -14,5 +14,6 @@ public sealed class LeadDto
     public int QualificationScore { get; init; }
     public string? QualificationNotes { get; init; }
     public long? OwnerUserId { get; init; }
+    public string? OwnerName { get; init; }
     public DateTime CreatedAtUtc { get; init; }
 }
