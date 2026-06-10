@@ -1,5 +1,6 @@
 import type {
   Activity,
+  Appointment,
   AuthResponse,
   Automation,
   Dashboard,
@@ -460,6 +461,63 @@ export const api = {
       method: "PUT",
       token,
       body: JSON.stringify(payload),
+    }),
+
+  getAppointments: (
+    token: string,
+    params?: { from?: string; to?: string; status?: string; page?: number; pageSize?: number },
+  ) => {
+    const query = new URLSearchParams({ page: String(params?.page ?? 1), pageSize: String(params?.pageSize ?? 50) });
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.status) query.set("status", params.status);
+    return request<PagedResult<Appointment>>(`/agenda?${query.toString()}`, { token });
+  },
+
+  createAppointment: (
+    token: string,
+    payload: {
+      title: string;
+      description?: string;
+      startAtUtc: string;
+      endAtUtc: string;
+      type: number;
+      leadId?: number | null;
+      dealId?: number | null;
+      assignedUserId?: number | null;
+    },
+  ) =>
+    request<Appointment>("/agenda", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+
+  updateAppointment: (
+    token: string,
+    id: number,
+    payload: {
+      title: string;
+      description?: string;
+      startAtUtc: string;
+      endAtUtc: string;
+      type: number;
+      status: number;
+      leadId?: number | null;
+      dealId?: number | null;
+      assignedUserId?: number | null;
+    },
+  ) =>
+    request<Appointment>(`/agenda/${id}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(payload),
+    }),
+
+  deleteAppointment: (token: string, id: number) =>
+    request<void>(`/agenda/${id}`, {
+      method: "DELETE",
+      token,
     }),
 };
 

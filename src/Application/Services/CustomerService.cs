@@ -64,7 +64,7 @@ public sealed class CustomerService : ICustomerService
 
     public async Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
         await ValidateLeadAsync(request.LeadId, cancellationToken);
 
         var customer = new Customer
@@ -85,9 +85,9 @@ public sealed class CustomerService : ICustomerService
 
     public async Task<CustomerDto> ConvertLeadAsync(long leadId, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == leadId, cancellationToken)
-            ?? throw new AppException("Lead nao encontrado.", 404);
+            ?? throw new AppException("Lead não encontrado.", 404);
 
         var existingCustomer = await _dbContext.Customers.AsNoTracking()
             .FirstOrDefaultAsync(x => x.LeadId == leadId, cancellationToken);
@@ -121,7 +121,7 @@ public sealed class CustomerService : ICustomerService
     public async Task<CustomerDto> UpdateAsync(long id, UpdateCustomerRequest request, CancellationToken cancellationToken = default)
     {
         var customer = await _dbContext.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Cliente nao encontrado.", 404);
+            ?? throw new AppException("Cliente não encontrado.", 404);
         await ValidateLeadAsync(request.LeadId, cancellationToken);
 
         customer.Name = request.Name.Trim();
@@ -139,7 +139,7 @@ public sealed class CustomerService : ICustomerService
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var customer = await _dbContext.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Cliente nao encontrado.", 404);
+            ?? throw new AppException("Cliente não encontrado.", 404);
 
         _dbContext.Customers.Remove(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -156,7 +156,7 @@ public sealed class CustomerService : ICustomerService
         var exists = await _dbContext.Leads.AnyAsync(x => x.Id == leadId.Value, cancellationToken);
         if (!exists)
         {
-            throw new AppException("Lead nao encontrado.", 404);
+            throw new AppException("Lead não encontrado.", 404);
         }
     }
 

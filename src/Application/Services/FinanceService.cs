@@ -42,7 +42,7 @@ public sealed class FinanceService : IFinanceService
 
     public async Task<FinanceEntryDto> CreateAsync(CreateFinanceEntryRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
 
         var entry = new FinanceEntry
         {
@@ -75,7 +75,7 @@ public sealed class FinanceService : IFinanceService
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var entry = await _dbContext.FinanceEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Lancamento nao encontrado.", 404);
+            ?? throw new AppException("Lançamento não encontrado.", 404);
 
         _dbContext.FinanceEntries.Remove(entry);
         await _dbContext.SaveChangesAsync(cancellationToken);

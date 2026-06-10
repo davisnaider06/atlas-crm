@@ -5,25 +5,14 @@ import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
-import type { Activity, Deal, PagedResult } from "@/lib/types";
 import { useNotification } from "@/components/ui/notification-context";
-
-const activityTypeOptions = [
-  { value: 1, label: "Task" },
-  { value: 2, label: "Call" },
-  { value: 3, label: "Email" },
-  { value: 4, label: "Meeting" },
-  { value: 5, label: "Note" },
-];
-
-const activityStatusOptions = [
-  { value: 1, label: "Pending" },
-  { value: 2, label: "Completed" },
-  { value: 3, label: "Cancelled" },
-];
+import { ACTIVITY_TYPE_OPTIONS, ACTIVITY_STATUS_OPTIONS } from "@/lib/constants";
+import type { Activity, Deal, PagedResult } from "@/lib/types";
 
 export default function ActivitiesPage() {
   const { token, user } = useAuth();
+  const { notify } = useNotification();
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
@@ -31,59 +20,39 @@ export default function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({
-    dealId: "",
-    type: "1",
-    description: "",
-    dueAtUtc: "",
-  });
-  const [editForm, setEditForm] = useState({
-    type: "Task",
-    description: "",
-    dueAtUtc: "",
-    status: "Pending",
-  });
+  const [form, setForm] = useState({ dealId: "", type: "1", description: "", dueAtUtc: "" });
+  const [editForm, setEditForm] = useState({ type: "Task", description: "", dueAtUtc: "", status: "Pending" });
+
   const canCreate = hasPermission(user, permissions.activitiesCreate);
   const canEdit = hasPermission(user, permissions.activitiesEdit);
   const canDelete = hasPermission(user, permissions.activitiesDelete);
 
   const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [activitiesResponse, dealsResponse] = await Promise.all([
+      const [activitiesRes, dealsRes] = await Promise.all([
         api.getActivities(token, { search: search || undefined }),
         api.getDeals(token),
       ]);
-
-      const activityItems = (activitiesResponse as PagedResult<Activity>).items;
-      setActivities(activityItems);
-      setDeals((dealsResponse as PagedResult<Deal>).items);
-      setSelectedActivity((current) => current ? activityItems.find((item) => item.id === current.id) ?? null : null);
+      const items = (activitiesRes as PagedResult<Activity>).items;
+      setActivities(items);
+      setDeals((dealsRes as PagedResult<Deal>).items);
+      setSelectedActivity((cur) => cur ? items.find((a) => a.id === cur.id) ?? null : null);
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao carregar atividades.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar atividades" });
+      const msg = err instanceof Error ? err.message : "Erro ao carregar atividades.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao carregar atividades" });
     } finally {
       setLoading(false);
     }
-  }, [token, search]);
-  const { notify } = useNotification();
+  }, [token, search, notify]);
+
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!selectedActivity) {
-      return;
-    }
-
+    if (!selectedActivity) return;
     setEditForm({
       type: selectedActivity.type,
       description: selectedActivity.description,
@@ -92,14 +61,10 @@ export default function ActivitiesPage() {
     });
   }, [selectedActivity]);
 
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.createActivity(token, {
         dealId: form.dealId ? Number(form.dealId) : undefined,
@@ -112,81 +77,62 @@ export default function ActivitiesPage() {
       await load();
       notify({ type: "success", message: "Atividade criada.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao criar atividade.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar atividade" });
+      const msg = err instanceof Error ? err.message : "Erro ao criar atividade.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token || !selectedActivity) {
-      return;
-    }
-
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !selectedActivity) return;
     setSubmitting(true);
-    setError(null);
     try {
-      const type = activityTypeOptions.find((option) => option.label === editForm.type)?.value ?? 1;
-      const status = activityStatusOptions.find((option) => option.label === editForm.status)?.value ?? 1;
+      const typeVal = ACTIVITY_TYPE_OPTIONS.find((o) => o.label === editForm.type)?.value ?? 1;
+      const statusVal = ACTIVITY_STATUS_OPTIONS.find((o) => o.label === editForm.status)?.value ?? 1;
       await api.updateActivity(token, selectedActivity.id, {
-        type,
+        type: typeVal,
         description: editForm.description,
         dueAtUtc: new Date(editForm.dueAtUtc).toISOString(),
-        status,
+        status: statusVal,
         assignedUserId: selectedActivity.assignedUserId ?? null,
       });
       await load();
       notify({ type: "success", message: "Atividade atualizada.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao atualizar atividade.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar atividade" });
+      const msg = err instanceof Error ? err.message : "Erro ao atualizar atividade.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!token || !selectedActivity) {
-      return;
-    }
-
+    if (!token || !selectedActivity) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.deleteActivity(token, selectedActivity.id);
       setSelectedActivity(null);
       await load();
-      notify({ type: "success", message: "Atividade excluida.", title: "Excluido" });
+      notify({ type: "success", message: "Atividade excluída.", title: "Excluída" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao excluir atividade.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir atividades." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir atividade" });
+      const msg = err instanceof Error ? err.message : "Erro ao excluir atividade.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <LoadingState label="Carregando atividades..." />;
-  }
-
-  if (error && activities.length === 0) {
-    return <ErrorState message={error} onRetry={() => void load()} />;
-  }
+  if (loading) return <LoadingState label="Carregando atividades..." />;
+  if (error && activities.length === 0) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
     <div className="page-grid">
       <section className="toolbar-card">
         <label className="field compact">
           <span>Buscar atividade</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Descricao" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Descrição" />
         </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Atualizar lista
@@ -198,7 +144,7 @@ export default function ActivitiesPage() {
           <div className="card-header">
             <div>
               <h3>Timeline de atividades</h3>
-              <p>Com selecao e edicao</p>
+              <p>Com seleção e edição</p>
             </div>
             <span className="tag">{activities.length} itens</span>
           </div>
@@ -213,58 +159,56 @@ export default function ActivitiesPage() {
                 <strong>{activity.description}</strong>
                 <p>{activity.type}</p>
                 <span>
-                  {activity.status} - {formatDate(activity.dueAtUtc)}
+                  {activity.status} — {formatDate(activity.dueAtUtc)}
                 </span>
               </article>
             ))}
+            {activities.length === 0 && (
+              <div className="empty-card">Nenhuma atividade encontrada.</div>
+            )}
           </div>
         </div>
 
-        {canCreate ? (
-        <form className="settings-card form-card" onSubmit={handleCreate}>
-          <div className="card-header">
-            <div>
-              <h3>Nova atividade</h3>
-              <p>Cria tarefas e follow-ups</p>
+        {canCreate && (
+          <form className="settings-card form-card" onSubmit={handleCreate}>
+            <div className="card-header">
+              <div>
+                <h3>Nova atividade</h3>
+                <p>Cria tarefas e follow-ups</p>
+              </div>
+              <span className="tag">Nova</span>
             </div>
-            <span className="tag">Nova</span>
-          </div>
 
-          <label className="field">
-            <span>Negocio</span>
-            <select value={form.dealId} onChange={(event) => setForm((current) => ({ ...current, dealId: event.target.value }))}>
-              <option value="">Sem vinculo</option>
-              {deals.map((deal) => (
-                <option key={deal.id} value={deal.id}>
-                  {deal.leadName} - {deal.stageName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Tipo</span>
-            <select value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}>
-              {activityTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Descricao</span>
-            <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} required />
-          </label>
-          <label className="field">
-            <span>Vencimento</span>
-            <input type="datetime-local" value={form.dueAtUtc} onChange={(event) => setForm((current) => ({ ...current, dueAtUtc: event.target.value }))} required />
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" className="primary-button" disabled={submitting}>
-            {submitting ? "Salvando..." : "Criar atividade"}
-          </button>
-        </form>
-        ) : null}
+            <label className="field">
+              <span>Negócio</span>
+              <select value={form.dealId} onChange={(e) => setForm((f) => ({ ...f, dealId: e.target.value }))}>
+                <option value="">Sem vínculo</option>
+                {deals.map((d) => (
+                  <option key={d.id} value={d.id}>{d.leadName} — {d.stageName}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Tipo</span>
+              <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                {ACTIVITY_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Descrição</span>
+              <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} required />
+            </label>
+            <label className="field">
+              <span>Vencimento</span>
+              <input type="datetime-local" value={form.dueAtUtc} onChange={(e) => setForm((f) => ({ ...f, dueAtUtc: e.target.value }))} required />
+            </label>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? "Salvando..." : "Criar atividade"}
+            </button>
+          </form>
+        )}
 
         <div className="settings-card form-card">
           <div className="card-header">
@@ -278,40 +222,36 @@ export default function ActivitiesPage() {
             <form className="form-card" onSubmit={handleUpdate}>
               <label className="field">
                 <span>Tipo</span>
-                <select value={editForm.type} onChange={(event) => setEditForm((current) => ({ ...current, type: event.target.value }))}>
-                  {activityTypeOptions.map((option) => (
-                    <option key={option.value} value={option.label}>
-                      {option.label}
-                    </option>
+                <select value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))}>
+                  {ACTIVITY_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.label}>{o.label}</option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                <span>Descricao</span>
-                <textarea value={editForm.description} onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))} required />
+                <span>Descrição</span>
+                <textarea value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} required />
               </label>
               <label className="field">
                 <span>Vencimento</span>
-                <input type="datetime-local" value={editForm.dueAtUtc} onChange={(event) => setEditForm((current) => ({ ...current, dueAtUtc: event.target.value }))} required />
+                <input type="datetime-local" value={editForm.dueAtUtc} onChange={(e) => setEditForm((f) => ({ ...f, dueAtUtc: e.target.value }))} required />
               </label>
               <label className="field">
                 <span>Status</span>
-                <select value={editForm.status} onChange={(event) => setEditForm((current) => ({ ...current, status: event.target.value }))}>
-                  {activityStatusOptions.map((option) => (
-                    <option key={option.value} value={option.label}>
-                      {option.label}
-                    </option>
+                <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
+                  {ACTIVITY_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.label}>{o.label}</option>
                   ))}
                 </select>
               </label>
               <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar atividade"}
               </button>
-              {canDelete ? (
+              {canDelete && (
                 <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
                   Excluir atividade
                 </button>
-              ) : null}
+              )}
             </form>
           ) : (
             <div className="empty-card">Selecione uma atividade para editar.</div>

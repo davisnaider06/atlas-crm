@@ -52,7 +52,7 @@ export default function DocumentsPage() {
       const message = err instanceof Error ? err.message : "Erro ao carregar documentos.";
       const status = (err as any)?.status;
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver materiais." : message, title: status === 403 ? "Permissao negada" : "Falha ao carregar materiais" });
+      notify({ type: "error", message: message, title: "Falha ao carregar materiais" });
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export default function DocumentsPage() {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao salvar link.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar materiais." : message, title: status === 403 ? "Permissao negada" : "Falha ao salvar link" });
+      notify({ type: "error", message: message, title: "Falha ao salvar link" });
     } finally {
       setSubmitting(false);
     }
@@ -113,12 +113,12 @@ export default function DocumentsPage() {
       setFileForm({ title: "", description: "", file: null, sector: "", tags: "", isOnboarding: false, visibility: "private" });
       formEl.reset();
       await load();
-        notify({ type: "success", message: "Arquivo enviado com sucesso.", title: "Upload concluido" });
+        notify({ type: "success", message: "Arquivo enviado com sucesso.", title: "Upload concluído" });
     } catch (err) {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao enviar arquivo.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para enviar arquivos." : message, title: status === 403 ? "Permissao negada" : "Falha no upload" });
+      notify({ type: "error", message: message, title: "Falha no upload" });
     } finally {
       setSubmitting(false);
     }
@@ -132,12 +132,12 @@ export default function DocumentsPage() {
     try {
       await api.deleteDocument(token, id);
       await load();
-      notify({ type: "success", message: "Material excluido.", title: "Excluido" });
+      notify({ type: "success", message: "Material excluído.", title: "Excluído" });
     } catch (err) {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao excluir documento.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir este material." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir" });
+      notify({ type: "error", message: message, title: "Erro ao excluir" });
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +151,7 @@ export default function DocumentsPage() {
       <section className="toolbar-card">
         <label className="field compact">
           <span>Buscar documento</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Titulo, descricao ou link" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Título, descrição ou link" />
         </label>
         <label className="field">
           <span>Setor</span>
@@ -166,7 +166,7 @@ export default function DocumentsPage() {
           <select value={filterVisibility} onChange={(event) => setFilterVisibility(event.target.value)}>
             <option value="">Todos</option>
             <option value="private">Privado</option>
-            <option value="public">Publico</option>
+            <option value="public">Público</option>
           </select>
         </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
@@ -184,11 +184,11 @@ export default function DocumentsPage() {
             <span className="tag">Arquivo</span>
           </div>
           <label className="field">
-            <span>Titulo</span>
+            <span>Título</span>
             <input value={fileForm.title} onChange={(event) => setFileForm((current) => ({ ...current, title: event.target.value }))} required />
           </label>
           <label className="field">
-            <span>Descricao</span>
+            <span>Descrição</span>
             <textarea value={fileForm.description} onChange={(event) => setFileForm((current) => ({ ...current, description: event.target.value }))} />
           </label>
           <label className="field">
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
             <span>Visibilidade</span>
             <select value={fileForm.visibility} onChange={(event) => setFileForm((current) => ({ ...current, visibility: event.target.value }))}>
               <option value="private">Privado</option>
-              <option value="public">Publico</option>
+              <option value="public">Público</option>
             </select>
           </label>
           <label className="field">
@@ -228,7 +228,7 @@ export default function DocumentsPage() {
             <span className="tag">Link</span>
           </div>
           <label className="field">
-            <span>Titulo</span>
+            <span>Título</span>
             <input value={linkForm.title} onChange={(event) => setLinkForm((current) => ({ ...current, title: event.target.value }))} required />
           </label>
           <label className="field">
@@ -247,7 +247,7 @@ export default function DocumentsPage() {
             <span>Visibilidade</span>
             <select value={linkForm.visibility} onChange={(event) => setLinkForm((current) => ({ ...current, visibility: event.target.value }))}>
               <option value="private">Privado</option>
-              <option value="public">Publico</option>
+              <option value="public">Público</option>
             </select>
           </label>
           <label className="field">
@@ -255,7 +255,7 @@ export default function DocumentsPage() {
             <input type="url" value={linkForm.url} onChange={(event) => setLinkForm((current) => ({ ...current, url: event.target.value }))} required />
           </label>
           <label className="field">
-            <span>Descricao</span>
+            <span>Descrição</span>
             <textarea value={linkForm.description} onChange={(event) => setLinkForm((current) => ({ ...current, description: event.target.value }))} />
           </label>
           {error ? <p className="form-error">{error}</p> : null}
@@ -269,7 +269,7 @@ export default function DocumentsPage() {
         <div className="card-header">
           <div>
             <h3>Biblioteca Atlas</h3>
-            <p>Arquivos e links disponiveis para o time.</p>
+            <p>Arquivos e links disponíveis para o time.</p>
           </div>
           <span className="tag">{documents.length} itens</span>
         </div>
@@ -277,11 +277,11 @@ export default function DocumentsPage() {
         <table className="table">
           <thead>
             <tr>
-              <th>Titulo</th>
+              <th>Título</th>
               <th>Tipo</th>
               <th>Detalhe</th>
               <th>Criado em</th>
-              <th>Acoes</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -289,7 +289,7 @@ export default function DocumentsPage() {
               <tr key={document.id}>
                 <td>
                   <strong>{document.title}</strong>
-                  <p className="muted-mini">{document.description || "Sem descricao"}</p>
+                  <p className="muted-mini">{document.description || "Sem descrição"}</p>
                   <p className="muted-mini">
                     {document.sector ? <span className="tag small">{document.sector}</span> : null}
                     {document.tags && document.tags.length > 0 ? <span className="muted-mini"> {document.tags.join(", ")}</span> : null}

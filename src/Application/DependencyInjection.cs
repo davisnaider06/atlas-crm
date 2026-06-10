@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IHistoryService, HistoryService>();
         services.AddScoped<IWhatsAppIntegrationService, WhatsAppIntegrationService>();
         services.AddScoped<ITeamMemberService, TeamMemberService>();
+        services.AddScoped<IAppointmentService, AppointmentService>();
 
         return services;
     }

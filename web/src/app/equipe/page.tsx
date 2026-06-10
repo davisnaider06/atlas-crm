@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { useNotification } from "@/components/ui/notification-context";
 import { permissions } from "@/lib/permissions";
 import type { PermissionCatalogItem, TeamMember, UserRole } from "@/lib/types";
-import { useNotification } from "@/components/ui/notification-context";
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: "Admin", label: "Administrador" },
@@ -31,6 +31,9 @@ const defaultPermissionsByRole: Record<UserRole, string[]> = {
     permissions.activitiesCreate,
     permissions.activitiesEdit,
     permissions.documentsView,
+    permissions.schedulesView,
+    permissions.schedulesCreate,
+    permissions.schedulesEdit,
   ],
   Sales: [
     permissions.dashboardView,
@@ -44,6 +47,8 @@ const defaultPermissionsByRole: Record<UserRole, string[]> = {
     permissions.activitiesView,
     permissions.activitiesCreate,
     permissions.activitiesEdit,
+    permissions.schedulesView,
+    permissions.schedulesCreate,
   ],
 };
 
@@ -67,6 +72,8 @@ const emptyForm: MemberForm = {
 
 export default function TeamPage() {
   const { token, user } = useAuth();
+  const { notify } = useNotification();
+
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalogItem[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
@@ -76,41 +83,30 @@ export default function TeamPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [memberResponse, catalogResponse] = await Promise.all([
+      const [memberRes, catalogRes] = await Promise.all([
         api.getTeamMembers(token),
         api.getPermissionCatalog(token),
       ]);
-      setMembers(memberResponse);
-      setCatalog(catalogResponse);
-      setSelectedMember((current) => current ? memberResponse.find((item) => item.id === current.id) ?? null : null);
+      setMembers(memberRes);
+      setCatalog(catalogRes);
+      setSelectedMember((cur) => cur ? memberRes.find((m) => m.id === cur.id) ?? null : null);
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao carregar equipe.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver a equipe." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar equipe" });
+      const msg = err instanceof Error ? err.message : "Erro ao carregar equipe.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao carregar equipe" });
     } finally {
       setLoading(false);
     }
-  }, [token]);
-  const { notify } = useNotification();
+  }, [token, notify]);
+
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!selectedMember) {
-      setForm(emptyForm);
-      return;
-    }
-
+    if (!selectedMember) { setForm(emptyForm); return; }
     setForm({
       name: selectedMember.name,
       email: selectedMember.email,
@@ -128,34 +124,28 @@ export default function TeamPage() {
     }, {});
   }, [catalog]);
 
-  const activeMembers = members.filter((member) => member.isActive).length;
+  const activeMembers = members.filter((m) => m.isActive).length;
 
   const updateRole = (role: UserRole) => {
-    setForm((current) => ({
-      ...current,
+    setForm((cur) => ({
+      ...cur,
       role,
-      permissions: role === "Admin" ? Object.values(permissions) : defaultPermissionsByRole[role],
+      permissions: defaultPermissionsByRole[role],
     }));
   };
 
   const togglePermission = (permission: string) => {
-    setForm((current) => {
-      const hasCurrent = current.permissions.includes(permission);
-      return {
-        ...current,
-        permissions: hasCurrent
-          ? current.permissions.filter((item) => item !== permission)
-          : [...current.permissions, permission],
-      };
-    });
+    setForm((cur) => ({
+      ...cur,
+      permissions: cur.permissions.includes(permission)
+        ? cur.permissions.filter((p) => p !== permission)
+        : [...cur.permissions, permission],
+    }));
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -176,35 +166,28 @@ export default function TeamPage() {
           permissions: form.permissions,
         });
       }
-
       setSelectedMember(null);
       setForm(emptyForm);
       await load();
       notify({ type: "success", message: "Membro salvo com sucesso.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao salvar membro.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para gerir membros." : message, title: status === 403 ? "Permissao negada" : "Erro ao salvar membro" });
+      const msg = err instanceof Error ? err.message : "Erro ao salvar membro.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao salvar membro" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <LoadingState label="Carregando equipe..." />;
-  }
-
-  if (error && members.length === 0) {
-    return <ErrorState message={error} onRetry={() => void load()} />;
-  }
+  if (loading) return <LoadingState label="Carregando equipe..." />;
+  if (error && members.length === 0) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
     <div className="page-grid">
       <section className="lead-command-card">
         <div>
           <p className="eyebrow">Controle de acesso</p>
-          <h2>Funcionarios, tipos de conta e permissoes no mesmo lugar.</h2>
+          <h2>Funcionários, tipos de conta e permissões no mesmo lugar.</h2>
         </div>
         <div className="lead-metrics">
           <article>
@@ -217,7 +200,7 @@ export default function TeamPage() {
           </article>
           <article>
             <span>Admins</span>
-            <strong>{members.filter((member) => member.role === "Admin").length}</strong>
+            <strong>{members.filter((m) => m.role === "Admin").length}</strong>
           </article>
         </div>
       </section>
@@ -227,15 +210,12 @@ export default function TeamPage() {
           <div className="card-header">
             <div>
               <h3>Membros da equipe</h3>
-              <p>Selecione uma pessoa para editar acesso e permissoes.</p>
+              <p>Selecione uma pessoa para editar acesso e permissões.</p>
             </div>
             <button
               type="button"
               className="ghost-button"
-              onClick={() => {
-                setSelectedMember(null);
-                setForm(emptyForm);
-              }}
+              onClick={() => { setSelectedMember(null); setForm(emptyForm); }}
             >
               Novo membro
             </button>
@@ -252,17 +232,17 @@ export default function TeamPage() {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
+              {members.map((m) => (
                 <tr
-                  key={member.id}
-                  className={selectedMember?.id === member.id ? "row-active" : ""}
-                  onClick={() => setSelectedMember(member)}
+                  key={m.id}
+                  className={selectedMember?.id === m.id ? "row-active" : ""}
+                  onClick={() => setSelectedMember(m)}
                 >
-                  <td>{member.name}</td>
-                  <td>{member.email}</td>
-                  <td>{member.role}</td>
-                  <td>{member.isActive ? "Ativo" : "Inativo"}</td>
-                  <td>{formatDate(member.createdAtUtc)}</td>
+                  <td>{m.name}</td>
+                  <td>{m.email}</td>
+                  <td>{m.role}</td>
+                  <td>{m.isActive ? "Ativo" : "Inativo"}</td>
+                  <td>{formatDate(m.createdAtUtc)}</td>
                 </tr>
               ))}
             </tbody>
@@ -273,76 +253,72 @@ export default function TeamPage() {
           <div className="card-header">
             <div>
               <h3>{selectedMember ? "Editar membro" : "Cadastrar membro"}</h3>
-              <p>{selectedMember ? selectedMember.email : "Crie o acesso inicial do funcionario."}</p>
+              <p>{selectedMember ? selectedMember.email : "Crie o acesso inicial do funcionário."}</p>
             </div>
             {selectedMember ? <span className="tag">#{selectedMember.id}</span> : <span className="tag">Novo</span>}
           </div>
 
           <label className="field">
             <span>Nome</span>
-            <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           </label>
           <label className="field">
             <span>Email</span>
             <input
               type="email"
               value={form.email}
-              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               disabled={Boolean(selectedMember)}
               required
             />
           </label>
           <label className="field">
-            <span>{selectedMember ? "Nova senha" : "Senha"}</span>
+            <span>{selectedMember ? "Nova senha (opcional)" : "Senha"}</span>
             <input
               type="password"
               value={form.password}
-              onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               required={!selectedMember}
             />
           </label>
           <label className="field">
             <span>Tipo</span>
-            <select value={form.role} onChange={(event) => updateRole(event.target.value as UserRole)}>
-              {roleOptions.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
+            <select value={form.role} onChange={(e) => updateRole(e.target.value as UserRole)}>
+              {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </label>
 
-          {selectedMember?.id !== user?.userId ? (
+          {selectedMember?.id !== user?.userId && (
             <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={form.isActive}
-                onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))}
+                onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
               />
               <span>Membro ativo</span>
             </label>
-          ) : null}
+          )}
 
           <div className="permission-groups">
             {Object.entries(groupedCatalog).map(([group, items]) => (
               <fieldset key={group} className="permission-group">
                 <legend>{group}</legend>
-                {items.map((permission) => (
-                  <label key={permission.key} className="toggle-row">
+                {items.map((perm) => (
+                  <label key={perm.key} className="toggle-row">
                     <input
                       type="checkbox"
-                      checked={form.role === "Admin" || form.permissions.includes(permission.key)}
-                      onChange={() => togglePermission(permission.key)}
+                      checked={form.role === "Admin" || form.permissions.includes(perm.key)}
+                      onChange={() => togglePermission(perm.key)}
                       disabled={form.role === "Admin"}
                     />
-                    <span>{permission.label}</span>
+                    <span>{perm.label}</span>
                   </label>
                 ))}
               </fieldset>
             ))}
           </div>
 
-          {error ? <p className="form-error">{error}</p> : null}
+          {error && <p className="form-error">{error}</p>}
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Salvando..." : selectedMember ? "Salvar membro" : "Cadastrar membro"}
           </button>

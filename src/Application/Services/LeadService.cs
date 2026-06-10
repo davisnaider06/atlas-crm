@@ -108,7 +108,7 @@ public sealed class LeadService : ILeadService
 
     public async Task<LeadDto> CreateAsync(CreateLeadRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
         var lead = new Lead
         {
             CompanyId = user.CompanyId,
@@ -152,7 +152,7 @@ public sealed class LeadService : ILeadService
     public async Task<LeadDto> UpdateAsync(long id, UpdateLeadRequest request, CancellationToken cancellationToken = default)
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Lead nao encontrado.", 404);
+            ?? throw new AppException("Lead não encontrado.", 404);
 
         lead.Name = request.Name.Trim();
         lead.Email = request.Email?.Trim();
@@ -192,12 +192,12 @@ public sealed class LeadService : ILeadService
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Lead nao encontrado.", 404);
+            ?? throw new AppException("Lead não encontrado.", 404);
 
         var hasDeals = await _dbContext.Deals.AnyAsync(x => x.LeadId == id, cancellationToken);
         if (hasDeals)
         {
-            throw new AppException("Nao e possivel excluir um lead com negocios vinculados.", 409);
+            throw new AppException("Não é possível excluir um lead com negócios vinculados.", 409);
         }
 
         _dbContext.Leads.Remove(lead);

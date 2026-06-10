@@ -6,28 +6,19 @@ import { read, utils } from "xlsx";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { useNotification } from "@/components/ui/notification-context";
+import { WHATSAPP_PROVIDER_OPTIONS, WHATSAPP_STATUS_OPTIONS } from "@/lib/constants";
 import type {
   WhatsAppCampaignRecipient,
   WhatsAppCampaignResult,
   WhatsAppConnectionSession,
   WhatsAppIntegration,
 } from "@/lib/types";
-import { useNotification } from "@/components/ui/notification-context";
-
-const whatsAppProviders = [
-  { value: 1, label: "Evolution" },
-  { value: 2, label: "MetaCloud" },
-  { value: 3, label: "ZApi" },
-];
-
-const whatsAppStatus = [
-  { value: 1, label: "Disconnected" },
-  { value: 2, label: "Pending" },
-  { value: 3, label: "Connected" },
-];
 
 export default function WhatsAppPage() {
   const { token, user } = useAuth();
+  const { notify } = useNotification();
+
   const [integration, setIntegration] = useState<WhatsAppIntegration | null>(null);
   const [session, setSession] = useState<WhatsAppConnectionSession | null>(null);
   const [campaignResult, setCampaignResult] = useState<WhatsAppCampaignResult | null>(null);
@@ -51,63 +42,48 @@ export default function WhatsAppPage() {
   const [campaignMessage, setCampaignMessage] = useState("Oi {{nome}}, tudo bem? Quero te apresentar nossa proposta.");
 
   const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [integrationResponse, sessionResponse] = await Promise.all([
+      const [integrationRes, sessionRes] = await Promise.all([
         api.getWhatsAppIntegration(token),
         api.getWhatsAppSession(token).catch(() => null),
       ]);
-
-      setIntegration(integrationResponse);
-      setSession(sessionResponse);
+      setIntegration(integrationRes);
+      setSession(sessionRes);
       setForm({
-        provider: String(whatsAppProviders.find((item) => item.label === integrationResponse.provider)?.value ?? 1),
-        instanceName: integrationResponse.instanceName ?? "atlas-demo",
-        phoneNumber: integrationResponse.phoneNumber ?? "",
-        webhookUrl: integrationResponse.webhookUrl ?? "",
-        apiBaseUrl: integrationResponse.apiBaseUrl ?? "",
+        provider: String(WHATSAPP_PROVIDER_OPTIONS.find((p) => p.label === integrationRes.provider)?.value ?? 1),
+        instanceName: integrationRes.instanceName ?? "atlas-demo",
+        phoneNumber: integrationRes.phoneNumber ?? "",
+        webhookUrl: integrationRes.webhookUrl ?? "",
+        apiBaseUrl: integrationRes.apiBaseUrl ?? "",
         apiToken: "",
-        captureLeadsEnabled: integrationResponse.captureLeadsEnabled,
-        broadcastEnabled: integrationResponse.broadcastEnabled,
-        status: String(whatsAppStatus.find((item) => item.label === integrationResponse.status)?.value ?? 1),
+        captureLeadsEnabled: integrationRes.captureLeadsEnabled,
+        broadcastEnabled: integrationRes.broadcastEnabled,
+        status: String(WHATSAPP_STATUS_OPTIONS.find((s) => s.label === integrationRes.status)?.value ?? 1),
       });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao carregar modulo WhatsApp.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver o modulo WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar WhatsApp" });
+      const msg = err instanceof Error ? err.message : "Erro ao carregar módulo WhatsApp.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao carregar WhatsApp" });
     } finally {
       setLoading(false);
     }
-  }, [token]);
-  const { notify } = useNotification();
+  }, [token, notify]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const webhookPreview = useMemo(() => {
-    if (typeof window === "undefined" || !integration?.id) {
-      return "";
-    }
-
+    if (typeof window === "undefined" || !integration?.id) return "";
     const companyId = user?.companyId ?? 1;
     return `${window.location.origin.replace(":3000", ":8080")}/whatsapp/webhook/${companyId}`;
   }, [integration?.id, user?.companyId]);
 
-  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token) return;
     setSaving(true);
-    setError(null);
     try {
       await api.saveWhatsAppIntegration(token, {
         provider: Number(form.provider),
@@ -121,115 +97,83 @@ export default function WhatsAppPage() {
         status: Number(form.status),
       });
       await load();
-      notify({ type: "success", message: "Configuracao salva.", title: "Sucesso" });
+      notify({ type: "success", message: "Configuração salva.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao salvar configuracao do WhatsApp.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para alterar a integracao do WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao salvar WhatsApp" });
+      const msg = err instanceof Error ? err.message : "Erro ao salvar configuração do WhatsApp.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao salvar WhatsApp" });
     } finally {
       setSaving(false);
     }
   };
 
   const handleConnect = async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setConnecting(true);
-    setError(null);
     try {
-      const response = await api.connectWhatsApp(token);
-      setSession(response);
+      const res = await api.connectWhatsApp(token);
+      setSession(res);
       await load();
-      notify({ type: "success", message: "Sessao iniciada.", title: "Sucesso" });
+      notify({ type: "success", message: "Sessão iniciada.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao solicitar QR Code.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para conectar WhatsApp." : message, title: status === 403 ? "Permissao negada" : "Erro ao gerar QR" });
+      const msg = err instanceof Error ? err.message : "Erro ao solicitar QR Code.";
+      notify({ type: "error", message: msg, title: "Erro ao gerar QR" });
     } finally {
       setConnecting(false);
     }
   };
 
   const handleRefreshSession = async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setConnecting(true);
-    setError(null);
     try {
-      const response = await api.getWhatsAppSession(token);
-      setSession(response);
+      const res = await api.getWhatsAppSession(token);
+      setSession(res);
       await load();
-      notify({ type: "success", message: "Sessao atualizada.", title: "Sucesso" });
+      notify({ type: "success", message: "Sessão atualizada.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao atualizar sessao.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para atualizar sessao." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar sessao" });
+      const msg = err instanceof Error ? err.message : "Erro ao atualizar sessão.";
+      notify({ type: "error", message: msg, title: "Erro ao atualizar sessão" });
     } finally {
       setConnecting(false);
     }
   };
 
-  const handleFileImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+  const handleFileImport = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     const buffer = await file.arrayBuffer();
     const workbook = read(buffer, { type: "array" });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" });
-
-    const mappedRecipients = rows
+    const mapped = rows
       .map((row) => ({
         name: String(row.nome ?? row.name ?? row.Nome ?? "").trim(),
         phoneNumber: String(row.telefone ?? row.phone ?? row.Telefone ?? row.celular ?? "").trim(),
       }))
-      .filter((row) => row.name && row.phoneNumber);
-
-    setRecipients(mappedRecipients);
+      .filter((r) => r.name && r.phoneNumber);
+    setRecipients(mapped);
   };
 
-  const handleSendCampaign = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-
+  const handleSendCampaign = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token) return;
     setSending(true);
-    setError(null);
     setCampaignResult(null);
     try {
-      const response = await api.sendWhatsAppCampaign(token, {
-        message: campaignMessage,
-        recipients,
-      });
-      setCampaignResult(response);
-      notify({ type: "success", message: `Campanha enviada: ${response.sentCount} mensagens.`, title: "Campanha enviada" });
+      const res = await api.sendWhatsAppCampaign(token, { message: campaignMessage, recipients });
+      setCampaignResult(res);
+      notify({ type: "success", message: `Campanha enviada: ${res.sentCount} mensagens.`, title: "Campanha enviada" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao disparar campanha.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para enviar campanhas." : message, title: status === 403 ? "Permissao negada" : "Erro ao enviar campanha" });
+      const msg = err instanceof Error ? err.message : "Erro ao disparar campanha.";
+      notify({ type: "error", message: msg, title: "Erro ao enviar campanha" });
     } finally {
       setSending(false);
     }
   };
 
-  if (loading) {
-    return <LoadingState label="Carregando modulo WhatsApp..." />;
-  }
-
-  if (error && !integration) {
-    return <ErrorState message={error} onRetry={() => void load()} />;
-  }
+  if (loading) return <LoadingState label="Carregando módulo WhatsApp..." />;
+  if (error && !integration) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
     <div className="page-grid">
@@ -238,70 +182,62 @@ export default function WhatsAppPage() {
           <div className="card-header">
             <div>
               <h3>Conectar WhatsApp</h3>
-              <p>Configure a instancia, salve e gere o QR Code para logar como no WhatsApp Web.</p>
+              <p>Configure a instância, salve e gere o QR Code para logar como no WhatsApp Web.</p>
             </div>
             <span className="tag">{integration?.status ?? "Disconnected"}</span>
           </div>
 
           <label className="field">
             <span>Provedor</span>
-            <select value={form.provider} onChange={(event) => setForm((current) => ({ ...current, provider: event.target.value }))}>
-              {whatsAppProviders.map((provider) => (
-                <option key={provider.value} value={provider.value}>
-                  {provider.label}
-                </option>
-              ))}
+            <select value={form.provider} onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}>
+              {WHATSAPP_PROVIDER_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </label>
           <label className="field">
-            <span>Nome da instancia</span>
-            <input value={form.instanceName} onChange={(event) => setForm((current) => ({ ...current, instanceName: event.target.value }))} required />
+            <span>Nome da instância</span>
+            <input value={form.instanceName} onChange={(e) => setForm((f) => ({ ...f, instanceName: e.target.value }))} required />
           </label>
           <label className="field">
-            <span>Numero principal</span>
-            <input value={form.phoneNumber} onChange={(event) => setForm((current) => ({ ...current, phoneNumber: event.target.value }))} required />
+            <span>Número principal</span>
+            <input value={form.phoneNumber} onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))} required />
           </label>
           <label className="field">
             <span>API Base URL</span>
-            <input value={form.apiBaseUrl} onChange={(event) => setForm((current) => ({ ...current, apiBaseUrl: event.target.value }))} placeholder="https://sua-evolution-api/" />
+            <input value={form.apiBaseUrl} onChange={(e) => setForm((f) => ({ ...f, apiBaseUrl: e.target.value }))} placeholder="https://sua-evolution-api/" />
           </label>
           <label className="field">
             <span>API Token</span>
-            <input value={form.apiToken} onChange={(event) => setForm((current) => ({ ...current, apiToken: event.target.value }))} placeholder="apikey da Evolution API" />
+            <input value={form.apiToken} onChange={(e) => setForm((f) => ({ ...f, apiToken: e.target.value }))} placeholder="apikey da Evolution API" />
           </label>
           <label className="field">
             <span>Webhook URL</span>
-            <input value={form.webhookUrl} onChange={(event) => setForm((current) => ({ ...current, webhookUrl: event.target.value }))} placeholder={webhookPreview || "http://api/whatsapp/webhook/empresa"} />
+            <input value={form.webhookUrl} onChange={(e) => setForm((f) => ({ ...f, webhookUrl: e.target.value }))} placeholder={webhookPreview || "http://api/whatsapp/webhook/empresa"} />
           </label>
           <label className="checkbox-row">
-            <input type="checkbox" checked={form.captureLeadsEnabled} onChange={(event) => setForm((current) => ({ ...current, captureLeadsEnabled: event.target.checked }))} />
+            <input type="checkbox" checked={form.captureLeadsEnabled} onChange={(e) => setForm((f) => ({ ...f, captureLeadsEnabled: e.target.checked }))} />
             <span>Capturar leads a partir das mensagens recebidas</span>
           </label>
           <label className="checkbox-row">
-            <input type="checkbox" checked={form.broadcastEnabled} onChange={(event) => setForm((current) => ({ ...current, broadcastEnabled: event.target.checked }))} />
+            <input type="checkbox" checked={form.broadcastEnabled} onChange={(e) => setForm((f) => ({ ...f, broadcastEnabled: e.target.checked }))} />
             <span>Permitir disparos em massa</span>
           </label>
           <label className="field">
             <span>Status</span>
-            <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
-              {whatsAppStatus.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
+            <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+              {WHATSAPP_STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </label>
-          {error ? <p className="form-error">{error}</p> : null}
+          {error && <p className="form-error">{error}</p>}
           <button type="submit" className="primary-button" disabled={saving}>
-            {saving ? "Salvando..." : "Salvar configuracao"}
+            {saving ? "Salvando..." : "Salvar configuração"}
           </button>
         </form>
 
         <div className="settings-card form-card">
           <div className="card-header">
             <div>
-              <h3>QR Code de conexao</h3>
-              <p>Depois de salvar a instancia, gere o QR e escaneie com o seu WhatsApp.</p>
+              <h3>QR Code de conexão</h3>
+              <p>Depois de salvar a instância, gere o QR e escaneie com o seu WhatsApp.</p>
             </div>
             <span className="tag">{session?.status ?? integration?.status ?? "Pending"}</span>
           </div>
@@ -318,24 +254,24 @@ export default function WhatsAppPage() {
               />
             ) : (
               <div className="qr-placeholder">
-                <strong>QR ainda nao gerado</strong>
-                <p>Salve a integracao e clique em gerar QR Code.</p>
+                <strong>QR ainda não gerado</strong>
+                <p>Salve a integração e clique em gerar QR Code.</p>
               </div>
             )}
           </div>
 
           <div className="session-meta">
             <div>
-              <strong>Instancia</strong>
-              <span>{session?.instanceName ?? integration?.instanceName ?? "-"}</span>
+              <strong>Instância</strong>
+              <span>{session?.instanceName ?? integration?.instanceName ?? "—"}</span>
             </div>
             <div>
               <strong>Status</strong>
-              <span>{session?.status ?? integration?.status ?? "-"}</span>
+              <span>{session?.status ?? integration?.status ?? "—"}</span>
             </div>
             <div>
-              <strong>Numero conectado</strong>
-              <span>{session?.phoneNumber ?? integration?.phoneNumber ?? "-"}</span>
+              <strong>Número conectado</strong>
+              <span>{session?.phoneNumber ?? integration?.phoneNumber ?? "—"}</span>
             </div>
           </div>
 
@@ -355,18 +291,18 @@ export default function WhatsAppPage() {
           <div className="card-header">
             <div>
               <h3>Campanha em massa por planilha</h3>
-              <p>Suba um Excel com colunas `nome` e `telefone`, escreva a mensagem e dispare.</p>
+              <p>Suba um Excel com colunas <code>nome</code> e <code>telefone</code>, escreva a mensagem e dispare.</p>
             </div>
             <span className="tag">{recipients.length} contatos</span>
           </div>
 
           <label className="field">
             <span>Importar planilha</span>
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void handleFileImport(event)} />
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => void handleFileImport(e)} />
           </label>
           <label className="field">
             <span>Mensagem</span>
-            <textarea value={campaignMessage} onChange={(event) => setCampaignMessage(event.target.value)} required />
+            <textarea value={campaignMessage} onChange={(e) => setCampaignMessage(e.target.value)} required />
           </label>
           <button type="submit" className="primary-button" disabled={sending || recipients.length === 0}>
             {sending ? "Enviando..." : "Enviar campanha"}
@@ -379,7 +315,7 @@ export default function WhatsAppPage() {
               <h3>Contatos importados</h3>
               <p>Preview do que vai sair na campanha.</p>
             </div>
-            {campaignResult ? <span className="tag">{campaignResult.sentCount} enviados</span> : null}
+            {campaignResult && <span className="tag">{campaignResult.sentCount} enviados</span>}
           </div>
 
           <table className="table">
@@ -391,18 +327,19 @@ export default function WhatsAppPage() {
               </tr>
             </thead>
             <tbody>
-              {recipients.map((recipient) => {
-                const dispatch = campaignResult?.results.find((item) => item.phoneNumber === recipient.phoneNumber);
+              {recipients.map((r) => {
+                const dispatch = campaignResult?.results.find((d) => d.phoneNumber === r.phoneNumber);
                 return (
-                  <tr key={`${recipient.phoneNumber}-${recipient.name}`}>
-                    <td>{recipient.name}</td>
-                    <td>{recipient.phoneNumber}</td>
+                  <tr key={`${r.phoneNumber}-${r.name}`}>
+                    <td>{r.name}</td>
+                    <td>{r.phoneNumber}</td>
                     <td>{dispatch ? (dispatch.success ? "Enviado" : dispatch.error ?? "Falhou") : "Pendente"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          {recipients.length === 0 && <div className="empty-card">Nenhum contato importado ainda.</div>}
         </div>
       </section>
     </div>

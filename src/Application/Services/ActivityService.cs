@@ -68,14 +68,14 @@ public sealed class ActivityService : IActivityService
 
     public async Task<ActivityDto> CreateAsync(CreateActivityRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
 
         if (request.DealId.HasValue)
         {
             var exists = await _dbContext.Deals.AnyAsync(x => x.Id == request.DealId.Value, cancellationToken);
             if (!exists)
             {
-                throw new AppException("Negocio nao encontrado.", 404);
+                throw new AppException("Negócio não encontrado.", 404);
             }
         }
 
@@ -113,7 +113,7 @@ public sealed class ActivityService : IActivityService
     public async Task<ActivityDto> UpdateAsync(long id, UpdateActivityRequest request, CancellationToken cancellationToken = default)
     {
         var activity = await _dbContext.Activities.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Atividade nao encontrada.", 404);
+            ?? throw new AppException("Atividade não encontrada.", 404);
 
         activity.Type = request.Type;
         activity.Description = request.Description.Trim();
@@ -144,7 +144,7 @@ public sealed class ActivityService : IActivityService
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var activity = await _dbContext.Activities.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Atividade nao encontrada.", 404);
+            ?? throw new AppException("Atividade não encontrada.", 404);
 
         _dbContext.Activities.Remove(activity);
         await _dbContext.SaveChangesAsync(cancellationToken);

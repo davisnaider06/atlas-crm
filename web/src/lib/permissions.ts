@@ -26,6 +26,10 @@ export const permissions = {
   whatsAppManage: "whatsapp.manage",
   settingsView: "settings.view",
   teamManage: "team.manage",
+  schedulesView: "schedules.view",
+  schedulesCreate: "schedules.create",
+  schedulesEdit: "schedules.edit",
+  schedulesDelete: "schedules.delete",
 } as const;
 
 export function hasPermission(user: AuthResponse | null, permission: string) {

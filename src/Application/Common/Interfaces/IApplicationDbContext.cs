@@ -21,6 +21,7 @@ public interface IApplicationDbContext
     DbSet<User> Users { get; }
     DbSet<UserPermission> UserPermissions { get; }
     DbSet<WhatsAppIntegration> WhatsAppIntegrations { get; }
+    DbSet<Appointment> Appointments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

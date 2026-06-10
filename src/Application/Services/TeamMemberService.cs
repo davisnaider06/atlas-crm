@@ -37,7 +37,7 @@ public sealed class TeamMemberService : ITeamMemberService
 
     public async Task<TeamMemberDto> CreateAsync(CreateTeamMemberRequest request, CancellationToken cancellationToken = default)
     {
-        var companyId = _currentUserService.User?.CompanyId ?? throw new AppException("Usuario nao autenticado.", 401);
+        var companyId = _currentUserService.User?.CompanyId ?? throw new AppException("Usuário não autenticado.", 401);
         var email = request.Email.Trim().ToLowerInvariant();
 
         if (string.IsNullOrWhiteSpace(request.Name) ||
@@ -50,7 +50,7 @@ public sealed class TeamMemberService : ITeamMemberService
         var exists = await _dbContext.Users.AnyAsync(x => x.Email == email, cancellationToken);
         if (exists)
         {
-            throw new AppException("Ja existe um membro com este email.", 409);
+            throw new AppException("Já existe um membro com este email.", 409);
         }
 
         var user = new User
@@ -72,19 +72,19 @@ public sealed class TeamMemberService : ITeamMemberService
 
     public async Task<TeamMemberDto> UpdateAsync(long id, UpdateTeamMemberRequest request, CancellationToken cancellationToken = default)
     {
-        var currentUserId = _currentUserService.User?.UserId ?? throw new AppException("Usuario nao autenticado.", 401);
+        var currentUserId = _currentUserService.User?.UserId ?? throw new AppException("Usuário não autenticado.", 401);
         var user = await _dbContext.Users
             .Include(x => x.Permissions)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (user is null)
         {
-            throw new AppException("Membro nao encontrado.", 404);
+            throw new AppException("Membro não encontrado.", 404);
         }
 
         if (user.Id == currentUserId && (!request.IsActive || request.Role != UserRole.Admin))
         {
-            throw new AppException("Voce nao pode remover seu proprio acesso administrativo.", 400);
+            throw new AppException("Você não pode remover seu próprio acesso administrativo.", 400);
         }
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -119,9 +119,9 @@ public sealed class TeamMemberService : ITeamMemberService
             Item(CrmPermissions.CustomersEdit, "Editar clientes", "Clientes"),
             Item(CrmPermissions.CustomersDelete, "Excluir clientes", "Clientes"),
             Item(CrmPermissions.DealsView, "Ver pipeline", "Pipeline"),
-            Item(CrmPermissions.DealsCreate, "Criar negocios", "Pipeline"),
-            Item(CrmPermissions.DealsEdit, "Editar/mover negocios", "Pipeline"),
-            Item(CrmPermissions.DealsDelete, "Excluir negocios", "Pipeline"),
+            Item(CrmPermissions.DealsCreate, "Criar negócios", "Pipeline"),
+            Item(CrmPermissions.DealsEdit, "Editar/mover negócios", "Pipeline"),
+            Item(CrmPermissions.DealsDelete, "Excluir negócios", "Pipeline"),
             Item(CrmPermissions.ActivitiesView, "Ver atividades", "Atividades"),
             Item(CrmPermissions.ActivitiesCreate, "Criar atividades", "Atividades"),
             Item(CrmPermissions.ActivitiesEdit, "Editar atividades", "Atividades"),
@@ -130,10 +130,14 @@ public sealed class TeamMemberService : ITeamMemberService
             Item(CrmPermissions.DocumentsCreate, "Criar documentos", "Documentos"),
             Item(CrmPermissions.DocumentsDelete, "Excluir documentos", "Documentos"),
             Item(CrmPermissions.FinanceManage, "Gerenciar financeiro", "Financeiro"),
-            Item(CrmPermissions.WhatsAppManage, "Gerenciar WhatsApp", "Integracoes"),
-            Item(CrmPermissions.AutomationsManage, "Gerenciar automacoes", "Configuracoes"),
-            Item(CrmPermissions.SettingsView, "Ver configuracoes", "Configuracoes"),
-            Item(CrmPermissions.TeamManage, "Gerenciar equipe", "Equipe")
+            Item(CrmPermissions.WhatsAppManage, "Gerenciar WhatsApp", "Integrações"),
+            Item(CrmPermissions.AutomationsManage, "Gerenciar automações", "Configurações"),
+            Item(CrmPermissions.SettingsView, "Ver configurações", "Configurações"),
+            Item(CrmPermissions.TeamManage, "Gerenciar equipe", "Equipe"),
+            Item(CrmPermissions.SchedulesView, "Ver agenda", "Agenda"),
+            Item(CrmPermissions.SchedulesCreate, "Criar agendamentos", "Agenda"),
+            Item(CrmPermissions.SchedulesEdit, "Editar agendamentos", "Agenda"),
+            Item(CrmPermissions.SchedulesDelete, "Excluir agendamentos", "Agenda")
         };
 
         return Task.FromResult((IReadOnlyList<PermissionCatalogItemDto>)catalog);

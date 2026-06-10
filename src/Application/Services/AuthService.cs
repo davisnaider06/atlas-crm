@@ -37,7 +37,7 @@ public sealed class AuthService : IAuthService
 
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
-            throw new AppException("Credenciais invalidas.", 401);
+            throw new AppException("Credenciais inválidas.", 401);
         }
 
         var tokens = _tokenService.CreateTokens(user);
@@ -81,7 +81,7 @@ public sealed class AuthService : IAuthService
         var emailExists = await _dbContext.Users.IgnoreQueryFilters().AnyAsync(x => x.Email == email, cancellationToken);
         if (emailExists)
         {
-            throw new AppException("Ja existe um usuario com este email.", 409);
+            throw new AppException("Já existe um usuário com este email.", 409);
         }
 
         var company = new Company
@@ -155,7 +155,7 @@ public sealed class AuthService : IAuthService
 
         if (refresh?.User is null || refresh.ExpiresAtUtc <= DateTime.UtcNow)
         {
-            throw new AppException("Refresh token invalido.", 401);
+            throw new AppException("Refresh token inválido.", 401);
         }
 
         refresh.IsRevoked = true;

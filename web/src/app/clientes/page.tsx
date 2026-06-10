@@ -5,11 +5,13 @@ import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
-import type { Customer, Lead, PagedResult } from "@/lib/types";
 import { useNotification } from "@/components/ui/notification-context";
+import type { Customer, Lead, PagedResult } from "@/lib/types";
 
 export default function CustomersPage() {
   const { token, user } = useAuth();
+  const { notify } = useNotification();
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -17,55 +19,39 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    leadId: "",
-  });
-  const { notify } = useNotification();
-  const [editForm, setEditForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    leadId: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", leadId: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", leadId: "" });
+
+  const canCreate = hasPermission(user, permissions.customersCreate);
+  const canEdit = hasPermission(user, permissions.customersEdit);
+  const canDelete = hasPermission(user, permissions.customersDelete);
 
   const load = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [customersResponse, leadsResponse] = await Promise.all([
+      const [customersRes, leadsRes] = await Promise.all([
         api.getCustomers(token, { search: search || undefined }),
         api.getLeads(token),
       ]);
-      const customerItems = (customersResponse as PagedResult<Customer>).items;
-      setCustomers(customerItems);
-      setLeads((leadsResponse as PagedResult<Lead>).items);
-      setSelectedCustomer((current) => current ? customerItems.find((item) => item.id === current.id) ?? null : null);
+      const items = (customersRes as PagedResult<Customer>).items;
+      setCustomers(items);
+      setLeads((leadsRes as PagedResult<Lead>).items);
+      setSelectedCustomer((cur) => cur ? items.find((c) => c.id === cur.id) ?? null : null);
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao carregar clientes.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar clientes" });
+      const msg = err instanceof Error ? err.message : "Erro ao carregar clientes.";
+      setError(msg);
+      notify({ type: "error", message: msg, title: "Erro ao carregar clientes" });
     } finally {
       setLoading(false);
     }
-  }, [token, search]);
+  }, [token, search, notify]);
+
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!selectedCustomer) {
-      return;
-    }
-
+    if (!selectedCustomer) return;
     setEditForm({
       name: selectedCustomer.name,
       email: selectedCustomer.email ?? "",
@@ -75,21 +61,14 @@ export default function CustomersPage() {
   }, [selectedCustomer]);
 
   const convertibleLeads = useMemo(
-    () => leads.filter((lead) => lead.status !== "Converted" && !customers.some((customer) => customer.leadId === lead.id)),
+    () => leads.filter((l) => l.status !== "Converted" && !customers.some((c) => c.leadId === l.id)),
     [customers, leads],
   );
-  const canCreate = hasPermission(user, permissions.customersCreate);
-  const canEdit = hasPermission(user, permissions.customersEdit);
-  const canDelete = hasPermission(user, permissions.customersDelete);
 
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token) {
-      return;
-    }
-
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.createCustomer(token, {
         name: form.name,
@@ -99,47 +78,35 @@ export default function CustomersPage() {
       });
       setForm({ name: "", email: "", phone: "", leadId: "" });
       await load();
-      notify({ type: "success", message: "Cliente criado com sucesso.", title: "Sucesso" });
+      notify({ type: "success", message: "Cliente criado.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao criar cliente.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar cliente" });
+      const msg = err instanceof Error ? err.message : "Erro ao criar cliente.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleConvertLead = async (leadId: number) => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     setSubmitting(true);
-    setError(null);
     try {
       const customer = await api.convertLeadToCustomer(token, leadId);
       setSelectedCustomer(customer);
       await load();
       notify({ type: "success", message: "Lead convertido com sucesso.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao converter lead.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para converter leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao converter lead" });
+      const msg = err instanceof Error ? err.message : "Erro ao converter lead.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!token || !selectedCustomer) {
-      return;
-    }
-
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !selectedCustomer) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.updateCustomer(token, selectedCustomer.id, {
         name: editForm.name,
@@ -150,51 +117,38 @@ export default function CustomersPage() {
       await load();
       notify({ type: "success", message: "Cliente atualizado.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao atualizar cliente.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar cliente" });
+      const msg = err instanceof Error ? err.message : "Erro ao atualizar cliente.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!token || !selectedCustomer) {
-      return;
-    }
-
+    if (!token || !selectedCustomer) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.deleteCustomer(token, selectedCustomer.id);
       setSelectedCustomer(null);
       await load();
-      notify({ type: "success", message: "Cliente excluido.", title: "Excluido" });
+      notify({ type: "success", message: "Cliente excluído.", title: "Excluído" });
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao excluir cliente.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir clientes." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir cliente" });
+      const msg = err instanceof Error ? err.message : "Erro ao excluir cliente.";
+      notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <LoadingState label="Carregando clientes..." />;
-  }
-
-  if (error && customers.length === 0) {
-    return <ErrorState message={error} onRetry={() => void load()} />;
-  }
+  if (loading) return <LoadingState label="Carregando clientes..." />;
+  if (error && customers.length === 0) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
     <div className="page-grid">
       <section className="toolbar-card">
         <label className="field compact">
           <span>Buscar cliente</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, email, telefone ou lead" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nome, email, telefone ou lead" />
         </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Aplicar busca
@@ -221,90 +175,84 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer) => (
+              {customers.map((c) => (
                 <tr
-                  key={customer.id}
-                  className={selectedCustomer?.id === customer.id ? "row-active" : ""}
-                  onClick={() => setSelectedCustomer(customer)}
+                  key={c.id}
+                  className={selectedCustomer?.id === c.id ? "row-active" : ""}
+                  onClick={() => setSelectedCustomer(c)}
                 >
-                  <td>{customer.name}</td>
-                  <td>{customer.email || customer.phone || "-"}</td>
-                  <td>{customer.leadName ?? "Cadastro direto"}</td>
-                  <td>{formatDate(customer.createdAtUtc)}</td>
+                  <td>{c.name}</td>
+                  <td>{c.email || c.phone || "—"}</td>
+                  <td>{c.leadName ?? "Cadastro direto"}</td>
+                  <td>{formatDate(c.createdAtUtc)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {customers.length === 0 ? <div className="empty-card">Nenhum cliente cadastrado ainda.</div> : null}
+          {customers.length === 0 && <div className="empty-card">Nenhum cliente cadastrado ainda.</div>}
         </div>
 
-        {canCreate ? (
-        <form className="settings-card form-card" onSubmit={handleCreate}>
-          <div className="card-header">
-            <div>
-              <h3>Novo cliente</h3>
-              <p>Cadastro direto na base</p>
+        {canCreate && (
+          <form className="settings-card form-card" onSubmit={handleCreate}>
+            <div className="card-header">
+              <div>
+                <h3>Novo cliente</h3>
+                <p>Cadastro direto na base</p>
+              </div>
+              <span className="tag">Novo</span>
             </div>
-            <span className="tag">Novo</span>
-          </div>
+            <label className="field">
+              <span>Nome</span>
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+            </label>
+            <label className="field">
+              <span>Email</span>
+              <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Telefone</span>
+              <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Lead vinculado</span>
+              <select value={form.leadId} onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}>
+                <option value="">Sem lead vinculado</option>
+                {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? "Salvando..." : "Criar cliente"}
+            </button>
+          </form>
+        )}
 
-          <label className="field">
-            <span>Nome</span>
-            <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
-          </label>
-          <label className="field">
-            <span>Email</span>
-            <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
-          </label>
-          <label className="field">
-            <span>Telefone</span>
-            <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
-          </label>
-          <label className="field">
-            <span>Lead vinculado</span>
-            <select value={form.leadId} onChange={(event) => setForm((current) => ({ ...current, leadId: event.target.value }))}>
-              <option value="">Sem lead vinculado</option>
-              {leads.map((lead) => (
-                <option key={lead.id} value={lead.id}>
-                  {lead.name}
-                </option>
+        {canCreate && (
+          <div className="settings-card form-card">
+            <div className="card-header">
+              <div>
+                <h3>Converter lead</h3>
+                <p>Transforme oportunidades qualificadas em clientes</p>
+              </div>
+              <span className="tag">{convertibleLeads.length} disponíveis</span>
+            </div>
+            <div className="mini-list">
+              {convertibleLeads.slice(0, 8).map((l) => (
+                <article key={l.id} className="mini-row">
+                  <div>
+                    <strong>{l.name}</strong>
+                    <p>{l.source} — {l.status}</p>
+                  </div>
+                  <button type="button" className="table-action" onClick={() => void handleConvertLead(l.id)} disabled={submitting}>
+                    Converter
+                  </button>
+                </article>
               ))}
-            </select>
-          </label>
-
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" className="primary-button" disabled={submitting}>
-            {submitting ? "Salvando..." : "Criar cliente"}
-          </button>
-        </form>
-        ) : null}
-
-        {canCreate ? (
-        <div className="settings-card form-card">
-          <div className="card-header">
-            <div>
-              <h3>Converter lead</h3>
-              <p>Transforme oportunidades qualificadas em clientes</p>
+              {convertibleLeads.length === 0 && (
+                <div className="empty-card">Não há leads pendentes para converter.</div>
+              )}
             </div>
-            <span className="tag">{convertibleLeads.length} disponiveis</span>
           </div>
-
-          <div className="mini-list">
-            {convertibleLeads.slice(0, 8).map((lead) => (
-              <article key={lead.id} className="mini-row">
-                <div>
-                  <strong>{lead.name}</strong>
-                  <p>{lead.source} - {lead.status}</p>
-                </div>
-                <button type="button" className="table-action" onClick={() => void handleConvertLead(lead.id)} disabled={submitting}>
-                  Converter
-                </button>
-              </article>
-            ))}
-            {convertibleLeads.length === 0 ? <div className="empty-card">Nao ha leads pendentes para converter.</div> : null}
-          </div>
-        </div>
-        ) : null}
+        )}
       </section>
 
       <section className="two-column">
@@ -312,44 +260,40 @@ export default function CustomersPage() {
           <div className="card-header">
             <div>
               <h3>{selectedCustomer ? "Editar cliente" : "Selecione um cliente"}</h3>
-              <p>{selectedCustomer ? "Atualize cadastro e vinculo com lead" : "Clique em um cliente da tabela"}</p>
+              <p>{selectedCustomer ? "Atualize cadastro e vínculo com lead" : "Clique em um cliente da tabela"}</p>
             </div>
-            {selectedCustomer ? <span className="tag">#{selectedCustomer.id}</span> : null}
+            {selectedCustomer && <span className="tag">#{selectedCustomer.id}</span>}
           </div>
 
           {selectedCustomer ? (
             <form className="form-card" onSubmit={handleUpdate}>
               <label className="field">
                 <span>Nome</span>
-                <input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} required />
+                <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
               </label>
               <label className="field">
                 <span>Email</span>
-                <input type="email" value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} />
+                <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
               </label>
               <label className="field">
                 <span>Telefone</span>
-                <input value={editForm.phone} onChange={(event) => setEditForm((current) => ({ ...current, phone: event.target.value }))} />
+                <input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
               </label>
               <label className="field">
                 <span>Lead vinculado</span>
-                <select value={editForm.leadId} onChange={(event) => setEditForm((current) => ({ ...current, leadId: event.target.value }))}>
+                <select value={editForm.leadId} onChange={(e) => setEditForm((f) => ({ ...f, leadId: e.target.value }))}>
                   <option value="">Sem lead vinculado</option>
-                  {leads.map((lead) => (
-                    <option key={lead.id} value={lead.id}>
-                      {lead.name}
-                    </option>
-                  ))}
+                  {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </label>
               <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar cliente"}
               </button>
-              {canDelete ? (
+              {canDelete && (
                 <button type="button" className="ghost-button danger" onClick={() => void handleDelete()} disabled={submitting}>
                   Excluir cliente
                 </button>
-              ) : null}
+              )}
             </form>
           ) : (
             <div className="empty-card">Selecione um cliente para editar.</div>
@@ -371,7 +315,7 @@ export default function CustomersPage() {
             </article>
             <article className="impact-card gold">
               <span>Com origem em lead</span>
-              <strong>{customers.filter((customer) => customer.leadId).length}</strong>
+              <strong>{customers.filter((c) => c.leadId).length}</strong>
               <small>convertidos pelo funil</small>
             </article>
             <article className="impact-card blue">

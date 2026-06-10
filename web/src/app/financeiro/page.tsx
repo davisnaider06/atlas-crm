@@ -26,14 +26,13 @@ export default function FinancePage() {
       const response = (await api.getFinance(token)) as PagedResult<FinanceEntry>;
       setEntries(response.items || []);
     } catch (err) {
-      const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao carregar financeiro.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para acessar financeiro." : message, title: status === 403 ? "Permissao negada" : "Falha ao carregar financeiro" });
+      notify({ type: "error", message, title: "Falha ao carregar financeiro" });
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, notify]);
 
   useEffect(() => {
     void load();
@@ -57,10 +56,9 @@ export default function FinancePage() {
       await load();
         notify({ type: "success", message: "Registro financeiro criado.", title: "Sucesso" });
     } catch (err) {
-      const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao criar entrada financeira.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar registros financeiros." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar registro" });
+      notify({ type: "error", message, title: "Erro ao criar registro" });
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +83,7 @@ export default function FinancePage() {
           <div className="card-header">
             <div>
               <h3>Entradas</h3>
-              <p>Lista das ultimas movimentações.</p>
+              <p>Lista das últimas movimentações.</p>
             </div>
             <span className="tag">{entries.length}</span>
           </div>
@@ -121,7 +119,7 @@ export default function FinancePage() {
               <h3>Criar registro</h3>
               <p>Adicionar receita ou despesa.</p>
             </div>
-            <span className="tag">{canManage ? "Admin" : "Visualizacao"}</span>
+            <span className="tag">{canManage ? "Admin" : "Visualização"}</span>
           </div>
           <label className="field">
             <span>Data</span>

@@ -15,6 +15,7 @@ import {
   FinanceIcon,
   PipelineIcon,
   ActivitiesIcon,
+  CalendarIcon,
   WhatsAppIcon,
   TeamIcon,
   SettingsIcon,
@@ -27,18 +28,53 @@ import {
   MoonIcon,
 } from "@/components/ui/icons";
 
-const navItems = [
-  { href: "/dashboard",     label: "Dashboard",         Icon: DashboardIcon,   permission: permissions.dashboardView },
-  { href: "/leads",         label: "Leads",             Icon: LeadsIcon,       permission: permissions.leadsView },
-  { href: "/clientes",      label: "Clientes",          Icon: ClientsIcon,     permission: permissions.customersView },
-  { href: "/documentos",    label: "Documentos",        Icon: DocumentsIcon,   permission: permissions.documentsView },
-  { href: "/financeiro",    label: "Financeiro",        Icon: FinanceIcon,     permission: permissions.financeManage },
-  { href: "/pipeline",      label: "Pipeline",          Icon: PipelineIcon,    permission: permissions.dealsView },
-  { href: "/atividades",    label: "Atividades",        Icon: ActivitiesIcon,  permission: permissions.activitiesView },
-  { href: "/whatsapp",      label: "WhatsApp",          Icon: WhatsAppIcon,    permission: permissions.whatsAppManage },
-  { href: "/equipe",        label: "Equipe",            Icon: TeamIcon,        permission: permissions.teamManage },
-  { href: "/configuracoes", label: "Configurações",     Icon: SettingsIcon,    permission: permissions.settingsView },
+type NavItem = {
+  href: string;
+  label: string;
+  Icon: React.FC<{ size?: number }>;
+  permission: string;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    label: "VISÃO GERAL",
+    items: [
+      { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon, permission: permissions.dashboardView },
+    ],
+  },
+  {
+    label: "COMERCIAL",
+    items: [
+      { href: "/leads",     label: "Leads",      Icon: LeadsIcon,     permission: permissions.leadsView },
+      { href: "/clientes",  label: "Clientes",   Icon: ClientsIcon,   permission: permissions.customersView },
+      { href: "/pipeline",  label: "Pipeline",   Icon: PipelineIcon,  permission: permissions.dealsView },
+      { href: "/atividades",label: "Atividades", Icon: ActivitiesIcon,permission: permissions.activitiesView },
+      { href: "/agenda",    label: "Agenda",     Icon: CalendarIcon,  permission: permissions.schedulesView },
+    ],
+  },
+  {
+    label: "FERRAMENTAS",
+    items: [
+      { href: "/financeiro",    label: "Financeiro",    Icon: FinanceIcon,   permission: permissions.financeManage },
+      { href: "/documentos",    label: "Documentos",    Icon: DocumentsIcon, permission: permissions.documentsView },
+      { href: "/whatsapp",      label: "WhatsApp",      Icon: WhatsAppIcon,  permission: permissions.whatsAppManage },
+    ],
+  },
+  {
+    label: "GESTÃO",
+    items: [
+      { href: "/equipe",        label: "Equipe",        Icon: TeamIcon,      permission: permissions.teamManage },
+      { href: "/configuracoes", label: "Configurações", Icon: SettingsIcon,  permission: permissions.settingsView },
+    ],
+  },
 ];
+
+const allNavItems = navGroups.flatMap((g) => g.items);
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -68,6 +104,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/atividades": {
     title: "Fluxo de atividades",
     subtitle: "Priorize tarefas, follow-ups e próximos passos da operação.",
+  },
+  "/agenda": {
+    title: "Agenda",
+    subtitle: "Visualize e gerencie compromissos, reuniões e tarefas do time.",
   },
   "/whatsapp": {
     title: "Conectar WhatsApp",
@@ -121,8 +161,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   const currentPage = pageTitles[pathname] ?? pageTitles["/dashboard"];
   const firstName = user.name.split(" ")[0];
-  const allowedNavItems = navItems.filter((item) => hasPermission(user, item.permission));
-  const currentNavItem = navItems.find((item) => item.href === pathname);
+  const currentNavItem = allNavItems.find((item) => item.href === pathname);
   const canViewCurrentPage = !currentNavItem || hasPermission(user, currentNavItem.permission);
 
   if (!canViewCurrentPage) {
@@ -153,21 +192,37 @@ export function AppFrame({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="nav rockart-nav">
-            {!sidebarCollapsed && <p className="nav-group-title">Menu principal</p>}
-            {allowedNavItems.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`nav-link rockart-link${pathname === href ? " active" : ""}`}
-                title={sidebarCollapsed ? label : undefined}
-              >
-                <span className="icon-box">
-                  <Icon size={17} />
-                </span>
-                {!sidebarCollapsed && <span className="nav-label">{label}</span>}
-              </Link>
-            ))}
+            {navGroups.map((group) => {
+              const visibleItems = group.items.filter((item) => hasPermission(user, item.permission));
+              if (visibleItems.length === 0) return null;
+              return (
+                <div key={group.label} className="nav-section">
+                  {!sidebarCollapsed && <p className="nav-group-title">{group.label}</p>}
+                  {visibleItems.map(({ href, label, Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`nav-link rockart-link${pathname === href ? " active" : ""}`}
+                      title={sidebarCollapsed ? label : undefined}
+                    >
+                      <span className="icon-box">
+                        <Icon size={17} />
+                      </span>
+                      {!sidebarCollapsed && <span className="nav-label">{label}</span>}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
           </nav>
+
+          {!sidebarCollapsed && (
+            <div className="sidebar-upgrade">
+              <strong>Atlas Pro</strong>
+              <p>Desbloqueie relatórios avançados e IA integrada.</p>
+              <button type="button" className="upgrade-btn">Fazer upgrade</button>
+            </div>
+          )}
 
           {!sidebarCollapsed && (
             <div className="sidebar-preferences">

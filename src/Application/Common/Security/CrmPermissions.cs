@@ -27,6 +27,10 @@ public static class CrmPermissions
     public const string FinanceManage = "finance.manage";
     public const string SettingsView = "settings.view";
     public const string TeamManage = "team.manage";
+    public const string SchedulesView = "schedules.view";
+    public const string SchedulesCreate = "schedules.create";
+    public const string SchedulesEdit = "schedules.edit";
+    public const string SchedulesDelete = "schedules.delete";
 
     public static readonly string[] All = new[]
     {
@@ -54,6 +58,10 @@ public static class CrmPermissions
         AutomationsManage,
         WhatsAppManage,
         SettingsView,
-        TeamManage
+        TeamManage,
+        SchedulesView,
+        SchedulesCreate,
+        SchedulesEdit,
+        SchedulesDelete
     };
 }

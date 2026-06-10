@@ -42,7 +42,7 @@ public sealed class PipelineService : IPipelineService
 
     public async Task<PipelineDto> CreateAsync(CreatePipelineRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
         if (request.Stages.Count == 0)
         {
             throw new AppException("Pipeline precisa de pelo menos uma etapa.");

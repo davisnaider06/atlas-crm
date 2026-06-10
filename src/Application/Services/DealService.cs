@@ -80,15 +80,15 @@ public sealed class DealService : IDealService
 
     public async Task<DealDto> CreateAsync(CreateDealRequest request, CancellationToken cancellationToken = default)
     {
-        var user = _currentUser.User ?? throw new AppException("Usuario nao autenticado.", 401);
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
 
         var leadExists = await _dbContext.Leads.AnyAsync(x => x.Id == request.LeadId, cancellationToken);
         var stage = await _dbContext.Stages.FirstOrDefaultAsync(x => x.Id == request.StageId, cancellationToken)
-            ?? throw new AppException("Etapa nao encontrada.", 404);
+            ?? throw new AppException("Etapa não encontrada.", 404);
 
         if (!leadExists)
         {
-            throw new AppException("Lead nao encontrado.", 404);
+            throw new AppException("Lead não encontrado.", 404);
         }
 
         var deal = new Deal
@@ -130,7 +130,7 @@ public sealed class DealService : IDealService
             .Include(x => x.Lead)
             .Include(x => x.Stage)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Negocio nao encontrado.", 404);
+            ?? throw new AppException("Negócio não encontrado.", 404);
 
         deal.Value = request.Value;
         deal.Status = request.Status;
@@ -160,10 +160,10 @@ public sealed class DealService : IDealService
     public async Task<DealDto> MoveAsync(long id, MoveDealRequest request, CancellationToken cancellationToken = default)
     {
         var deal = await _dbContext.Deals.Include(x => x.Lead).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Negocio nao encontrado.", 404);
+            ?? throw new AppException("Negócio não encontrado.", 404);
 
         var stage = await _dbContext.Stages.FirstOrDefaultAsync(x => x.Id == request.StageId, cancellationToken)
-            ?? throw new AppException("Etapa nao encontrada.", 404);
+            ?? throw new AppException("Etapa não encontrada.", 404);
 
         deal.StageId = request.StageId;
         deal.Status = request.Status;
@@ -213,7 +213,7 @@ public sealed class DealService : IDealService
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var deal = await _dbContext.Deals.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new AppException("Negocio nao encontrado.", 404);
+            ?? throw new AppException("Negócio não encontrado.", 404);
 
         var linkedActivities = await _dbContext.Activities.Where(x => x.DealId == id).ToListAsync(cancellationToken);
         if (linkedActivities.Count > 0)

@@ -207,3 +207,23 @@ export type PermissionCatalogItem = {
   label: string;
   group: string;
 };
+
+export type AppointmentType = "Call" | "Meeting" | "Visit" | "Reminder" | "Task";
+export type AppointmentStatus = "Scheduled" | "Done" | "Cancelled";
+
+export type Appointment = {
+  id: number;
+  title: string;
+  description?: string | null;
+  startAtUtc: string;
+  endAtUtc: string;
+  type: AppointmentType;
+  status: AppointmentStatus;
+  leadId?: number | null;
+  leadName?: string | null;
+  dealId?: number | null;
+  dealLeadName?: string | null;
+  assignedUserId: number;
+  assignedUserName?: string | null;
+  createdAtUtc: string;
+};
