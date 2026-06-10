@@ -174,7 +174,7 @@ button { cursor: pointer; }
 }
 
 .shell-panel.sidebar-collapsed {
-  grid-template-columns: 0 1fr;
+  grid-template-columns: 64px 1fr;
 }
 
 /* ---------- Sidebar ---------- */
@@ -386,8 +386,8 @@ button { cursor: pointer; }
 .sidebar-collapsed .rockart-sidebar {
   padding: 20px 6px;
   align-items: center;
-  border-right: none;
-  overflow: visible;
+  width: 64px;
+  overflow: hidden;
 }
 
 .sidebar-collapsed .rockart-brand {
@@ -407,24 +407,44 @@ button { cursor: pointer; }
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .user-copy,
 .sidebar-collapsed .nav-group-title,
-.sidebar-collapsed .rockart-nav,
-.sidebar-collapsed .sidebar-preferences,
+.sidebar-collapsed .sidebar-upgrade,
 .sidebar-collapsed .rockart-user {
   display: none !important;
 }
 
+.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: 0;
+  min-height: 40px;
+  width: 40px;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-collapsed .nav-section {
+  align-items: center;
+}
+
+.sidebar-collapsed .sidebar-preferences {
+  align-items: center;
+  padding-top: 12px;
+}
+
+.sidebar-collapsed .logout-link {
+  width: 40px;
+  margin: 0 auto;
+  justify-content: center;
+  padding: 0;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+}
+
 .sidebar-collapsed .sidebar-toggle {
-  position: fixed;
-  left: 8px;
-  top: 16px;
-  width: 32px;
-  height: 32px;
-  z-index: 60;
+  margin: 0 auto;
 }
 
 .shell-panel.sidebar-collapsed .main-shell {
-  padding-left: 56px;
-  transition: padding-left 200ms var(--ease);
+  padding-left: 0;
 }
 
 /* ---------- Main shell ---------- */
@@ -1953,6 +1973,68 @@ button { cursor: pointer; }
 }
 
 .sidebar-upgrade .upgrade-btn:hover { opacity: 0.88; }
+
+/* ---------- Period bar ---------- */
+.dashboard-period-bar {
+  grid-column: span 12;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Mini bar chart (dashboard trend) ---------- */
+.mini-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 160px;
+}
+
+.mini-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.mini-bar-pair {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  justify-content: center;
+}
+
+.mini-bar {
+  flex: 1;
+  max-width: 16px;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 500ms var(--ease);
+}
+
+.mini-bar.accent { background: linear-gradient(180deg, var(--accent-strong), var(--accent)); }
+.mini-bar.cool   { background: linear-gradient(180deg, #7aaeff, var(--cool)); }
+
+.mini-bar-col > span {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+/* ---------- Button sizes ---------- */
+.ghost-button.small,
+.primary-button.small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+}
 
 /* ---------- Featured Impact Card (first KPI) ---------- */
 .impact-card.featured {

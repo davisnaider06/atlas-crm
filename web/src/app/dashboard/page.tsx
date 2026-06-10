@@ -4,33 +4,31 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
-import { LineChart, BarChart } from "@/components/ui/charts";
+import { BarChart } from "@/components/ui/charts";
 import { useNotification } from "@/components/ui/notification-context";
 import type { Activity, Dashboard, Deal, Lead, PagedResult } from "@/lib/types";
 
 type TrendPoint = { label: string; leads: number; deals: number };
 
 function startOfDay(value: string) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function daysBetween(a: Date, b: Date) {
-  return Math.floor((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function buildTrend(leads: Lead[], deals: Deal[]): TrendPoint[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, index) => {
-    const offset = 6 - index;
+  return Array.from({ length: 7 }, (_, i) => {
+    const offset = 6 - i;
     const day = new Date(today);
     day.setDate(today.getDate() - offset);
     const label = day.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-    const leadCount = leads.filter((l) => startOfDay(l.createdAtUtc).getTime() === day.getTime()).length;
-    const dealCount = deals.filter((d) => startOfDay(d.createdAtUtc).getTime() === day.getTime()).length;
-    return { label, leads: leadCount, deals: dealCount };
+    return {
+      label,
+      leads: leads.filter((l) => startOfDay(l.createdAtUtc).getTime() === day.getTime()).length,
+      deals: deals.filter((d) => startOfDay(d.createdAtUtc).getTime() === day.getTime()).length,
+    };
   });
 }
 
@@ -43,6 +41,7 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activePeriod, setActivePeriod] = useState("30d");
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -60,14 +59,9 @@ export default function DashboardPage() {
       setLeads((leadsData as PagedResult<Lead>).items);
       setActivities((activitiesData as PagedResult<Activity>).items);
     } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : "Erro ao carregar dashboard.";
-      setError(message);
-      notify({
-        type: "error",
-        title: status === 403 ? "Permissão negada" : "Erro ao carregar dashboard",
-        message: status === 403 ? "Você não tem permissão para ver o dashboard." : message,
-      });
+      const msg = err instanceof Error ? err.message : "Erro ao carregar dashboard.";
+      setError(msg);
+      notify({ type: "error", title: "Erro ao carregar dashboard", message: msg });
     } finally {
       setLoading(false);
     }
@@ -79,7 +73,7 @@ export default function DashboardPage() {
 
   const sourceMix = useMemo(() => {
     const grouped = new Map<string, number>();
-    for (const lead of leads) grouped.set(lead.source, (grouped.get(lead.source) ?? 0) + 1);
+    for (const l of leads) grouped.set(l.source, (grouped.get(l.source) ?? 0) + 1);
     return Array.from(grouped.entries())
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
@@ -87,7 +81,7 @@ export default function DashboardPage() {
   }, [leads]);
 
   const recentLeads = useMemo(
-    () => [...leads].sort((a, b) => +new Date(b.createdAtUtc) - +new Date(a.createdAtUtc)).slice(0, 5),
+    () => [...leads].sort((a, b) => +new Date(b.createdAtUtc) - +new Date(a.createdAtUtc)).slice(0, 6),
     [leads],
   );
 
@@ -99,88 +93,94 @@ export default function DashboardPage() {
   }, [activities]);
 
   const leadsThisWeek = useMemo(
-    () => leads.filter((l) => daysBetween(new Date(), new Date(l.createdAtUtc)) <= 7).length,
+    () => leads.filter((l) => (Date.now() - +new Date(l.createdAtUtc)) / 86400000 <= 7).length,
     [leads],
   );
 
   if (loading) return <LoadingState label="Carregando dashboard..." />;
-  if (error || !dashboard) {
-    return <ErrorState message={error ?? "Dashboard indisponível."} onRetry={() => void load()} />;
-  }
-
-  const statCards = [
-    {
-      label: "Total de leads",
-      value: dashboard.totalLeads.toLocaleString("pt-BR"),
-      note: `+${leadsThisWeek} nos últimos 7 dias`,
-      tone: "orange",
-    },
-    {
-      label: "Receita no pipeline",
-      value: formatCurrency(dashboard.pipelineValue),
-      note: `${dashboard.openDeals} negócios abertos`,
-      tone: "gold",
-    },
-    {
-      label: "Tarefas em aberto",
-      value: String(dashboard.pendingActivities),
-      note: `${completionRate}% concluídas no período`,
-      tone: "blue",
-    },
-  ];
+  if (error || !dashboard) return <ErrorState message={error ?? "Dashboard indisponível."} onRetry={() => void load()} />;
 
   const maxSource = Math.max(...sourceMix.map((s) => s.value), 1);
 
   return (
     <div className="dashboard-grid">
-      <section className="hero-card">
-        <div>
-          <p className="hero-kicker">Performance comercial</p>
-          <h2>Painel executivo do CRM</h2>
-          <p className="hero-copy">
-            Leads, pipeline e operação concentrados em um dashboard para tomada de decisão mais rápida.
-          </p>
-        </div>
+
+      {/* Period selector */}
+      <section className="dashboard-period-bar">
         <div className="period-tabs">
-          <button type="button" className="tab-chip">24h</button>
-          <button type="button" className="tab-chip">7 dias</button>
-          <button type="button" className="tab-chip active">30 dias</button>
-          <button type="button" className="tab-chip">Ano</button>
+          {[
+            { key: "24h", label: "24h" },
+            { key: "7d", label: "7 dias" },
+            { key: "30d", label: "30 dias" },
+            { key: "year", label: "Ano" },
+          ].map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`tab-chip${activePeriod === p.key ? " active" : ""}`}
+              onClick={() => setActivePeriod(p.key)}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
+        <button type="button" className="ghost-button small" onClick={() => void load()}>
+          Atualizar
+        </button>
       </section>
 
+      {/* KPI cards */}
       <section className="stats-strip">
-        {statCards.map((card) => (
-          <article key={card.label} className={`impact-card ${card.tone}`}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <small>{card.note}</small>
-          </article>
-        ))}
+        <article className="impact-card featured">
+          <span>Total de leads</span>
+          <strong>{dashboard.totalLeads.toLocaleString("pt-BR")}</strong>
+          <small>+{leadsThisWeek} nos últimos 7 dias</small>
+        </article>
+        <article className="impact-card gold">
+          <span>Receita no pipeline</span>
+          <strong>{formatCurrency(dashboard.pipelineValue)}</strong>
+          <small>{dashboard.openDeals} negócios abertos</small>
+        </article>
+        <article className="impact-card blue">
+          <span>Tarefas em aberto</span>
+          <strong>{dashboard.pendingActivities}</strong>
+          <small>{completionRate}% concluídas no período</small>
+        </article>
       </section>
 
+      {/* Charts row */}
       <section className="dashboard-panel wide">
         <div className="panel-heading">
           <div>
             <h3>Fluxo de leads vs negócios</h3>
-            <p>Registros reais cadastrados nos últimos 7 dias.</p>
+            <p>Registros criados nos últimos 7 dias.</p>
           </div>
-          <button type="button" className="panel-link" onClick={() => void load()}>
-            Atualizar
-          </button>
         </div>
         <div className="legend-row dark">
           <span><i className="legend-dot warm" /> Leads criados</span>
           <span><i className="legend-dot cool" /> Negócios criados</span>
         </div>
-        <LineChart trend={trend} />
+        <div className="mini-bar-chart">
+          {trend.map((point) => {
+            const maxVal = Math.max(...trend.map((t) => Math.max(t.leads, t.deals)), 1);
+            return (
+              <div key={point.label} className="mini-bar-col">
+                <div className="mini-bar-pair">
+                  <div className="mini-bar accent" style={{ height: `${(point.leads / maxVal) * 100}%` }} />
+                  <div className="mini-bar cool" style={{ height: `${(point.deals / maxVal) * 100}%` }} />
+                </div>
+                <span>{point.label}</span>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section className="dashboard-panel">
         <div className="panel-heading">
           <div>
-            <h3>Etapas mais carregadas</h3>
-            <p>Volume de negócios por etapa do pipeline.</p>
+            <h3>Etapas do pipeline</h3>
+            <p>Volume por etapa.</p>
           </div>
         </div>
         <BarChart
@@ -192,11 +192,47 @@ export default function DashboardPage() {
         />
       </section>
 
+      {/* Bottom row */}
+      <section className="dashboard-panel wide">
+        <div className="panel-heading">
+          <div>
+            <h3>Últimos leads</h3>
+            <p>Entradas recentes do funil comercial.</p>
+          </div>
+          <span className="tag">{leads.length} total</span>
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Origem</th>
+              <th>Status</th>
+              <th>Temperatura</th>
+              <th>Criado em</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentLeads.map((l) => (
+              <tr key={l.id}>
+                <td><strong>{l.name}</strong></td>
+                <td>{l.source}</td>
+                <td>{l.status}</td>
+                <td>{l.qualificationTemperature}</td>
+                <td>{formatDate(l.createdAtUtc)}</td>
+              </tr>
+            ))}
+            {recentLeads.length === 0 && (
+              <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--muted)" }}>Nenhum lead cadastrado ainda.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+
       <section className="dashboard-panel">
         <div className="panel-heading">
           <div>
-            <h3>Origem dos leads</h3>
-            <p>Canais que mais abastecem a operação comercial.</p>
+            <h3>Canais de origem</h3>
+            <p>Fontes que mais trazem leads.</p>
           </div>
         </div>
         <div className="source-stack">
@@ -218,29 +254,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="dashboard-panel">
-        <div className="panel-heading">
-          <div>
-            <h3>Últimos leads</h3>
-            <p>Entradas recentes do funil comercial.</p>
-          </div>
-        </div>
-        <div className="mini-list">
-          {recentLeads.length > 0 ? (
-            recentLeads.map((lead) => (
-              <article key={lead.id} className="mini-row">
-                <div>
-                  <strong>{lead.name}</strong>
-                  <p>{lead.source}</p>
-                </div>
-                <span>{formatDate(lead.createdAtUtc)}</span>
-              </article>
-            ))
-          ) : (
-            <p className="empty-copy">Nenhum lead recente ainda.</p>
-          )}
-        </div>
-      </section>
     </div>
   );
 }
