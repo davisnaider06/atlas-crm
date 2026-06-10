@@ -4,14 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
-import type { Activity, Dashboard, Deal, Lead, PagedResult } from "@/lib/types";
+import { LineChart, BarChart } from "@/components/ui/charts";
 import { useNotification } from "@/components/ui/notification-context";
+import type { Activity, Dashboard, Deal, Lead, PagedResult } from "@/lib/types";
 
-type TrendPoint = {
-  label: string;
-  leads: number;
-  deals: number;
-};
+type TrendPoint = { label: string; leads: number; deals: number };
 
 function startOfDay(value: string) {
   const date = new Date(value);
@@ -20,105 +17,26 @@ function startOfDay(value: string) {
 }
 
 function daysBetween(a: Date, b: Date) {
-  const difference = a.getTime() - b.getTime();
-  return Math.floor(difference / (1000 * 60 * 60 * 24));
+  return Math.floor((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function buildTrend(leads: Lead[], deals: Deal[]): TrendPoint[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
   return Array.from({ length: 7 }, (_, index) => {
     const offset = 6 - index;
     const day = new Date(today);
     day.setDate(today.getDate() - offset);
     const label = day.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-
-    const leadCount = leads.filter((lead) => {
-      const created = startOfDay(lead.createdAtUtc);
-      return created.getTime() === day.getTime();
-    }).length;
-
-    const dealCount = deals.filter((deal) => {
-      const created = startOfDay(deal.createdAtUtc);
-      return created.getTime() === day.getTime();
-    }).length;
-
+    const leadCount = leads.filter((l) => startOfDay(l.createdAtUtc).getTime() === day.getTime()).length;
+    const dealCount = deals.filter((d) => startOfDay(d.createdAtUtc).getTime() === day.getTime()).length;
     return { label, leads: leadCount, deals: dealCount };
   });
 }
 
-function buildPath(points: number[], width: number, height: number, padding: number) {
-  if (points.length === 0) {
-    return "";
-  }
-
-  const maxValue = Math.max(...points, 1);
-  const step = (width - padding * 2) / Math.max(points.length - 1, 1);
-
-  return points
-    .map((point, index) => {
-      const x = padding + step * index;
-      const y = height - padding - (point / maxValue) * (height - padding * 2);
-      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-    })
-    .join(" ");
-}
-
-function LineChart({ trend }: { trend: TrendPoint[] }) {
-  const width = 640;
-  const height = 260;
-  const padding = 28;
-  const leadPath = buildPath(trend.map((point) => point.leads), width, height, padding);
-  const dealPath = buildPath(trend.map((point) => point.deals), width, height, padding);
-
-  return (
-    <div className="chart-shell">
-      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" aria-hidden="true">
-        {[0, 1, 2, 3, 4].map((line) => {
-          const y = padding + ((height - padding * 2) / 4) * line;
-          return <line key={line} x1={padding} y1={y} x2={width - padding} y2={y} className="chart-grid-line" />;
-        })}
-        {trend.map((point, index) => {
-          const x = padding + ((width - padding * 2) / Math.max(trend.length - 1, 1)) * index;
-          return <line key={point.label} x1={x} y1={padding} x2={x} y2={height - padding} className="chart-grid-line subtle" />;
-        })}
-        <path d={leadPath} className="chart-line primary" />
-        <path d={dealPath} className="chart-line secondary" />
-      </svg>
-      <div className="chart-axis">
-        {trend.map((point) => (
-          <span key={point.label}>{point.label}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BarChart({
-  items,
-}: {
-  items: { label: string; value: number }[];
-}) {
-  const maxValue = Math.max(...items.map((item) => item.value), 1);
-
-  return (
-    <div className="rockart-bars">
-      {items.map((item) => (
-        <div key={item.label} className="rockart-bar-group">
-          <div className="rockart-bar-track">
-            <div className="rockart-bar-fill" style={{ height: `${(item.value / maxValue) * 100}%` }} />
-          </div>
-          <strong>{item.value}</strong>
-          <span>{item.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const { token } = useAuth();
+  const { notify } = useNotification();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -128,7 +46,6 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-
     setLoading(true);
     setError(null);
     try {
@@ -138,7 +55,6 @@ export default function DashboardPage() {
         api.getLeads(token),
         api.getActivities(token),
       ]);
-
       setDashboard(dashboardData);
       setDeals((dealsData as PagedResult<Deal>).items);
       setLeads((leadsData as PagedResult<Lead>).items);
@@ -147,24 +63,23 @@ export default function DashboardPage() {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao carregar dashboard.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver o dashboard." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar dashboard" });
+      notify({
+        type: "error",
+        title: status === 403 ? "Permissão negada" : "Erro ao carregar dashboard",
+        message: status === 403 ? "Você não tem permissão para ver o dashboard." : message,
+      });
     } finally {
       setLoading(false);
     }
-  }, [token]);
-  const { notify } = useNotification();
+  }, [token, notify]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  const trend = useMemo(() => buildTrend(leads, deals), [deals, leads]);
+  const trend = useMemo(() => buildTrend(leads, deals), [leads, deals]);
 
   const sourceMix = useMemo(() => {
     const grouped = new Map<string, number>();
-    for (const lead of leads) {
-      grouped.set(lead.source, (grouped.get(lead.source) ?? 0) + 1);
-    }
+    for (const lead of leads) grouped.set(lead.source, (grouped.get(lead.source) ?? 0) + 1);
     return Array.from(grouped.entries())
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
@@ -172,58 +87,58 @@ export default function DashboardPage() {
   }, [leads]);
 
   const recentLeads = useMemo(
-    () =>
-      [...leads]
-        .sort((a, b) => +new Date(b.createdAtUtc) - +new Date(a.createdAtUtc))
-        .slice(0, 5),
+    () => [...leads].sort((a, b) => +new Date(b.createdAtUtc) - +new Date(a.createdAtUtc)).slice(0, 5),
     [leads],
   );
 
   const completionRate = useMemo(() => {
     if (activities.length === 0) return 0;
-    const completed = activities.filter((activity) => activity.status.toLowerCase().includes("completed")).length;
-    return Math.round((completed / activities.length) * 100);
+    return Math.round(
+      (activities.filter((a) => a.status.toLowerCase().includes("completed")).length / activities.length) * 100,
+    );
   }, [activities]);
 
-  const leadsThisWeek = useMemo(() => {
-    const now = new Date();
-    return leads.filter((lead) => daysBetween(now, new Date(lead.createdAtUtc)) <= 7).length;
-  }, [leads]);
+  const leadsThisWeek = useMemo(
+    () => leads.filter((l) => daysBetween(new Date(), new Date(l.createdAtUtc)) <= 7).length,
+    [leads],
+  );
 
   if (loading) return <LoadingState label="Carregando dashboard..." />;
   if (error || !dashboard) {
-    return <ErrorState message={error ?? "Dashboard indisponivel."} onRetry={() => void load()} />;
+    return <ErrorState message={error ?? "Dashboard indisponível."} onRetry={() => void load()} />;
   }
 
   const statCards = [
     {
       label: "Total de leads",
       value: dashboard.totalLeads.toLocaleString("pt-BR"),
-      note: `${leadsThisWeek} entraram nos ultimos 7 dias`,
+      note: `+${leadsThisWeek} nos últimos 7 dias`,
       tone: "orange",
     },
     {
       label: "Receita no pipeline",
       value: formatCurrency(dashboard.pipelineValue),
-      note: `${dashboard.openDeals} negocios abertos`,
+      note: `${dashboard.openDeals} negócios abertos`,
       tone: "gold",
     },
     {
       label: "Tarefas em aberto",
       value: String(dashboard.pendingActivities),
-      note: `${completionRate}% concluidas no periodo`,
+      note: `${completionRate}% concluídas no período`,
       tone: "blue",
     },
   ];
 
+  const maxSource = Math.max(...sourceMix.map((s) => s.value), 1);
+
   return (
     <div className="dashboard-grid">
-      <section className="hero-card" style={{ padding: "1rem", minHeight: "auto" }}>
+      <section className="hero-card">
         <div>
           <p className="hero-kicker">Performance comercial</p>
           <h2>Painel executivo do CRM</h2>
           <p className="hero-copy">
-            Leads, pipeline e operacao concentrados em um dashboard mais claro para tomada de decisao.
+            Leads, pipeline e operação concentrados em um dashboard para tomada de decisão mais rápida.
           </p>
         </div>
         <div className="period-tabs">
@@ -247,16 +162,16 @@ export default function DashboardPage() {
       <section className="dashboard-panel wide">
         <div className="panel-heading">
           <div>
-            <h3>Fluxo de leads vs negocios</h3>
-            <p>Os graficos abaixo usam os registros reais cadastrados nos ultimos dias.</p>
+            <h3>Fluxo de leads vs negócios</h3>
+            <p>Registros reais cadastrados nos últimos 7 dias.</p>
           </div>
-          <button type="button" className="panel-link">
-            Atualizar leitura
+          <button type="button" className="panel-link" onClick={() => void load()}>
+            Atualizar
           </button>
         </div>
         <div className="legend-row dark">
           <span><i className="legend-dot warm" /> Leads criados</span>
-          <span><i className="legend-dot cool" /> Negocios criados</span>
+          <span><i className="legend-dot cool" /> Negócios criados</span>
         </div>
         <LineChart trend={trend} />
       </section>
@@ -265,16 +180,15 @@ export default function DashboardPage() {
         <div className="panel-heading">
           <div>
             <h3>Etapas mais carregadas</h3>
-            <p>Volume de negocios por etapa do pipeline.</p>
+            <p>Volume de negócios por etapa do pipeline.</p>
           </div>
         </div>
         <BarChart
-          items={dashboard.stageSummary.length > 0
-            ? dashboard.stageSummary.map((stage) => ({
-                label: stage.stageName,
-                value: stage.dealCount,
-              }))
-            : [{ label: "Sem dados", value: 0 }]}
+          items={
+            dashboard.stageSummary.length > 0
+              ? dashboard.stageSummary.map((s) => ({ label: s.stageName, value: s.dealCount }))
+              : [{ label: "Sem dados", value: 0 }]
+          }
         />
       </section>
 
@@ -282,25 +196,22 @@ export default function DashboardPage() {
         <div className="panel-heading">
           <div>
             <h3>Origem dos leads</h3>
-            <p>Canais que mais abastecem a operacao comercial.</p>
+            <p>Canais que mais abastecem a operação comercial.</p>
           </div>
         </div>
         <div className="source-stack">
           {sourceMix.length > 0 ? (
-            sourceMix.map((item) => {
-              const maxValue = Math.max(...sourceMix.map((source) => source.value), 1);
-              return (
-                <div key={item.label} className="source-row">
-                  <div>
-                    <strong>{item.label}</strong>
-                    <span>{item.value} leads</span>
-                  </div>
-                  <div className="source-bar">
-                    <span style={{ width: `${(item.value / maxValue) * 100}%` }} />
-                  </div>
+            sourceMix.map((item) => (
+              <div key={item.label} className="source-row">
+                <div>
+                  <strong>{item.label}</strong>
+                  <span>{item.value} leads</span>
                 </div>
-              );
-            })
+                <div className="source-bar">
+                  <span style={{ width: `${(item.value / maxSource) * 100}%` }} />
+                </div>
+              </div>
+            ))
           ) : (
             <p className="empty-copy">Cadastre leads para ver os canais mais fortes aqui.</p>
           )}
@@ -310,7 +221,7 @@ export default function DashboardPage() {
       <section className="dashboard-panel">
         <div className="panel-heading">
           <div>
-            <h3>Ultimos leads</h3>
+            <h3>Últimos leads</h3>
             <p>Entradas recentes do funil comercial.</p>
           </div>
         </div>

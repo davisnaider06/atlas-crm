@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useState } from "react";
+import { CheckIcon, AlertIcon, XIcon } from "@/components/ui/icons";
 
 type Notification = { id: string; title?: string; message: string; type?: "error" | "success" | "info" };
 
@@ -16,7 +17,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const notify = useCallback((n: Omit<Notification, "id">) => {
     const note: Notification = { id: String(Date.now()), ...n };
     setCurrent(note);
-    // auto dismiss after 6s
     setTimeout(() => setCurrent((cur) => (cur && cur.id === note.id ? null : cur)), 6000);
   }, []);
 
@@ -25,7 +25,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     else setCurrent((cur) => (cur && cur.id === id ? null : cur));
   }, []);
 
-  return <NotificationContext.Provider value={{ notify, dismiss, current }}>{children}</NotificationContext.Provider>;
+  return (
+    <NotificationContext.Provider value={{ notify, dismiss, current }}>
+      {children}
+    </NotificationContext.Provider>
+  );
 }
 
 export function useNotification() {
@@ -40,20 +44,94 @@ export function NotificationModal() {
   const { current, dismiss } = ctx;
   if (!current) return null;
 
-  const color = current.type === "success" ? "#064e3b" : current.type === "error" ? "#7f1d1d" : "#0f172a";
+  const isSuccess = current.type === "success";
+  const isError = current.type === "error";
+
+  const accentColor = isSuccess ? "var(--success)" : isError ? "var(--danger)" : "var(--cool)";
+  const bgColor = isSuccess ? "var(--success-soft)" : isError ? "var(--danger-soft)" : "var(--cool-soft)";
+  const title = current.title ?? (isError ? "Erro" : isSuccess ? "Sucesso" : "Informação");
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={() => dismiss(current.id)}>
-      <div className="modal-panel" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>{current.title ?? (current.type === "error" ? "Erro" : current.type === "success" ? "Sucesso" : "Info")}</h3>
-          <button className="ghost-button" onClick={() => dismiss(current.id)}>
-            Fechar
-          </button>
+    <div
+      role="presentation"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: "0 20px 24px",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          pointerEvents: "auto",
+          minWidth: 280,
+          maxWidth: 420,
+          width: "100%",
+          background: "var(--panel)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-xl)",
+          boxShadow: "var(--shadow-lg)",
+          padding: "16px 18px",
+          display: "flex",
+          gap: 14,
+          alignItems: "flex-start",
+          animation: "toastIn 220ms var(--ease) both",
+        }}
+      >
+        <style>{`
+          @keyframes toastIn {
+            from { opacity: 0; transform: translateY(16px) scale(0.96); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+          }
+        `}</style>
+
+        <span
+          style={{
+            width: 34,
+            height: 34,
+            display: "grid",
+            placeItems: "center",
+            borderRadius: "50%",
+            background: bgColor,
+            color: accentColor,
+            flexShrink: 0,
+            marginTop: 2,
+          }}
+        >
+          {isSuccess ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
+        </span>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <strong style={{ display: "block", fontSize: "0.9rem", marginBottom: 4 }}>{title}</strong>
+          <p style={{ color: "var(--muted)", fontSize: "0.84rem", overflowWrap: "anywhere" }}>
+            {current.message}
+          </p>
         </div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ padding: 12, borderRadius: 6, background: color, color: "white" }}>{current.message}</div>
-        </div>
+
+        <button
+          type="button"
+          onClick={() => dismiss(current.id)}
+          style={{
+            width: 28,
+            height: 28,
+            display: "grid",
+            placeItems: "center",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            background: "transparent",
+            color: "var(--muted)",
+            flexShrink: 0,
+            cursor: "pointer",
+            transition: "background 120ms",
+          }}
+          aria-label="Fechar"
+        >
+          <XIcon size={13} />
+        </button>
       </div>
     </div>
   );

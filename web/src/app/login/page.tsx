@@ -47,11 +47,15 @@ export default function LoginPage() {
 
         <section className="login-modal">
           <div className="login-logo">
-            <span />
+            <span>A</span>
           </div>
           <div className="login-header">
             <h2>{mode === "login" ? "Acesse sua conta" : "Crie sua conta"}</h2>
-            <p>{mode === "login" ? "Entre com seu usuario para acessar o CRM." : "Cadastre sua empresa e comece com um workspace limpo."}</p>
+            <p>
+              {mode === "login"
+                ? "Entre com seu usuário para acessar o CRM."
+                : "Cadastre sua empresa e comece com um workspace limpo."}
+            </p>
           </div>
 
           <div className="auth-tabs">
@@ -79,13 +83,22 @@ export default function LoginPage() {
 
             <label className="field">
               <span>Email</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
             </label>
 
             <label className="field">
               <span>Senha</span>
               <input
                 type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                placeholder="••••••••"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -100,7 +113,9 @@ export default function LoginPage() {
           </form>
 
           <p className="login-footnote">
-            {mode === "login" ? "Ainda nao tem conta? Use a aba Criar conta." : "Depois do cadastro voce entra direto no CRM."}
+            {mode === "login"
+              ? "Ainda não tem conta? Use a aba Criar conta."
+              : "Depois do cadastro você entra direto no CRM."}
           </p>
         </section>
       </div>

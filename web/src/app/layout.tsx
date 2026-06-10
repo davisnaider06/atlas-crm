@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AppFrame } from "@/components/auth/app-frame";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { NotificationProvider, NotificationModal } from "@/components/ui/notification-context";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Atlas CRM",
@@ -16,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={inter.variable}>
       <body>
         <ThemeProvider>
           <AuthProvider>

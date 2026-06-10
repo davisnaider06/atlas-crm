@@ -325,7 +325,7 @@ export default function LeadsPage() {
       <section className="lead-command-card">
         <div>
           <p className="eyebrow">Central de leads</p>
-          <h2>Entrada, qualificacao e conversao em uma visao unica.</h2>
+          <h2>Entrada, qualificação e conversão em uma visão única.</h2>
         </div>
         <div className="lead-command-actions">
           <div className="lead-metrics">
@@ -441,7 +441,7 @@ export default function LeadsPage() {
                       <strong>{lead.name}</strong>
                       <span>{lead.source}</span>
                     </div>
-                    <p>{lead.email || lead.phone || "Contato nao informado"}</p>
+                    <p>{lead.email || lead.phone || "Contato não informado"}</p>
                     <p>{lead.ownerName ? `Vendedor: ${lead.ownerName}` : "Sem vendedor definido"}</p>
                     <div className="lead-qualification-row">
                       <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
@@ -492,7 +492,7 @@ export default function LeadsPage() {
                 <th>Status</th>
                 <th>Vendedor</th>
                 <th>Criado em</th>
-                <th>Acoes</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -581,7 +581,7 @@ export default function LeadsPage() {
             <div className="card-header">
               <div>
                 <h3>Detalhes do lead</h3>
-                <p>Atualize informacoes, converta em cliente ou consulte o historico.</p>
+                <p>Atualize informações, converta em cliente ou consulte o histórico.</p>
               </div>
               <button type="button" className="table-action" onClick={() => setSelectedLead(null)}>
                 Fechar
@@ -615,15 +615,15 @@ export default function LeadsPage() {
                     ))}
                   </select>
                 </label>
-                <div className="insight-card compact-insight">
-                  <span>Pre-qualificacao</span>
+                <div className="compact-insight">
+                  <span>Pré-qualificação</span>
                   <strong>
                     {qualificationLabels[selectedLead.qualificationTemperature] ?? selectedLead.qualificationTemperature} · {selectedLead.qualificationScore} pts
                   </strong>
-                  <p>{selectedLead.qualificationNotes || "Sem notas de qualificacao."}</p>
+                  <p>{selectedLead.qualificationNotes || "Sem notas de qualificação."}</p>
                 </div>
                 <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
-                  {submitting ? "Atualizando..." : "Salvar alteracoes"}
+                  {submitting ? "Atualizando..." : "Salvar alterações"}
                 </button>
                 {canCreateCustomer ? (
                   <button
@@ -632,7 +632,7 @@ export default function LeadsPage() {
                     onClick={() => void handleConvertToCustomer()}
                     disabled={submitting || selectedLead.status === "Converted"}
                   >
-                    {selectedLead.status === "Converted" ? "Lead ja convertido" : "Converter em cliente"}
+                    {selectedLead.status === "Converted" ? "Lead já convertido" : "Converter em cliente"}
                   </button>
                 ) : null}
                 {canDelete ? (
@@ -645,7 +645,7 @@ export default function LeadsPage() {
               <div className="timeline">
                 <div className="card-header">
                   <div>
-                    <h3>Historico</h3>
+                    <h3>Histórico</h3>
                     <p>Eventos registrados para este lead.</p>
                   </div>
                   <span className="tag">#{selectedLead.id}</span>
@@ -657,7 +657,7 @@ export default function LeadsPage() {
                     <span>{formatDate(item.occurredAtUtc)}</span>
                   </article>
                 ))}
-                {history.length === 0 ? <div className="empty-card">Sem historico encontrado.</div> : null}
+                {history.length === 0 ? <div className="empty-card">Sem histórico encontrado.</div> : null}
               </div>
             </div>
           </div>
