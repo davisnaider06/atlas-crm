@@ -5,19 +5,19 @@
 /* ---------- Tokens ---------- */
 :root {
   /* Backgrounds */
-  --bg:           #060709;
+  --bg:           #050608;
   --bg-layer:     rgba(10, 11, 14, 0.8);
   --shell:        transparent;
-  --sidebar:      rgba(8, 9, 12, 0.76);
-  --panel:        rgba(255, 255, 255, 0.055);
-  --panel-soft:   rgba(255, 255, 255, 0.04);
-  --panel-muted:  rgba(255, 255, 255, 0.025);
-  --panel-hover:  rgba(255, 255, 255, 0.085);
+  --sidebar:      rgba(6, 7, 10, 0.62);
+  --panel:        rgba(255, 255, 255, 0.028);
+  --panel-soft:   rgba(255, 255, 255, 0.018);
+  --panel-muted:  rgba(255, 255, 255, 0.012);
+  --panel-hover:  rgba(255, 255, 255, 0.048);
 
   /* Glass */
-  --glass:       blur(22px) saturate(160%);
-  --glass-heavy: blur(40px) saturate(180%);
-  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass:       blur(36px) saturate(200%);
+  --glass-heavy: blur(56px) saturate(220%);
+  --glass-border: rgba(255, 255, 255, 0.09);
 
   /* Borders */
   --border:       rgba(255, 255, 255, 0.09);
@@ -151,19 +151,19 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse 110% 85% at -8% -8%,  rgba(255,  75,   0, 0.55) 0%, transparent 46%),
-    radial-gradient(ellipse  75% 70% at 108% 104%, rgba( 48, 110, 255, 0.40) 0%, transparent 46%),
-    radial-gradient(ellipse  55% 50% at  58%  52%, rgba(220, 100,   0, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse  40% 35% at  20%  80%, rgba(100,  60, 255, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse 120% 90% at  -8%  -8%, rgba(255,  65,   0, 0.72) 0%, transparent 44%),
+    radial-gradient(ellipse  80% 75% at 110% 108%, rgba( 40, 100, 255, 0.55) 0%, transparent 44%),
+    radial-gradient(ellipse  60% 55% at  58%  50%, rgba(200,  80,   0, 0.30) 0%, transparent 52%),
+    radial-gradient(ellipse  45% 40% at  18%  82%, rgba( 80,  40, 230, 0.25) 0%, transparent 48%),
     var(--bg);
   pointer-events: none;
 }
 
 :root[data-theme="light"] body::before {
   background:
-    radial-gradient(ellipse 110% 85% at -8% -8%,  rgba(239, 100,   0, 0.40) 0%, transparent 46%),
-    radial-gradient(ellipse  75% 70% at 108% 104%, rgba( 50, 110, 230, 0.28) 0%, transparent 46%),
-    radial-gradient(ellipse  55% 50% at  58%  52%, rgba(200,  90,   0, 0.15) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 90% at  -8%  -8%, rgba(239,  90,   0, 0.52) 0%, transparent 44%),
+    radial-gradient(ellipse  80% 75% at 110% 108%, rgba( 45, 100, 220, 0.38) 0%, transparent 44%),
+    radial-gradient(ellipse  60% 55% at  58%  50%, rgba(200,  80,   0, 0.18) 0%, transparent 52%),
     var(--bg);
 }
 
@@ -2544,49 +2544,49 @@ button { cursor: pointer; }
 .panel {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 1px 0 0 rgba(255, 255, 255, 0.05);
+    0 8px 40px rgba(0, 0, 0, 0.50),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20);
 }
 
 /* Sidebar */
 .rockart-sidebar {
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  border-right-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  border-right-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Impact / KPI cards */
 .impact-card {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 1px 0 0 rgba(255, 255, 255, 0.06);
+    0 8px 40px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 }
 
 /* Heavy-glass modals */
 .modal-panel,
 .modal-box {
-  background: rgba(10, 11, 15, 0.72);
+  background: rgba(8, 9, 13, 0.55);
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.60),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 1px 0 0 rgba(255, 255, 255, 0.06);
+    0 40px 100px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
 }
 
 :root[data-theme="light"] .modal-panel,
 :root[data-theme="light"] .modal-box {
-  background: rgba(255, 255, 255, 0.75);
-  border-color: rgba(255, 255, 255, 0.80);
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.75);
 }
 
 /* Form inputs */
@@ -2635,15 +2635,15 @@ button { cursor: pointer; }
 .kanban-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.09);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .kanban-card {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 /* Lead cards */
@@ -2651,8 +2651,8 @@ button { cursor: pointer; }
 .lead-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 /* User block */
