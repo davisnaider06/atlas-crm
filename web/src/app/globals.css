@@ -5,14 +5,14 @@
 /* ---------- Tokens ---------- */
 :root {
   /* Backgrounds */
-  --bg:           #050608;
+  --bg:           #040506;
   --bg-layer:     rgba(10, 11, 14, 0.8);
   --shell:        transparent;
-  --sidebar:      rgba(6, 7, 10, 0.62);
-  --panel:        rgba(255, 255, 255, 0.028);
-  --panel-soft:   rgba(255, 255, 255, 0.018);
-  --panel-muted:  rgba(255, 255, 255, 0.012);
-  --panel-hover:  rgba(255, 255, 255, 0.048);
+  --sidebar:      rgba(6, 7, 10, 0.58);
+  --panel:        rgba(255, 252, 248, 0.05);
+  --panel-soft:   rgba(255, 252, 248, 0.03);
+  --panel-muted:  rgba(255, 252, 248, 0.02);
+  --panel-hover:  rgba(255, 252, 248, 0.08);
 
   /* Glass */
   --glass:       blur(36px) saturate(200%);
@@ -766,12 +766,9 @@ button { cursor: pointer; }
   font-size: 0.78rem;
 }
 
-.impact-card.orange { border-top: 2px solid var(--accent); }
 .impact-card.orange strong { color: var(--accent-strong); }
-.impact-card.gold { border-top: 2px solid var(--gold); }
-.impact-card.gold strong { color: var(--gold); }
-.impact-card.blue { border-top: 2px solid var(--cool); }
-.impact-card.blue strong { color: var(--cool); }
+.impact-card.gold strong   { color: var(--gold); }
+.impact-card.blue strong   { color: var(--cool); }
 
 /* Dashboard panels */
 .dashboard-panel {
@@ -2544,11 +2541,8 @@ button { cursor: pointer; }
 .panel {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.50),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.20);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
 }
 
 /* Sidebar */
@@ -2556,37 +2550,31 @@ button { cursor: pointer; }
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
   border-right-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.40);
 }
 
 /* Impact / KPI cards */
 .impact-card {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.42);
 }
 
 /* Heavy-glass modals */
 .modal-panel,
 .modal-box {
-  background: rgba(8, 9, 13, 0.55);
+  background: rgba(8, 9, 13, 0.50);
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  border-color: rgba(255, 255, 255, 0.10);
-  box-shadow:
-    0 40px 100px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.11);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.60);
 }
 
 :root[data-theme="light"] .modal-panel,
 :root[data-theme="light"] .modal-box {
-  background: rgba(255, 255, 255, 0.62);
-  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.70);
 }
 
 /* Form inputs */
@@ -2635,15 +2623,15 @@ button { cursor: pointer; }
 .kanban-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.42);
 }
 
 .kanban-card {
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.32);
 }
 
 /* Lead cards */
@@ -2651,8 +2639,8 @@ button { cursor: pointer; }
 .lead-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.38);
 }
 
 /* User block */
