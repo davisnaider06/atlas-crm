@@ -5,14 +5,14 @@
 /* ---------- Tokens ---------- */
 :root {
   /* Backgrounds */
-  --bg:           #080909;
-  --bg-layer:     rgba(16, 17, 20, 0.8);
+  --bg:           #060709;
+  --bg-layer:     rgba(10, 11, 14, 0.8);
   --shell:        transparent;
-  --sidebar:      rgba(10, 11, 13, 0.72);
-  --panel:        rgba(22, 23, 26, 0.52);
-  --panel-soft:   rgba(28, 29, 32, 0.48);
-  --panel-muted:  rgba(12, 13, 16, 0.58);
-  --panel-hover:  rgba(30, 31, 36, 0.62);
+  --sidebar:      rgba(8, 9, 12, 0.76);
+  --panel:        rgba(255, 255, 255, 0.055);
+  --panel-soft:   rgba(255, 255, 255, 0.04);
+  --panel-muted:  rgba(255, 255, 255, 0.025);
+  --panel-hover:  rgba(255, 255, 255, 0.085);
 
   /* Glass */
   --glass:       blur(22px) saturate(160%);
@@ -78,14 +78,14 @@
 }
 
 :root[data-theme="light"] {
-  --bg:           #e8e0d8;
+  --bg:           #e8dfd5;
   --bg-layer:     rgba(248, 242, 236, 0.8);
   --shell:        transparent;
-  --sidebar:      rgba(250, 245, 239, 0.72);
-  --panel:        rgba(255, 255, 255, 0.58);
-  --panel-soft:   rgba(255, 248, 244, 0.55);
-  --panel-muted:  rgba(245, 237, 230, 0.6);
-  --panel-hover:  rgba(255, 243, 236, 0.68);
+  --sidebar:      rgba(250, 245, 239, 0.70);
+  --panel:        rgba(255, 255, 255, 0.52);
+  --panel-soft:   rgba(255, 255, 255, 0.42);
+  --panel-muted:  rgba(255, 255, 255, 0.32);
+  --panel-hover:  rgba(255, 255, 255, 0.62);
 
   --glass:       blur(22px) saturate(180%);
   --glass-heavy: blur(40px) saturate(200%);
@@ -135,12 +135,7 @@ body { min-height: 100%; }
 
 body {
   color: var(--text);
-  background:
-    radial-gradient(ellipse 85% 65% at -5% -5%,  rgba(255, 106,   0, 0.22) 0%, transparent 52%),
-    radial-gradient(ellipse 60% 55% at 105% 95%, rgba( 91, 142, 255, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse 48% 42% at  68% 28%, rgba(245, 185,  66, 0.08) 0%, transparent 55%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   font-family: var(--font-inter, "Inter", "Segoe UI", system-ui, -apple-system, sans-serif);
   font-size: 15px;
   line-height: 1.5;
@@ -149,13 +144,27 @@ body {
   overflow-wrap: anywhere;
 }
 
-:root[data-theme="light"] body {
+/* Fixed gradient layer — backdrop-filter blurs this */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
-    radial-gradient(ellipse 85% 65% at -5% -5%,  rgba(239, 108,  0, 0.18) 0%, transparent 52%),
-    radial-gradient(ellipse 60% 55% at 105% 95%, rgba( 59, 108, 232, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 48% 42% at  68% 28%, rgba(176, 125,  16, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 110% 85% at -8% -8%,  rgba(255,  75,   0, 0.55) 0%, transparent 46%),
+    radial-gradient(ellipse  75% 70% at 108% 104%, rgba( 48, 110, 255, 0.40) 0%, transparent 46%),
+    radial-gradient(ellipse  55% 50% at  58%  52%, rgba(220, 100,   0, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse  40% 35% at  20%  80%, rgba(100,  60, 255, 0.18) 0%, transparent 50%),
     var(--bg);
-  background-attachment: fixed;
+  pointer-events: none;
+}
+
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 110% 85% at -8% -8%,  rgba(239, 100,   0, 0.40) 0%, transparent 46%),
+    radial-gradient(ellipse  75% 70% at 108% 104%, rgba( 50, 110, 230, 0.28) 0%, transparent 46%),
+    radial-gradient(ellipse  55% 50% at  58%  52%, rgba(200,  90,   0, 0.15) 0%, transparent 55%),
+    var(--bg);
 }
 
 a {
@@ -2535,39 +2544,49 @@ button { cursor: pointer; }
 .panel {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Sidebar */
 .rockart-sidebar {
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  box-shadow: 1px 0 0 var(--glass-border);
-  border-right-color: var(--glass-border);
+  border-right-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
 }
 
 /* Impact / KPI cards */
 .impact-card {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  border-color: var(--glass-border);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Heavy-glass modals */
 .modal-panel,
 .modal-box {
-  background: rgba(12, 13, 16, 0.82);
+  background: rgba(10, 11, 15, 0.72);
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  border-color: var(--glass-border);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.60),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 :root[data-theme="light"] .modal-panel,
 :root[data-theme="light"] .modal-box {
-  background: rgba(255, 255, 255, 0.82);
-  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.80);
 }
 
 /* Form inputs */
@@ -2616,12 +2635,15 @@ button { cursor: pointer; }
 .kanban-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 .kanban-card {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Lead cards */
@@ -2629,6 +2651,8 @@ button { cursor: pointer; }
 .lead-column {
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 
 /* User block */
