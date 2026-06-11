@@ -47,7 +47,7 @@ export default function LoginPage() {
 
         <section className="login-modal">
           <div className="login-logo">
-            <span>A</span>
+            <span>ATLAS</span>
           </div>
           <div className="login-header">
             <h2>{mode === "login" ? "Acesse sua conta" : "Crie sua conta"}</h2>
