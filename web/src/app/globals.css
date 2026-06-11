@@ -607,6 +607,7 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   padding: 0 13px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -2170,10 +2171,39 @@ select {
   font-size: 0.74rem;
 }
 
+/* ---------- Mobile nav (drawer) ---------- */
+.mobile-nav-toggle {
+  display: none;
+  width: 42px;
+  min-height: 42px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.mobile-nav-close { display: none; }
+
+.mobile-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 650;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: backdropIn 160ms var(--ease) both;
+}
+
+body.mobile-nav-locked { overflow: hidden; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1280px) {
   .dashboard-grid,
-  .stats-strip,
   .three-column,
   .two-column,
   .settings-grid,
@@ -2181,6 +2211,10 @@ select {
   .lead-workspace {
     grid-template-columns: 1fr;
   }
+
+  .span-two { grid-column: auto; }
+
+  .stats-strip { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 
   .lead-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lead-command-actions { justify-items: stretch; }
@@ -2744,38 +2778,97 @@ select {
 }
 
 @media (max-width: 1060px) {
-  .shell-bg, .shell-panel { height: auto; overflow: visible; }
-  .shell-panel { grid-template-columns: 1fr; }
-  .shell-panel.sidebar-collapsed { grid-template-columns: 1fr; }
-  .main-shell { height: auto; overflow: visible; }
-  .content { overflow: visible; padding-bottom: 28px; }
-  .lead-kanban,
-  .kanban-board { height: min(70vh, 560px); }
+  /* Shell continua app-like: altura da viewport, conteúdo rola internamente */
+  .shell-bg,
+  .shell-panel { height: 100dvh; }
 
-  .rockart-sidebar {
-    height: auto;
-    overflow-y: visible;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+  .shell-panel,
+  .shell-panel.sidebar-collapsed { grid-template-columns: 1fr; }
+
+  /* Sidebar vira drawer off-canvas */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(84vw, 300px);
+    z-index: 700;
+    transform: translateX(-105%);
+    transition: transform 240ms var(--ease);
   }
 
+  .mobile-nav-open .sidebar {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .rockart-sidebar {
+    width: 100%;
+    background: rgba(8, 9, 12, 0.92);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  :root[data-theme="light"] .rockart-sidebar {
+    background: rgba(250, 245, 239, 0.95);
+  }
+
+  /* No drawer o modo colapsado não existe — neutraliza */
   .sidebar-collapsed .rockart-sidebar {
     align-items: stretch;
     padding: 20px 14px;
+    width: 100%;
+    overflow-y: auto;
   }
 
   .sidebar-collapsed .brand-copy,
   .sidebar-collapsed .nav-label,
   .sidebar-collapsed .user-copy,
-  .sidebar-collapsed .nav-group-title {
+  .sidebar-collapsed .nav-group-title,
+  .sidebar-collapsed .sidebar-upgrade {
     display: block !important;
     opacity: 1;
   }
 
-  .sidebar-collapsed .nav-link { justify-content: flex-start; padding: 0 12px; }
-  .sidebar-collapsed .rockart-user { justify-content: flex-start; padding: 12px 10px; }
-  .sidebar-collapsed .sidebar-toggle { position: static; width: 28px; height: 28px; }
-  .shell-panel.sidebar-collapsed .main-shell { padding-left: 28px; }
+  .sidebar-collapsed .nav-link {
+    justify-content: flex-start;
+    padding: 0 12px;
+    width: auto;
+    margin: 0;
+    min-height: 42px;
+  }
+
+  .sidebar-collapsed .logout-link { width: 100%; }
+  .sidebar-collapsed .rockart-user {
+    justify-content: flex-start;
+    padding: 12px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border);
+  }
+
+  /* Toggle de colapso some; botão de fechar aparece */
+  .sidebar-toggle:not(.mobile-nav-close) { display: none; }
+  .mobile-nav-close {
+    display: grid;
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+  }
+
+  .mobile-nav-toggle { display: grid; }
+  .mobile-nav-backdrop { display: block; }
+
+  .topbar-tools { flex-shrink: 1; min-width: 0; }
+  .dashboard-search { min-width: 140px; flex: 1 1 140px; }
+
+  .main-shell {
+    padding: calc(14px + env(safe-area-inset-top)) 16px 0;
+    gap: 14px;
+  }
+
+  .content { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+  .lead-kanban,
+  .kanban-board { height: min(64dvh, 560px); }
 
   .login-shell { grid-template-columns: 1fr; min-height: 100dvh; }
   .login-promo { min-height: 36dvh; }
@@ -2963,19 +3056,102 @@ select {
 }
 
 @media (max-width: 760px) {
-  .main-shell { padding: 16px 18px 0; }
+  /* Topbar compacta: hamburguer + título na 1ª linha, ferramentas na 2ª */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px 12px;
+  }
 
-  .topbar,
-  .hero-card { flex-direction: column; align-items: stretch; }
+  .page-intro h1 { font-size: 1.2rem; margin-bottom: 0; }
+  .page-intro p { display: none; }
 
-  .dashboard-search { min-width: 100%; }
-  .lead-metrics { grid-template-columns: 1fr; }
+  .topbar-tools {
+    grid-column: 1 / -1;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .dashboard-search {
+    flex: 1;
+    min-width: 0;
+    min-height: 42px;
+  }
+
+  .status-pill { display: none; }
+
+  .theme-switch {
+    width: 42px;
+    min-height: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+  .theme-switch-label { display: none; }
+
+  /* Cards mais enxutos */
+  .hero-card { flex-direction: column; align-items: stretch; padding: 18px; }
+  .dashboard-panel,
+  .impact-card { padding: 18px; }
+  .toolbar-card,
+  .table-card,
+  .timeline-card,
+  .settings-card { padding: 16px; }
+  .lead-command-card { padding: 18px; }
+  .page-grid { gap: 14px; }
+  .dashboard-grid { gap: 14px; }
+  .two-column,
+  .three-column { gap: 14px; }
+
+  /* Formulários e filtros em coluna única */
+  .field-row { grid-template-columns: 1fr; }
+  .toolbar-card { align-items: stretch; flex-direction: column; }
+  .toolbar-card .field.compact { min-width: 0; width: 100%; }
+  .toolbar-card .ghost-button,
+  .toolbar-card .primary-button { width: 100%; }
+
+  .lead-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .lead-metrics article { min-height: 68px; padding: 12px; }
   .session-meta { grid-template-columns: 1fr; }
   .table-card { overflow-x: auto; }
   .table { min-width: 580px; }
 
-  .modal-backdrop { padding: 10px; place-items: end center; }
-  .modal-panel { max-height: 94vh; padding: 18px; }
+  /* Kanban: colunas mais estreitas pro swipe */
+  .lead-column { flex-basis: 228px; min-width: 228px; }
+  .kanban-column { flex-basis: 248px; min-width: 248px; }
+
+  /* Modais viram bottom sheet */
+  .modal-backdrop { padding: 0; place-items: end stretch; }
+  .modal-panel {
+    width: 100%;
+    max-height: 92dvh;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-bottom: 0;
+    animation: sheetIn 240ms var(--ease) both;
+  }
+  .modal-overlay { padding: 0; place-items: end stretch; }
+  .modal-box {
+    max-width: none;
+    max-height: 92dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-bottom: 0;
+    animation: sheetIn 240ms var(--ease) both;
+  }
+  .modal-actions { flex-wrap: wrap; }
+
+  /* Calendário compacto */
+  .calendar-main { padding: 12px; }
+  .calendar-day { min-height: 58px; padding: 4px; gap: 2px; }
+  .calendar-day-num,
+  .calendar-day.today .calendar-day-num { width: 20px; height: 20px; font-size: 0.72rem; }
+  .calendar-event-dot {
+    height: 5px;
+    max-width: 24px;
+    padding: 0;
+    font-size: 0;
+    border-radius: 999px;
+  }
 
   .mini-row,
   .timeline-item { display: grid; }
@@ -2984,5 +3160,10 @@ select {
   .timeline-item span { text-align: left; white-space: normal; }
 
   .login-promo { min-height: 32dvh; padding: 24px 20px; }
-  .login-modal { padding: 24px 18px 20px; }
+  .login-modal { padding: 24px 18px calc(20px + env(safe-area-inset-bottom)); }
+}
+
+@keyframes sheetIn {
+  from { opacity: 0.6; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

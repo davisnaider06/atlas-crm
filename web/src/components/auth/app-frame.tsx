@@ -26,6 +26,8 @@ import {
   SearchIcon,
   SunIcon,
   MoonIcon,
+  MenuIcon,
+  XIcon,
 } from "@/components/ui/icons";
 
 type NavItem = {
@@ -129,7 +131,19 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Fecha o drawer mobile ao navegar
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  // Trava o scroll do body enquanto o drawer está aberto
+  useEffect(() => {
+    document.body.classList.toggle("mobile-nav-locked", mobileNavOpen);
+    return () => document.body.classList.remove("mobile-nav-locked");
+  }, [mobileNavOpen]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +184,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   return (
     <div className="shell-bg">
-      <div className={`shell-panel rockart-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <div className={`shell-panel rockart-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${mobileNavOpen ? " mobile-nav-open" : ""}`}>
+        {mobileNavOpen && (
+          <div
+            className="mobile-nav-backdrop"
+            role="presentation"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
         <aside className="sidebar rockart-sidebar">
           <div className="brand rockart-brand">
             <span className="brand-mark">A</span>
@@ -188,6 +209,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
               onClick={() => setSidebarCollapsed((c) => !c)}
             >
               {sidebarCollapsed ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
+            </button>
+            <button
+              type="button"
+              className="sidebar-toggle mobile-nav-close"
+              aria-label="Fechar menu"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <XIcon size={15} />
             </button>
           </div>
 
@@ -262,6 +291,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
         <div className="main-shell rockart-main">
           <header className="topbar rockart-topbar">
+            <button
+              type="button"
+              className="mobile-nav-toggle"
+              aria-label="Abrir menu"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <MenuIcon size={19} />
+            </button>
             <div className="page-intro">
               <h1>
                 {currentPage.title}, {firstName}!
@@ -272,7 +309,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             <div className="topbar-tools">
               <button type="button" className="theme-switch" onClick={toggleTheme} title="Alternar tema">
                 {theme === "light" ? <MoonIcon size={15} /> : <SunIcon size={15} />}
-                <span>{theme === "light" ? "Escuro" : "Claro"}</span>
+                <span className="theme-switch-label">{theme === "light" ? "Escuro" : "Claro"}</span>
               </button>
               <form className="dashboard-search" onSubmit={handleSearch} role="search">
                 <SearchIcon size={14} />
