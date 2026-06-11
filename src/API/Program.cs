@@ -16,6 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<PublicLeadCaptureOptions>(builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName));
+builder.Services.Configure<ClerkOptions>(builder.Configuration.GetSection(ClerkOptions.SectionName));
+builder.Services.AddSingleton<ClerkAuthenticator>();
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 var publicLeadOptions = builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName).Get<PublicLeadCaptureOptions>() ?? new PublicLeadCaptureOptions();
 var webCorsOrigins = new[]

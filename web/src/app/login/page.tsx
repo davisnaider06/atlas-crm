@@ -1,13 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SignIn, SignUp, useAuth as useClerkAuth } from "@clerk/nextjs";
 import { useAuth } from "@/components/auth/auth-provider";
+import { clerkEnabled, CLERK_SIGNOUT_FLAG } from "@/components/auth/clerk-provider";
+import { api } from "@/lib/api";
 
-export default function LoginPage() {
+type AuthMode = "login" | "register";
+
+/* ---------- Login/cadastro via Clerk (token trocado pelo JWT do backend) ---------- */
+function ClerkAuthPanel({ mode }: { mode: AuthMode }) {
+  const router = useRouter();
+  const { adoptSession } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useClerkAuth();
+  const [error, setError] = useState<string | null>(null);
+  const exchanging = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || exchanging.current) return;
+    // Logout local em andamento: espera o Clerk encerrar a sessão
+    if (window.localStorage.getItem(CLERK_SIGNOUT_FLAG) === "1") return;
+
+    exchanging.current = true;
+    void (async () => {
+      try {
+        const clerkToken = await getToken();
+        if (!clerkToken) throw new Error("Sessão do Clerk indisponível.");
+        const response = await api.clerkLogin(clerkToken);
+        adoptSession(response);
+        router.replace("/dashboard");
+      } catch (err) {
+        exchanging.current = false;
+        setError(err instanceof Error ? err.message : "Falha ao autenticar com o servidor.");
+      }
+    })();
+  }, [isLoaded, isSignedIn, getToken, adoptSession, router]);
+
+  if (isSignedIn) {
+    return (
+      <div className="login-syncing">
+        {error ? (
+          <p className="form-error">{error}</p>
+        ) : (
+          <p>Preparando seu workspace...</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-clerk">
+      {error ? <p className="form-error">{error}</p> : null}
+      {mode === "login" ? (
+        <SignIn routing="hash" forceRedirectUrl="/login" signUpUrl="/login" />
+      ) : (
+        <SignUp routing="hash" forceRedirectUrl="/login" signInUrl="/login" />
+      )}
+    </div>
+  );
+}
+
+/* ---------- Fallback: login por email/senha do backend (sem chaves do Clerk) ---------- */
+function CredentialsAuthPanel({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [companyName, setCompanyName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,6 +92,57 @@ export default function LoginPage() {
   };
 
   return (
+    <form className="form-card login-form" onSubmit={handleSubmit}>
+      {mode === "register" ? (
+        <>
+          <label className="field">
+            <span>Empresa</span>
+            <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
+          </label>
+          <label className="field">
+            <span>Seu nome</span>
+            <input value={name} onChange={(event) => setName(event.target.value)} required />
+          </label>
+        </>
+      ) : null}
+
+      <label className="field">
+        <span>Email</span>
+        <input
+          type="email"
+          autoComplete="email"
+          placeholder="seu@email.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+      </label>
+
+      <label className="field">
+        <span>Senha</span>
+        <input
+          type="password"
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          placeholder="••••••••"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+      </label>
+
+      {error ? <p className="form-error">{error}</p> : null}
+
+      <button type="submit" className="primary-button login-submit" disabled={loading}>
+        {loading ? "Aguarde..." : mode === "login" ? "Entrar no CRM" : "Criar workspace"}
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  const [mode, setMode] = useState<AuthMode>("login");
+
+  return (
     <div className="login-scene">
       <div className="login-shell">
         <section className="login-promo">
@@ -54,7 +162,7 @@ export default function LoginPage() {
             <p>
               {mode === "login"
                 ? "Entre com seu usuário para acessar o CRM."
-                : "Cadastre sua empresa e comece com um workspace limpo."}
+                : "Cadastre-se e comece com um workspace limpo."}
             </p>
           </div>
 
@@ -67,50 +175,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <form className="form-card login-form" onSubmit={handleSubmit}>
-            {mode === "register" ? (
-              <>
-                <label className="field">
-                  <span>Empresa</span>
-                  <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
-                </label>
-                <label className="field">
-                  <span>Seu nome</span>
-                  <input value={name} onChange={(event) => setName(event.target.value)} required />
-                </label>
-              </>
-            ) : null}
-
-            <label className="field">
-              <span>Email</span>
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span>Senha</span>
-              <input
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </label>
-
-            {error ? <p className="form-error">{error}</p> : null}
-
-            <button type="submit" className="primary-button login-submit" disabled={loading}>
-              {loading ? "Aguarde..." : mode === "login" ? "Entrar no CRM" : "Criar workspace"}
-            </button>
-          </form>
+          {clerkEnabled ? <ClerkAuthPanel mode={mode} /> : <CredentialsAuthPanel mode={mode} />}
 
           <p className="login-footnote">
             {mode === "login"

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "@/lib/api";
+import { clerkEnabled, CLERK_SIGNOUT_FLAG } from "@/components/auth/clerk-provider";
 import type { AuthResponse, RegisterPayload } from "@/lib/types";
 
 type AuthContextValue = {
@@ -18,6 +19,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  adoptSession: (response: AuthResponse) => void;
   logout: () => void;
 };
 
@@ -94,15 +96,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  /** Adota uma sessão já autenticada (ex.: troca de token via Clerk). */
+  const adoptSession = useCallback((response: AuthResponse) => {
+    setUser(response);
+    setToken(response.accessToken);
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ token: response.accessToken, user: response }),
+    );
+  }, []);
+
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     window.localStorage.removeItem(STORAGE_KEY);
+    if (clerkEnabled) {
+      window.localStorage.setItem(CLERK_SIGNOUT_FLAG, "1");
+      window.dispatchEvent(new Event("atlascrm:clerk:signout"));
+    }
   }, []);
 
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout }),
-    [loading, login, logout, register, token, user],
+    () => ({ user, token, loading, login, register, adoptSession, logout }),
+    [adoptSession, loading, login, logout, register, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

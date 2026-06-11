@@ -148,6 +148,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  clerkLogin: (clerkToken: string, companyName?: string) =>
+    request<AuthResponse>("/auth/clerk", {
+      method: "POST",
+      body: JSON.stringify({ token: clerkToken, companyName }),
+    }),
 
   getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
   getLeads: (

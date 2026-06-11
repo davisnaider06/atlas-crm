@@ -1,3 +1,4 @@
+using AtlasCRM.API.Security;
 using AtlasCRM.Application.Common.Interfaces;
 using AtlasCRM.Application.Contracts.Auth;
 using Microsoft.AspNetCore.Mvc;
@@ -9,10 +10,12 @@ namespace AtlasCRM.API.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ClerkAuthenticator _clerkAuthenticator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ClerkAuthenticator clerkAuthenticator)
     {
         _authService = authService;
+        _clerkAuthenticator = clerkAuthenticator;
     }
 
     [HttpPost("login")]
@@ -31,5 +34,19 @@ public sealed class AuthController : ControllerBase
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _authService.RefreshAsync(request, cancellationToken));
+    }
+
+    [HttpPost("clerk")]
+    public async Task<ActionResult<AuthResponse>> Clerk([FromBody] ClerkLoginRequest request, CancellationToken cancellationToken)
+    {
+        var identity = await _clerkAuthenticator.AuthenticateAsync(request.Token, cancellationToken);
+        var response = await _authService.ExternalLoginAsync(new ExternalLoginRequest
+        {
+            Email = identity.Email,
+            Name = identity.Name,
+            CompanyName = request.CompanyName
+        }, cancellationToken);
+
+        return Ok(response);
     }
 }

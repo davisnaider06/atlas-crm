@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { AppClerkProvider } from "@/components/auth/clerk-provider";
 import { AppFrame } from "@/components/auth/app-frame";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { NotificationProvider, NotificationModal } from "@/components/ui/notification-context";
@@ -43,13 +44,15 @@ export default function RootLayout({
     <html lang="pt-BR" className={inter.variable}>
       <body>
         <ThemeProvider>
-          <AuthProvider>
-            <NotificationProvider>
-              <AppFrame>{children}</AppFrame>
-              <NotificationModal />
-              <ServiceWorkerRegister />
-            </NotificationProvider>
-          </AuthProvider>
+          <AppClerkProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <AppFrame>{children}</AppFrame>
+                <NotificationModal />
+                <ServiceWorkerRegister />
+              </NotificationProvider>
+            </AuthProvider>
+          </AppClerkProvider>
         </ThemeProvider>
       </body>
     </html>
