@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
-import type { HistoryItem, Lead, LeadOwner, PagedResult } from "@/lib/types";
+import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
 
 const leadStatusOptions = [
   { value: 1, label: "New" },
@@ -65,6 +65,36 @@ const qualificationValues: Record<string, number> = {
   Hot: 4,
 };
 
+const eventTypeLabels: Record<string, string> = {
+  LeadCreated: "Lead criado",
+  LeadUpdated: "Dados atualizados",
+  LeadStatusChanged: "Status alterado",
+  LeadConverted: "Convertido em cliente",
+  CustomerCreated: "Cliente criado",
+  DealCreated: "Negócio criado",
+  ActivityCreated: "Atividade registrada",
+  ActivityUpdated: "Atividade atualizada",
+};
+
+function formatHistoryDetail(item: HistoryItem): string {
+  try {
+    const data = JSON.parse(item.dataJson) as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof data.status === "string") {
+      parts.push(leadStatusLabels[data.status] ?? data.status);
+    }
+    if (typeof data.value === "number") {
+      parts.push(`R$ ${data.value.toLocaleString("pt-BR")}`);
+    }
+    if (typeof data.name === "string") {
+      parts.push(data.name);
+    }
+    return parts.join(" · ");
+  } catch {
+    return "";
+  }
+}
+
 export default function LeadsPage() {
   const { token, user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -75,6 +105,14 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [conversionForm, setConversionForm] = useState({
+    reason: "",
+    dealValue: "",
+    pipelineId: "",
+    stageId: "",
+  });
   const { notify } = useNotification();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -129,6 +167,24 @@ export default function LeadsPage() {
       })),
     [leads, owners],
   );
+  const conversionChecklist = useMemo(
+    () =>
+      !selectedLead
+        ? []
+        : [
+            { label: "Contato registrado (email ou telefone)", ok: !!(selectedLead.email || selectedLead.phone) },
+            { label: "Temperatura de qualificação definida", ok: selectedLead.qualificationTemperature !== "Unqualified" },
+            { label: "Tem histórico de interações", ok: history.length > 0 },
+            { label: "Score de qualificação acima de zero", ok: selectedLead.qualificationScore > 0 },
+          ],
+    [selectedLead, history],
+  );
+
+  const availableStages = useMemo(() => {
+    const found = pipelines.find((p) => String(p.id) === conversionForm.pipelineId);
+    return found?.stages ?? [];
+  }, [pipelines, conversionForm.pipelineId]);
+
   const canCreate = hasPermission(user, permissions.leadsCreate);
   const canEdit = hasPermission(user, permissions.leadsEdit);
   const canDelete = hasPermission(user, permissions.leadsDelete);
@@ -291,22 +347,46 @@ export default function LeadsPage() {
     }
   };
 
-  const handleConvertToCustomer = async () => {
-    if (!token || !selectedLead) {
-      return;
+  const handleOpenConvertModal = () => {
+    if (!selectedLead) return;
+    setError(null);
+    if (token && pipelines.length === 0) {
+      void api.getPipelines(token).then(setPipelines).catch(() => {});
     }
+    setConvertModalOpen(true);
+  };
+
+  const handleConvertToCustomer = async () => {
+    if (!token || !selectedLead) return;
 
     setSubmitting(true);
     setError(null);
     try {
       await api.convertLeadToCustomer(token, selectedLead.id);
+
+      if (conversionForm.dealValue && conversionForm.stageId) {
+        await api.createDeal(token, {
+          leadId: selectedLead.id,
+          stageId: Number(conversionForm.stageId),
+          value: Number(conversionForm.dealValue),
+          ownerUserId: selectedLead.ownerUserId ?? undefined,
+        });
+      }
+
+      setConvertModalOpen(false);
+      setConversionForm({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
+      setSelectedLead(null);
       await load();
       notify({ type: "success", message: "Lead convertido em cliente.", title: "Sucesso" });
     } catch (err) {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao converter lead em cliente.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para converter leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao converter lead" });
+      notify({
+        type: "error",
+        message: status === 403 ? "Você não tem permissão para converter leads." : message,
+        title: status === 403 ? "Permissão negada" : "Erro ao converter lead",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -575,7 +655,119 @@ export default function LeadsPage() {
         </div>
       ) : null}
 
-      {selectedLead ? (
+      {convertModalOpen && selectedLead && canCreateCustomer ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setConvertModalOpen(false)}>
+          <div className="modal-panel narrow" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="card-header">
+              <div>
+                <h3>Converter em cliente</h3>
+                <p>Confirme a conversão e crie um negócio no pipeline.</p>
+              </div>
+              <button type="button" className="table-action" onClick={() => setConvertModalOpen(false)}>
+                Fechar
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="compact-insight">
+                <span>Pré-análise do lead</span>
+                <div className="checklist-grid">
+                  {conversionChecklist.map((check) => (
+                    <div key={check.label} className="checklist-item">
+                      <em className={`checklist-icon ${check.ok ? "ok" : "warn"}`}>
+                        {check.ok ? "✓" : "!"}
+                      </em>
+                      <span>{check.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <label className="field">
+                <span>Motivo da conversão</span>
+                <select
+                  value={conversionForm.reason}
+                  onChange={(e) => setConversionForm((f) => ({ ...f, reason: e.target.value }))}
+                >
+                  <option value="">Selecionar motivo...</option>
+                  <option value="proposal_accepted">Proposta aceita</option>
+                  <option value="referral">Indicação</option>
+                  <option value="inbound">Inbound</option>
+                  <option value="trial_converted">Trial convertido</option>
+                  <option value="other">Outro</option>
+                </select>
+              </label>
+
+              <div className="convert-section">
+                <p className="convert-section-title">Criar negócio ao converter (opcional)</p>
+                <label className="field">
+                  <span>Valor estimado (R$)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    placeholder="0"
+                    value={conversionForm.dealValue}
+                    onChange={(e) => setConversionForm((f) => ({ ...f, dealValue: e.target.value }))}
+                  />
+                </label>
+                <label className="field">
+                  <span>Pipeline</span>
+                  <select
+                    value={conversionForm.pipelineId}
+                    onChange={(e) =>
+                      setConversionForm((f) => ({ ...f, pipelineId: e.target.value, stageId: "" }))
+                    }
+                  >
+                    <option value="">Selecionar pipeline...</option>
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {conversionForm.pipelineId ? (
+                  <label className="field">
+                    <span>Estágio inicial</span>
+                    <select
+                      value={conversionForm.stageId}
+                      onChange={(e) =>
+                        setConversionForm((f) => ({ ...f, stageId: e.target.value }))
+                      }
+                    >
+                      <option value="">Selecionar estágio...</option>
+                      {availableStages.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+
+              {error ? <p className="form-error">{error}</p> : null}
+
+              <div className="modal-actions">
+                <button type="button" className="ghost-button" onClick={() => setConvertModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void handleConvertToCustomer()}
+                  disabled={submitting}
+                >
+                  {submitting ? "Convertendo..." : "Converter em cliente"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedLead && !convertModalOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedLead(null)}>
           <div className="modal-panel lead-detail-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="card-header">
@@ -629,7 +821,7 @@ export default function LeadsPage() {
                   <button
                     type="button"
                     className="ghost-button"
-                    onClick={() => void handleConvertToCustomer()}
+                    onClick={() => handleOpenConvertModal()}
                     disabled={submitting || selectedLead.status === "Converted"}
                   >
                     {selectedLead.status === "Converted" ? "Lead já convertido" : "Converter em cliente"}
@@ -650,13 +842,19 @@ export default function LeadsPage() {
                   </div>
                   <span className="tag">#{selectedLead.id}</span>
                 </div>
-                {history.map((item) => (
-                  <article key={item.id} className="timeline-item">
-                    <strong>{item.type}</strong>
-                    <p className="mono">{item.dataJson}</p>
-                    <span>{formatDate(item.occurredAtUtc)}</span>
-                  </article>
-                ))}
+                {history.map((item) => {
+                  const detail = formatHistoryDetail(item);
+                  return (
+                    <article key={item.id} className="timeline-item">
+                      <span className="timeline-dot" />
+                      <div className="timeline-body">
+                        <strong>{eventTypeLabels[item.type] ?? item.type}</strong>
+                        {detail ? <p>{detail}</p> : null}
+                      </div>
+                      <span>{formatDate(item.occurredAtUtc)}</span>
+                    </article>
+                  );
+                })}
                 {history.length === 0 ? <div className="empty-card">Sem histórico encontrado.</div> : null}
               </div>
             </div>

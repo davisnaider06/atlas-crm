@@ -224,35 +224,40 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </div>
           )}
 
-          {!sidebarCollapsed && (
-            <div className="sidebar-preferences">
-              <p className="nav-group-title">Preferências</p>
-              {hasPermission(user, permissions.settingsView) ? (
-                <Link href="/configuracoes" className="nav-link rockart-link">
-                  <span className="icon-box">
-                    <HelpIcon size={17} />
-                  </span>
-                  <span className="nav-label">Central de ajuda</span>
-                </Link>
-              ) : null}
-              <button type="button" className="nav-link rockart-link logout-link" onClick={logout}>
+          <div className="sidebar-preferences">
+            <p className="nav-group-title">Preferências</p>
+            {hasPermission(user, permissions.settingsView) ? (
+              <Link
+                href="/configuracoes"
+                className="nav-link rockart-link"
+                title={sidebarCollapsed ? "Central de ajuda" : undefined}
+              >
                 <span className="icon-box">
-                  <LogoutIcon size={17} />
+                  <HelpIcon size={17} />
                 </span>
-                <span className="nav-label">Sair</span>
-              </button>
-            </div>
-          )}
+                <span className="nav-label">Central de ajuda</span>
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className="nav-link rockart-link logout-link"
+              onClick={logout}
+              title={sidebarCollapsed ? "Sair" : undefined}
+            >
+              <span className="icon-box">
+                <LogoutIcon size={17} />
+              </span>
+              <span className="nav-label">Sair</span>
+            </button>
+          </div>
 
-          {!sidebarCollapsed && (
-            <div className="sidebar-footer rockart-user">
-              <div className="avatar-block">{firstName.slice(0, 1)}</div>
-              <div className="user-copy">
-                <strong>{user.name}</strong>
-                <p>{user.email}</p>
-              </div>
+          <div className="sidebar-footer rockart-user" title={sidebarCollapsed ? user.name : undefined}>
+            <div className="avatar-block">{firstName.slice(0, 1)}</div>
+            <div className="user-copy">
+              <strong>{user.name}</strong>
+              <p>{user.email}</p>
             </div>
-          )}
+          </div>
         </aside>
 
         <div className="main-shell rockart-main">

@@ -437,9 +437,15 @@ button { cursor: pointer; }
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .user-copy,
 .sidebar-collapsed .nav-group-title,
-.sidebar-collapsed .sidebar-upgrade,
-.sidebar-collapsed .rockart-user {
+.sidebar-collapsed .sidebar-upgrade {
   display: none !important;
+}
+
+.sidebar-collapsed .rockart-user {
+  justify-content: center;
+  padding: 10px 0;
+  background: transparent;
+  border-color: transparent;
 }
 
 .sidebar-collapsed .nav-link {
@@ -471,10 +477,6 @@ button { cursor: pointer; }
 
 .sidebar-collapsed .sidebar-toggle {
   margin: 0 auto;
-}
-
-.shell-panel.sidebar-collapsed .main-shell {
-  padding-left: 0;
 }
 
 /* ---------- Main shell ---------- */
@@ -1608,11 +1610,56 @@ button { cursor: pointer; }
 }
 
 .lead-detail-modal { width: min(100%, 1040px); }
+.modal-panel.narrow { width: min(100%, 520px); }
 
 .modal-columns {
   margin-top: 16px;
   align-items: start;
 }
+
+.modal-body    { margin-top: 16px; display: grid; gap: 16px; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions > .primary-button { flex: 2; }
+.modal-actions > .ghost-button   { flex: 1; }
+
+/* Conversion checklist */
+.checklist-grid { display: grid; gap: 8px; margin-top: 4px; }
+.checklist-item { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; }
+.checklist-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  font-style: normal;
+}
+.checklist-icon.ok   { background: var(--success-soft); color: var(--success); }
+.checklist-icon.warn { background: var(--gold-soft);    color: var(--gold); }
+
+/* Convert section grouping */
+.convert-section { display: grid; gap: 12px; }
+.convert-section-title {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Timeline dot + body */
+.timeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.5;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+.timeline-body { flex: 1; min-width: 0; }
 
 /* ---------- QR Code panel ---------- */
 .qr-panel {
