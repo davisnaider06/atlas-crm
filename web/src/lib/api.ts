@@ -3,6 +3,9 @@ import type {
   Appointment,
   AuthResponse,
   Automation,
+  ChatMessage,
+  Conversation,
+  CustomFieldDef,
   Dashboard,
   Customer,
   FinanceEntry,
@@ -154,6 +157,30 @@ export const api = {
       body: JSON.stringify({ token: clerkToken, companyName }),
     }),
 
+  getConversations: (token: string) => request<Conversation[]>("/whatsapp/conversas", { token }),
+  getConversationMessages: (token: string, id: number) =>
+    request<ChatMessage[]>(`/whatsapp/conversas/${id}/mensagens`, { token }),
+  sendConversationMessage: (token: string, id: number, text: string) =>
+    request<ChatMessage>(`/whatsapp/conversas/${id}/mensagens`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ text }),
+    }),
+
+  getCustomFields: (token: string, target: "Lead" | "Deal" | "Customer" = "Lead") =>
+    request<CustomFieldDef[]>(`/custom-fields?target=${target}`, { token }),
+  createCustomField: (
+    token: string,
+    payload: { target: number; name: string; type: number; options?: string[] },
+  ) =>
+    request<CustomFieldDef>("/custom-fields", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  deleteCustomField: (token: string, id: number) =>
+    request<void>(`/custom-fields/${id}`, { method: "DELETE", token }),
+
   getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
   getLeads: (
     token: string,
@@ -178,6 +205,7 @@ export const api = {
       qualificationTemperature?: number;
       qualificationScore?: number;
       qualificationNotes?: string | null;
+      extraDataJson?: string | null;
     },
   ) =>
     request<Lead>("/leads", {
@@ -198,6 +226,7 @@ export const api = {
       qualificationScore?: number;
       qualificationNotes?: string | null;
       ownerUserId?: number | null;
+      extraDataJson?: string | null;
     },
   ) =>
     request<Lead>(`/leads/${id}`, {

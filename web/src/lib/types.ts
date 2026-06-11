@@ -38,7 +38,37 @@ export type Lead = {
   qualificationNotes?: string | null;
   ownerUserId?: number | null;
   ownerName?: string | null;
+  extraDataJson?: string | null;
   createdAtUtc: string;
+};
+
+export type Conversation = {
+  id: number;
+  contactPhone: string;
+  contactName: string;
+  leadId?: number | null;
+  leadName?: string | null;
+  lastMessagePreview?: string | null;
+  lastMessageAtUtc: string;
+  unreadCount: number;
+};
+
+export type ChatMessage = {
+  id: number;
+  isInbound: boolean;
+  text: string;
+  sentAtUtc: string;
+  senderName?: string | null;
+};
+
+export type CustomFieldDef = {
+  id: number;
+  target: string;
+  name: string;
+  fieldKey: string;
+  type: "Text" | "Number" | "Date" | "Select";
+  options: string[];
+  sortOrder: number;
 };
 
 export type LeadOwner = {

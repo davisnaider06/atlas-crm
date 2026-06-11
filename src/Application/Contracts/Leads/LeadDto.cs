@@ -15,5 +15,6 @@ public sealed class LeadDto
     public string? QualificationNotes { get; init; }
     public long? OwnerUserId { get; init; }
     public string? OwnerName { get; init; }
+    public string? ExtraDataJson { get; init; }
     public DateTime CreatedAtUtc { get; init; }
 }

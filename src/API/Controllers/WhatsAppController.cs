@@ -11,10 +11,14 @@ namespace AtlasCRM.API.Controllers;
 public sealed class WhatsAppController : ControllerBase
 {
     private readonly IWhatsAppIntegrationService _whatsAppIntegrationService;
+    private readonly IWhatsAppInboxService _whatsAppInboxService;
 
-    public WhatsAppController(IWhatsAppIntegrationService whatsAppIntegrationService)
+    public WhatsAppController(
+        IWhatsAppIntegrationService whatsAppIntegrationService,
+        IWhatsAppInboxService whatsAppInboxService)
     {
         _whatsAppIntegrationService = whatsAppIntegrationService;
+        _whatsAppInboxService = whatsAppInboxService;
     }
 
     [Authorize(Policy = CrmPermissions.WhatsAppManage)]
@@ -64,6 +68,31 @@ public sealed class WhatsAppController : ControllerBase
         CancellationToken cancellationToken)
     {
         await _whatsAppIntegrationService.CaptureLeadAsync(companyId, request, cancellationToken);
+        await _whatsAppInboxService.RecordInboundAsync(companyId, request, cancellationToken);
         return Ok(new { ok = true });
+    }
+
+    [Authorize(Policy = CrmPermissions.LeadsView)]
+    [HttpGet("conversas")]
+    public async Task<ActionResult<IReadOnlyList<WhatsAppConversationDto>>> ListConversations(CancellationToken cancellationToken)
+    {
+        return Ok(await _whatsAppInboxService.ListConversationsAsync(cancellationToken));
+    }
+
+    [Authorize(Policy = CrmPermissions.LeadsView)]
+    [HttpGet("conversas/{id:long}/mensagens")]
+    public async Task<ActionResult<IReadOnlyList<WhatsAppMessageDto>>> GetMessages(long id, CancellationToken cancellationToken)
+    {
+        return Ok(await _whatsAppInboxService.GetMessagesAsync(id, cancellationToken));
+    }
+
+    [Authorize(Policy = CrmPermissions.LeadsView)]
+    [HttpPost("conversas/{id:long}/mensagens")]
+    public async Task<ActionResult<WhatsAppMessageDto>> SendMessage(
+        long id,
+        [FromBody] SendWhatsAppMessageRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _whatsAppInboxService.SendMessageAsync(id, request, cancellationToken));
     }
 }

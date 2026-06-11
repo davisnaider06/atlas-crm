@@ -8,7 +8,11 @@ import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import { DEAL_STATUS_OPTIONS } from "@/lib/constants";
-import type { Deal, HistoryItem, Lead, PagedResult, Pipeline } from "@/lib/types";
+import type { Activity, Deal, HistoryItem, Lead, PagedResult, Pipeline } from "@/lib/types";
+
+const CLOSED_ACTIVITY_STATUSES = new Set(["Done", "Concluída", "Cancelled", "Cancelada"]);
+
+type DealActivityInfo = { state: "overdue" | "scheduled" | "none"; label: string };
 
 export default function PipelinePage() {
   const { token, user } = useAuth();
@@ -17,6 +21,9 @@ export default function PipelinePage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [dragDealId, setDragDealId] = useState<number | null>(null);
+  const [dropStageId, setDropStageId] = useState<number | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,15 +42,17 @@ export default function PipelinePage() {
     setLoading(true);
     setError(null);
     try {
-      const [dealsRes, pipelinesRes, leadsRes] = await Promise.all([
+      const [dealsRes, pipelinesRes, leadsRes, activitiesRes] = await Promise.all([
         api.getDeals(token, { search: search || undefined }),
         api.getPipelines(token),
         api.getLeads(token),
+        api.getActivities(token).catch(() => null),
       ]);
       const dealItems = (dealsRes as PagedResult<Deal>).items;
       setDeals(dealItems);
       setPipelines(pipelinesRes);
       setLeads((leadsRes as PagedResult<Lead>).items);
+      setActivities(activitiesRes ? (activitiesRes as PagedResult<Activity>).items : []);
       setSelectedDeal((cur) => cur ? dealItems.find((d) => d.id === cur.id) ?? null : null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao carregar pipeline.";
@@ -67,6 +76,23 @@ export default function PipelinePage() {
     () => stages.map((stage) => ({ ...stage, deals: deals.filter((d) => d.stageId === stage.id) })),
     [deals, stages],
   );
+
+  // Indicador estilo Pipedrive: atividade atrasada / agendada / sem atividade
+  const activityByDeal = useMemo(() => {
+    const map = new Map<number, DealActivityInfo>();
+    const now = Date.now();
+    for (const activity of activities) {
+      if (!activity.dealId || CLOSED_ACTIVITY_STATUSES.has(activity.status)) continue;
+      const due = new Date(activity.dueAtUtc).getTime();
+      const current = map.get(activity.dealId);
+      if (due < now) {
+        map.set(activity.dealId, { state: "overdue", label: "Atividade atrasada" });
+      } else if (!current || current.state === "none") {
+        map.set(activity.dealId, { state: "scheduled", label: `Próxima: ${formatDate(activity.dueAtUtc)}` });
+      }
+    }
+    return map;
+  }, [activities]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,30 +195,69 @@ export default function PipelinePage() {
 
           <div className="kanban-board">
             {grouped.map((stage) => (
-              <div key={stage.id} className="kanban-column">
+              <div
+                key={stage.id}
+                className={`kanban-column${dropStageId === stage.id ? " drop-target" : ""}`}
+                onDragOver={(e) => {
+                  if (dragDealId === null) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dropStageId !== stage.id) setDropStageId(stage.id);
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDropStageId((current) => (current === stage.id ? null : current));
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const dealId = dragDealId;
+                  setDragDealId(null);
+                  setDropStageId(null);
+                  if (dealId === null) return;
+                  const deal = deals.find((d) => d.id === dealId);
+                  if (deal && deal.stageId !== stage.id) void handleMove(dealId, stage.id);
+                }}
+              >
                 <header>
                   <strong>{stage.name}</strong>
-                  <span>{stage.deals.length}</span>
+                  <div className="kanban-col-meta">
+                    <span className="kanban-col-value">
+                      {formatCurrency(stage.deals.reduce((sum, d) => sum + d.value, 0))}
+                    </span>
+                    <span>{stage.deals.length}</span>
+                  </div>
                 </header>
 
                 <div className="kanban-cards">
-                  {stage.deals.map((deal) => (
-                    <article
-                      key={deal.id}
-                      className={`kanban-card selectable-card${selectedDeal?.id === deal.id ? " row-active" : ""}`}
-                      onClick={() => setSelectedDeal(deal)}
-                    >
-                      <strong>{deal.leadName}</strong>
-                      <span>{formatCurrency(deal.value)}</span>
-                      <small>{deal.status}</small>
-                      <Select
-                        value={String(deal.stageId)}
-                        onChange={(value) => void handleMove(deal.id, Number(value))}
-                        options={stages.map((s) => ({ value: String(s.id), label: s.name }))}
-                        disabled={!canEdit || submitting}
-                      />
-                    </article>
-                  ))}
+                  {stage.deals.map((deal) => {
+                    const activityInfo = activityByDeal.get(deal.id) ?? { state: "none" as const, label: "Sem atividade" };
+                    return (
+                      <article
+                        key={deal.id}
+                        className={`kanban-card selectable-card${selectedDeal?.id === deal.id ? " row-active" : ""}${dragDealId === deal.id ? " dragging" : ""}`}
+                        draggable={canEdit && !submitting}
+                        onDragStart={(e) => {
+                          setDragDealId(deal.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => {
+                          setDragDealId(null);
+                          setDropStageId(null);
+                        }}
+                        onClick={() => setSelectedDeal(deal)}
+                      >
+                        <strong>{deal.leadName}</strong>
+                        <span>{formatCurrency(deal.value)}</span>
+                        <span className={`deal-activity ${activityInfo.state}`}>{activityInfo.label}</span>
+                        <Select
+                          value={String(deal.stageId)}
+                          onChange={(value) => void handleMove(deal.id, Number(value))}
+                          options={stages.map((s) => ({ value: String(s.id), label: s.name }))}
+                          disabled={!canEdit || submitting}
+                        />
+                      </article>
+                    );
+                  })}
 
                   {stage.deals.length === 0 && (
                     <div className="empty-card">Sem negócios nesta etapa.</div>

@@ -80,6 +80,7 @@ public sealed class LeadService : ILeadService
                 QualificationNotes = x.QualificationNotes,
                 OwnerUserId = x.OwnerUserId,
                 OwnerName = x.OwnerUser != null ? x.OwnerUser.Name : null,
+                ExtraDataJson = x.ExtraDataJson,
                 CreatedAtUtc = x.CreatedAtUtc
             })
             .ToListAsync(cancellationToken);
@@ -145,6 +146,7 @@ public sealed class LeadService : ILeadService
             QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
             OwnerName = null,
+            ExtraDataJson = lead.ExtraDataJson,
             CreatedAtUtc = lead.CreatedAtUtc
         };
     }
@@ -185,6 +187,7 @@ public sealed class LeadService : ILeadService
             QualificationNotes = lead.QualificationNotes,
             OwnerUserId = lead.OwnerUserId,
             OwnerName = null,
+            ExtraDataJson = lead.ExtraDataJson,
             CreatedAtUtc = lead.CreatedAtUtc
         };
     }

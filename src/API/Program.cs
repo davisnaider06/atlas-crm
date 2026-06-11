@@ -14,6 +14,18 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Aliases amigáveis: permite CLERK_AUTHORITY / CLERK_SECRET_KEY além de Clerk__Authority / Clerk__SecretKey
+var clerkAuthorityEnv = Environment.GetEnvironmentVariable("CLERK_AUTHORITY");
+var clerkSecretKeyEnv = Environment.GetEnvironmentVariable("CLERK_SECRET_KEY");
+if (!string.IsNullOrWhiteSpace(clerkAuthorityEnv))
+{
+    builder.Configuration["Clerk:Authority"] = clerkAuthorityEnv;
+}
+if (!string.IsNullOrWhiteSpace(clerkSecretKeyEnv))
+{
+    builder.Configuration["Clerk:SecretKey"] = clerkSecretKeyEnv;
+}
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<PublicLeadCaptureOptions>(builder.Configuration.GetSection(PublicLeadCaptureOptions.SectionName));
 builder.Services.Configure<ClerkOptions>(builder.Configuration.GetSection(ClerkOptions.SectionName));

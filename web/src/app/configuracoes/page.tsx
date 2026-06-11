@@ -9,7 +9,8 @@ import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import { AUTOMATION_EVENT_OPTIONS } from "@/lib/constants";
-import type { Automation, PagedResult } from "@/lib/types";
+import { CUSTOM_FIELD_TYPE_OPTIONS, customFieldTypeLabels } from "@/lib/custom-fields";
+import type { Automation, CustomFieldDef, PagedResult } from "@/lib/types";
 
 const automationPresets = [
   {
@@ -58,6 +59,8 @@ export default function SettingsPage() {
     conditionJson: '{"source":"any"}',
     actionJson: '{"userIds":[2,3]}',
   });
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
+  const [fieldForm, setFieldForm] = useState({ name: "", type: "1", options: "" });
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -66,6 +69,8 @@ export default function SettingsPage() {
     try {
       const res = await api.getAutomations(token);
       setAutomations((res as PagedResult<Automation>).items);
+      const fields = await api.getCustomFields(token, "Lead").catch(() => []);
+      setCustomFields(fields);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao carregar configurações.";
       setError(msg);
@@ -121,6 +126,46 @@ export default function SettingsPage() {
       notify({ type: "success", message: "Automação excluída.", title: "Excluída" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao excluir automação.";
+      notify({ type: "error", message: msg, title: "Erro" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateField = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await api.createCustomField(token, {
+        target: 1,
+        name: fieldForm.name,
+        type: Number(fieldForm.type),
+        options: fieldForm.options
+          .split(",")
+          .map((option) => option.trim())
+          .filter(Boolean),
+      });
+      setFieldForm({ name: "", type: "1", options: "" });
+      await load();
+      notify({ type: "success", message: "Campo personalizado criado.", title: "Sucesso" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao criar campo.";
+      notify({ type: "error", message: msg, title: "Erro" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteField = async (id: number) => {
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await api.deleteCustomField(token, id);
+      await load();
+      notify({ type: "success", message: "Campo excluído.", title: "Excluído" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao excluir campo.";
       notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
@@ -241,6 +286,93 @@ export default function SettingsPage() {
           {error && <p className="form-error">{error}</p>}
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Salvando..." : "Criar automação"}
+          </button>
+        </form>
+      </section>
+
+      <section className="two-column">
+        <div className="table-card">
+          <div className="card-header">
+            <div>
+              <h3>Campos personalizados de lead</h3>
+              <p>Informações extras que aparecem no cadastro e na edição de leads</p>
+            </div>
+            <span className="tag">{customFields.length} campos</span>
+          </div>
+
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Opções</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customFields.map((field) => (
+                <tr key={field.id}>
+                  <td>{field.name}</td>
+                  <td>{customFieldTypeLabels[field.type] ?? field.type}</td>
+                  <td>{field.options.length > 0 ? field.options.join(", ") : "—"}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="table-action danger"
+                      onClick={() => void handleDeleteField(field.id)}
+                      disabled={submitting}
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {customFields.length === 0 && (
+            <div className="empty-card">Nenhum campo personalizado ainda. Crie o primeiro ao lado.</div>
+          )}
+        </div>
+
+        <form className="settings-card form-card" onSubmit={handleCreateField}>
+          <div className="card-header">
+            <div>
+              <h3>Novo campo personalizado</h3>
+              <p>Adapte o CRM ao seu processo, sem código</p>
+            </div>
+            <span className="tag">Flexível</span>
+          </div>
+
+          <label className="field">
+            <span>Nome do campo</span>
+            <input
+              value={fieldForm.name}
+              onChange={(e) => setFieldForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ex.: Segmento, CNPJ, Nº de funcionários"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Tipo</span>
+            <Select
+              value={fieldForm.type}
+              onChange={(value) => setFieldForm((f) => ({ ...f, type: value }))}
+              options={CUSTOM_FIELD_TYPE_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+            />
+          </label>
+          {fieldForm.type === "4" ? (
+            <label className="field">
+              <span>Opções (separadas por vírgula)</span>
+              <input
+                value={fieldForm.options}
+                onChange={(e) => setFieldForm((f) => ({ ...f, options: e.target.value }))}
+                placeholder="Ex.: Varejo, Indústria, Serviços"
+                required
+              />
+            </label>
+          ) : null}
+          <button type="submit" className="primary-button" disabled={submitting}>
+            {submitting ? "Salvando..." : "Criar campo"}
           </button>
         </form>
       </section>

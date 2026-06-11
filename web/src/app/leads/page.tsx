@@ -5,6 +5,10 @@ import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
+import { QuickContactActions } from "@/components/ui/quick-actions";
+import { CustomFieldInputs } from "@/components/ui/custom-field-inputs";
+import { mergeCustomFieldValues, readCustomFieldValues } from "@/lib/custom-fields";
+import type { CustomFieldDef } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
@@ -118,6 +122,11 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
+  const [dragLeadId, setDragLeadId] = useState<number | null>(null);
+  const [dropStatus, setDropStatus] = useState<number | null>(null);
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [editCustomValues, setEditCustomValues] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -141,6 +150,15 @@ export default function LeadsPage() {
   useEffect(() => {
     setEditState(editForm);
   }, [editForm]);
+
+  useEffect(() => {
+    setEditCustomValues(readCustomFieldValues(selectedLead?.extraDataJson));
+  }, [selectedLead]);
+
+  useEffect(() => {
+    if (!token) return;
+    void api.getCustomFields(token, "Lead").then(setCustomFields).catch(() => setCustomFields([]));
+  }, [token]);
 
   const groupedLeads = useMemo(
     () =>
@@ -246,8 +264,10 @@ export default function LeadsPage() {
         phone: form.phone || undefined,
         source: form.source,
         status: Number(form.status),
+        extraDataJson: customFields.length > 0 ? mergeCustomFieldValues(null, customValues) : undefined,
       });
       setForm({ name: "", email: "", phone: "", source: "", status: "1" });
+      setCustomValues({});
       setCreateModalOpen(false);
       await load();
       notify({ type: "success", message: "Lead criado com sucesso.", title: "Sucesso" });
@@ -281,6 +301,10 @@ export default function LeadsPage() {
         qualificationScore: selectedLead.qualificationScore ?? 0,
         qualificationNotes: selectedLead.qualificationNotes ?? null,
         ownerUserId: selectedLead.ownerUserId ?? null,
+        extraDataJson:
+          customFields.length > 0
+            ? mergeCustomFieldValues(selectedLead.extraDataJson, editCustomValues)
+            : undefined,
       });
       await load();
       notify({ type: "success", message: "Lead atualizado.", title: "Sucesso" });
@@ -505,7 +529,29 @@ export default function LeadsPage() {
 
         <div className="lead-kanban">
           {groupedLeads.map((column) => (
-            <div key={column.label} className="lead-column">
+            <div
+              key={column.label}
+              className={`lead-column${dropStatus === column.value ? " drop-target" : ""}`}
+              onDragOver={(e) => {
+                if (dragLeadId === null) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dropStatus !== column.value) setDropStatus(column.value);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDropStatus((current) => (current === column.value ? null : current));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const leadId = dragLeadId;
+                setDragLeadId(null);
+                setDropStatus(null);
+                if (leadId === null) return;
+                const lead = leads.find((item) => item.id === leadId);
+                if (lead && lead.status !== column.label) void handleMoveLead(lead, column.value);
+              }}
+            >
               <header>
                 <div>
                   <span className={`status-dot ${statusTones[column.label] ?? "orange"}`} />
@@ -518,7 +564,16 @@ export default function LeadsPage() {
                 {column.items.map((lead) => (
                   <article
                     key={lead.id}
-                    className={`lead-card selectable-card${selectedLead?.id === lead.id ? " row-active" : ""}`}
+                    className={`lead-card selectable-card${selectedLead?.id === lead.id ? " row-active" : ""}${dragLeadId === lead.id ? " dragging" : ""}`}
+                    draggable={canEdit && !submitting}
+                    onDragStart={(e) => {
+                      setDragLeadId(lead.id);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragEnd={() => {
+                      setDragLeadId(null);
+                      setDropStatus(null);
+                    }}
                     onClick={() => setSelectedLead(lead)}
                   >
                     <div className="lead-card-top">
@@ -528,10 +583,13 @@ export default function LeadsPage() {
                     <p>{lead.email || lead.phone || "Contato não informado"}</p>
                     <p>{lead.ownerName ? `Vendedor: ${lead.ownerName}` : "Sem vendedor definido"}</p>
                     <div className="lead-qualification-row">
-                      <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
-                        {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature}
-                      </span>
-                      <small>{lead.qualificationScore} pts</small>
+                      <div className="lead-qualification-info">
+                        <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
+                          {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature}
+                        </span>
+                        <small>{lead.qualificationScore} pts</small>
+                      </div>
+                      <QuickContactActions phone={lead.phone} email={lead.email} name={lead.name} />
                     </div>
                     <div className="lead-card-footer">
                       <small>{formatDate(lead.createdAtUtc)}</small>
@@ -592,16 +650,19 @@ export default function LeadsPage() {
                   <td>{lead.ownerName ?? "Sem vendedor"}</td>
                   <td>{formatDate(lead.createdAtUtc)}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="table-action danger"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedLead(lead);
-                      }}
-                    >
-                      Selecionar
-                    </button>
+                    <div className="table-action-row">
+                      <QuickContactActions phone={lead.phone} email={lead.email} name={lead.name} />
+                      <button
+                        type="button"
+                        className="table-action danger"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedLead(lead);
+                        }}
+                      >
+                        Selecionar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -649,6 +710,11 @@ export default function LeadsPage() {
                 }))}
               />
             </label>
+            <CustomFieldInputs
+              defs={customFields}
+              values={customValues}
+              onChange={(key, value) => setCustomValues((current) => ({ ...current, [key]: value }))}
+            />
             {error ? <p className="form-error">{error}</p> : null}
             <button type="submit" className="primary-button" disabled={submitting}>
               {submitting ? "Salvando..." : "Criar lead"}
@@ -801,6 +867,11 @@ export default function LeadsPage() {
                     }))}
                   />
                 </label>
+                <CustomFieldInputs
+                  defs={customFields}
+                  values={editCustomValues}
+                  onChange={(key, value) => setEditCustomValues((current) => ({ ...current, [key]: value }))}
+                />
                 <div className="compact-insight">
                   <span>Pré-qualificação</span>
                   <strong>

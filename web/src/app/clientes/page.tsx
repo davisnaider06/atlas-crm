@@ -5,6 +5,7 @@ import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
+import { QuickContactActions } from "@/components/ui/quick-actions";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { Customer, Lead, PagedResult } from "@/lib/types";
@@ -173,6 +174,7 @@ export default function CustomersPage() {
                 <th>Contato</th>
                 <th>Origem</th>
                 <th>Criado em</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -186,6 +188,9 @@ export default function CustomersPage() {
                   <td>{c.email || c.phone || "—"}</td>
                   <td>{c.leadName ?? "Cadastro direto"}</td>
                   <td>{formatDate(c.createdAtUtc)}</td>
+                  <td>
+                    <QuickContactActions phone={c.phone} email={c.email} name={c.name} />
+                  </td>
                 </tr>
               ))}
             </tbody>

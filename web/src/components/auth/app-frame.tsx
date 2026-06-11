@@ -28,6 +28,7 @@ import {
   MoonIcon,
   MenuIcon,
   XIcon,
+  ChatIcon,
 } from "@/components/ui/icons";
 
 type NavItem = {
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
     label: "COMERCIAL",
     items: [
       { href: "/leads",     label: "Leads",      Icon: LeadsIcon,     permission: permissions.leadsView },
+      { href: "/conversas", label: "Conversas",  Icon: ChatIcon,      permission: permissions.leadsView },
       { href: "/clientes",  label: "Clientes",   Icon: ClientsIcon,   permission: permissions.customersView },
       { href: "/pipeline",  label: "Pipeline",   Icon: PipelineIcon,  permission: permissions.dealsView },
       { href: "/atividades",label: "Atividades", Icon: ActivitiesIcon,permission: permissions.activitiesView },
@@ -86,6 +88,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/leads": {
     title: "Gestão de leads",
     subtitle: "Organize entradas, filtros e responsáveis sem perder contexto.",
+  },
+  "/conversas": {
+    title: "Central de conversas",
+    subtitle: "Responda mensagens do WhatsApp sem sair do CRM.",
   },
   "/clientes": {
     title: "Base de clientes",

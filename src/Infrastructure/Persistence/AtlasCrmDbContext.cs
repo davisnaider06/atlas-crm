@@ -35,6 +35,9 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<WhatsAppIntegration> WhatsAppIntegrations => Set<WhatsAppIntegration>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
+    public DbSet<WhatsAppConversation> WhatsAppConversations => Set<WhatsAppConversation>();
+    public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +96,44 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
         {
             entity.ToTable("customers");
             entity.HasIndex(x => x.CompanyId);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<CustomFieldDefinition>(entity =>
+        {
+            entity.ToTable("custom_field_definitions");
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.FieldKey).HasMaxLength(140);
+            entity.HasIndex(x => new { x.CompanyId, x.Target });
+            entity.HasIndex(x => new { x.CompanyId, x.Target, x.FieldKey }).IsUnique();
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<WhatsAppConversation>(entity =>
+        {
+            entity.ToTable("whatsapp_conversations");
+            entity.Property(x => x.ContactPhone).HasMaxLength(40);
+            entity.Property(x => x.ContactName).HasMaxLength(140);
+            entity.Property(x => x.LastMessagePreview).HasMaxLength(160);
+            entity.HasIndex(x => new { x.CompanyId, x.ContactPhone }).IsUnique();
+            entity.HasIndex(x => new { x.CompanyId, x.LastMessageAtUtc });
+            entity.HasOne(x => x.Lead)
+                .WithMany()
+                .HasForeignKey(x => x.LeadId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<WhatsAppMessage>(entity =>
+        {
+            entity.ToTable("whatsapp_messages");
+            entity.Property(x => x.Text).HasMaxLength(4000);
+            entity.Property(x => x.SenderName).HasMaxLength(140);
+            entity.HasIndex(x => new { x.ConversationId, x.SentAtUtc });
+            entity.HasOne(x => x.Conversation)
+                .WithMany(x => x.Messages)
+                .HasForeignKey(x => x.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
