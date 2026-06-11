@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, formatDate, formatCurrency } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import type { FinanceEntry, PagedResult } from "@/lib/types";
 import { permissions, hasPermission } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
@@ -127,10 +128,14 @@ export default function FinancePage() {
           </label>
           <label className="field">
             <span>Tipo</span>
-            <select value={form.type} onChange={(ev) => setForm((c) => ({ ...c, type: ev.target.value }))}>
-              <option value="income">Receita</option>
-              <option value="expense">Despesa</option>
-            </select>
+            <Select
+              value={form.type}
+              onChange={(value) => setForm((c) => ({ ...c, type: value }))}
+              options={[
+                { value: "income", label: "Receita" },
+                { value: "expense", label: "Despesa" },
+              ]}
+            />
           </label>
           <label className="field">
             <span>Categoria</span>

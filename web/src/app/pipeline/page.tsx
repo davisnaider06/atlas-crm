@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import { DEAL_STATUS_OPTIONS } from "@/lib/constants";
@@ -174,31 +175,29 @@ export default function PipelinePage() {
                   <span>{stage.deals.length}</span>
                 </header>
 
-                {stage.deals.map((deal) => (
-                  <article
-                    key={deal.id}
-                    className={`kanban-card selectable-card${selectedDeal?.id === deal.id ? " row-active" : ""}`}
-                    onClick={() => setSelectedDeal(deal)}
-                  >
-                    <strong>{deal.leadName}</strong>
-                    <span>{formatCurrency(deal.value)}</span>
-                    <small>{deal.status}</small>
-                    <select
-                      value={deal.stageId}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => void handleMove(deal.id, Number(e.target.value))}
-                      disabled={!canEdit || submitting}
+                <div className="kanban-cards">
+                  {stage.deals.map((deal) => (
+                    <article
+                      key={deal.id}
+                      className={`kanban-card selectable-card${selectedDeal?.id === deal.id ? " row-active" : ""}`}
+                      onClick={() => setSelectedDeal(deal)}
                     >
-                      {stages.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </article>
-                ))}
+                      <strong>{deal.leadName}</strong>
+                      <span>{formatCurrency(deal.value)}</span>
+                      <small>{deal.status}</small>
+                      <Select
+                        value={String(deal.stageId)}
+                        onChange={(value) => void handleMove(deal.id, Number(value))}
+                        options={stages.map((s) => ({ value: String(s.id), label: s.name }))}
+                        disabled={!canEdit || submitting}
+                      />
+                    </article>
+                  ))}
 
-                {stage.deals.length === 0 && (
-                  <div className="empty-card">Sem negócios nesta etapa.</div>
-                )}
+                  {stage.deals.length === 0 && (
+                    <div className="empty-card">Sem negócios nesta etapa.</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -216,17 +215,23 @@ export default function PipelinePage() {
 
             <label className="field">
               <span>Lead</span>
-              <select value={form.leadId} onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))} required>
-                <option value="">Selecione um lead</option>
-                {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              <Select
+                value={form.leadId}
+                onChange={(value) => setForm((f) => ({ ...f, leadId: value }))}
+                options={leads.map((l) => ({ value: String(l.id), label: l.name }))}
+                placeholder="Selecione um lead"
+                required
+              />
             </label>
             <label className="field">
               <span>Etapa</span>
-              <select value={form.stageId} onChange={(e) => setForm((f) => ({ ...f, stageId: e.target.value }))} required>
-                <option value="">Selecione uma etapa</option>
-                {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <Select
+                value={form.stageId}
+                onChange={(value) => setForm((f) => ({ ...f, stageId: value }))}
+                options={stages.map((s) => ({ value: String(s.id), label: s.name }))}
+                placeholder="Selecione uma etapa"
+                required
+              />
             </label>
             <label className="field">
               <span>Valor</span>
@@ -256,11 +261,11 @@ export default function PipelinePage() {
               </label>
               <label className="field">
                 <span>Status</span>
-                <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
-                  {DEAL_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.label}>{o.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={editForm.status}
+                  onChange={(value) => setEditForm((f) => ({ ...f, status: value }))}
+                  options={DEAL_STATUS_OPTIONS.map((o) => ({ value: o.label, label: o.label }))}
+                />
               </label>
               <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar negócio"}

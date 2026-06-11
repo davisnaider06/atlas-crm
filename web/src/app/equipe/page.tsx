@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import { permissions } from "@/lib/permissions";
 import type { PermissionCatalogItem, TeamMember, UserRole } from "@/lib/types";
@@ -283,9 +284,11 @@ export default function TeamPage() {
           </label>
           <label className="field">
             <span>Tipo</span>
-            <select value={form.role} onChange={(e) => updateRole(e.target.value as UserRole)}>
-              {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
+            <Select
+              value={form.role}
+              onChange={(value) => updateRole(value as UserRole)}
+              options={roleOptions.map((r) => ({ value: r.value, label: r.label }))}
+            />
           </label>
 
           {selectedMember?.id !== user?.userId && (

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import type { DocumentItem, PagedResult } from "@/lib/types";
 
@@ -163,11 +164,15 @@ export default function DocumentsPage() {
         </label>
         <label className="field">
           <span>Visibilidade</span>
-          <select value={filterVisibility} onChange={(event) => setFilterVisibility(event.target.value)}>
-            <option value="">Todos</option>
-            <option value="private">Privado</option>
-            <option value="public">Público</option>
-          </select>
+          <Select
+            value={filterVisibility}
+            onChange={setFilterVisibility}
+            options={[
+              { value: "", label: "Todos" },
+              { value: "private", label: "Privado" },
+              { value: "public", label: "Público" },
+            ]}
+          />
         </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Aplicar filtros
@@ -205,10 +210,14 @@ export default function DocumentsPage() {
           </label>
           <label className="field">
             <span>Visibilidade</span>
-            <select value={fileForm.visibility} onChange={(event) => setFileForm((current) => ({ ...current, visibility: event.target.value }))}>
-              <option value="private">Privado</option>
-              <option value="public">Público</option>
-            </select>
+            <Select
+              value={fileForm.visibility}
+              onChange={(value) => setFileForm((current) => ({ ...current, visibility: value }))}
+              options={[
+                { value: "private", label: "Privado" },
+                { value: "public", label: "Público" },
+              ]}
+            />
           </label>
           <label className="field">
             <span>Arquivo</span>
@@ -245,10 +254,14 @@ export default function DocumentsPage() {
           </label>
           <label className="field">
             <span>Visibilidade</span>
-            <select value={linkForm.visibility} onChange={(event) => setLinkForm((current) => ({ ...current, visibility: event.target.value }))}>
-              <option value="private">Privado</option>
-              <option value="public">Público</option>
-            </select>
+            <Select
+              value={linkForm.visibility}
+              onChange={(value) => setLinkForm((current) => ({ ...current, visibility: value }))}
+              options={[
+                { value: "private", label: "Privado" },
+                { value: "public", label: "Público" },
+              ]}
+            />
           </label>
           <label className="field">
             <span>URL</span>

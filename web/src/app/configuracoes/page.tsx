@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useTheme } from "@/components/theme/theme-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import { AUTOMATION_EVENT_OPTIONS } from "@/lib/constants";
 import type { Automation, PagedResult } from "@/lib/types";
@@ -211,9 +212,11 @@ export default function SettingsPage() {
 
           <label className="field">
             <span>Modelo</span>
-            <select value={automationForm.preset} onChange={(e) => handlePresetChange(e.target.value)}>
-              {automationPresets.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
+            <Select
+              value={automationForm.preset}
+              onChange={(value) => handlePresetChange(value)}
+              options={automationPresets.map((p) => ({ value: p.value, label: p.label }))}
+            />
           </label>
           <label className="field">
             <span>Nome</span>
@@ -221,9 +224,11 @@ export default function SettingsPage() {
           </label>
           <label className="field">
             <span>Evento</span>
-            <select value={automationForm.eventType} onChange={(e) => setAutomationForm((f) => ({ ...f, eventType: e.target.value }))}>
-              {AUTOMATION_EVENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <Select
+              value={automationForm.eventType}
+              onChange={(value) => setAutomationForm((f) => ({ ...f, eventType: value }))}
+              options={AUTOMATION_EVENT_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+            />
           </label>
           <label className="field">
             <span>Condição JSON</span>

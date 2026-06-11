@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import { ACTIVITY_TYPE_OPTIONS, ACTIVITY_STATUS_OPTIONS } from "@/lib/constants";
@@ -181,20 +182,22 @@ export default function ActivitiesPage() {
 
             <label className="field">
               <span>Negócio</span>
-              <select value={form.dealId} onChange={(e) => setForm((f) => ({ ...f, dealId: e.target.value }))}>
-                <option value="">Sem vínculo</option>
-                {deals.map((d) => (
-                  <option key={d.id} value={d.id}>{d.leadName} — {d.stageName}</option>
-                ))}
-              </select>
+              <Select
+                value={form.dealId}
+                onChange={(value) => setForm((f) => ({ ...f, dealId: value }))}
+                options={[
+                  { value: "", label: "Sem vínculo" },
+                  ...deals.map((d) => ({ value: String(d.id), label: `${d.leadName} — ${d.stageName}` })),
+                ]}
+              />
             </label>
             <label className="field">
               <span>Tipo</span>
-              <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                {ACTIVITY_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+              <Select
+                value={form.type}
+                onChange={(value) => setForm((f) => ({ ...f, type: value }))}
+                options={ACTIVITY_TYPE_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+              />
             </label>
             <label className="field">
               <span>Descrição</span>
@@ -222,11 +225,11 @@ export default function ActivitiesPage() {
             <form className="form-card" onSubmit={handleUpdate}>
               <label className="field">
                 <span>Tipo</span>
-                <select value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))}>
-                  {ACTIVITY_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.label}>{o.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={editForm.type}
+                  onChange={(value) => setEditForm((f) => ({ ...f, type: value }))}
+                  options={ACTIVITY_TYPE_OPTIONS.map((o) => ({ value: o.label, label: o.label }))}
+                />
               </label>
               <label className="field">
                 <span>Descrição</span>
@@ -238,11 +241,11 @@ export default function ActivitiesPage() {
               </label>
               <label className="field">
                 <span>Status</span>
-                <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
-                  {ACTIVITY_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.label}>{o.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={editForm.status}
+                  onChange={(value) => setEditForm((f) => ({ ...f, status: value }))}
+                  options={ACTIVITY_STATUS_OPTIONS.map((o) => ({ value: o.label, label: o.label }))}
+                />
               </label>
               <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar atividade"}

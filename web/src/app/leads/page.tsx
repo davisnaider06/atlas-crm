@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
@@ -441,25 +442,28 @@ export default function LeadsPage() {
         </label>
         <label className="field compact">
           <span>Status</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="">Todos</option>
-            {leadStatusOptions.map((option) => (
-              <option key={option.value} value={option.label}>
-                {leadStatusLabels[option.label] ?? option.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "", label: "Todos" },
+              ...leadStatusOptions.map((option) => ({
+                value: option.label,
+                label: leadStatusLabels[option.label] ?? option.label,
+              })),
+            ]}
+          />
         </label>
         <label className="field compact">
           <span>Vendedor</span>
-          <select value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}>
-            <option value="">Todos</option>
-            {owners.map((owner) => (
-              <option key={owner.id} value={owner.id}>
-                {owner.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={ownerFilter}
+            onChange={setOwnerFilter}
+            options={[
+              { value: "", label: "Todos" },
+              ...owners.map((owner) => ({ value: String(owner.id), label: owner.name })),
+            ]}
+          />
         </label>
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Aplicar filtros
@@ -531,18 +535,15 @@ export default function LeadsPage() {
                     </div>
                     <div className="lead-card-footer">
                       <small>{formatDate(lead.createdAtUtc)}</small>
-                      <select
-                        value={leadStatusOptions.find((option) => option.label === lead.status)?.value ?? 1}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => void handleMoveLead(lead, Number(event.target.value))}
+                      <Select
+                        value={String(leadStatusOptions.find((option) => option.label === lead.status)?.value ?? 1)}
+                        onChange={(value) => void handleMoveLead(lead, Number(value))}
+                        options={leadStatusOptions.map((option) => ({
+                          value: String(option.value),
+                          label: leadStatusLabels[option.label] ?? option.label,
+                        }))}
                         disabled={submitting || !canEdit}
-                      >
-                        {leadStatusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {leadStatusLabels[option.label] ?? option.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   </article>
                 ))}
@@ -639,13 +640,14 @@ export default function LeadsPage() {
             </label>
             <label className="field">
               <span>Status</span>
-              <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
-                {leadStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {leadStatusLabels[option.label] ?? option.label}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={form.status}
+                onChange={(value) => setForm((current) => ({ ...current, status: value }))}
+                options={leadStatusOptions.map((option) => ({
+                  value: String(option.value),
+                  label: leadStatusLabels[option.label] ?? option.label,
+                }))}
+              />
             </label>
             {error ? <p className="form-error">{error}</p> : null}
             <button type="submit" className="primary-button" disabled={submitting}>
@@ -685,17 +687,18 @@ export default function LeadsPage() {
 
               <label className="field">
                 <span>Motivo da conversão</span>
-                <select
+                <Select
                   value={conversionForm.reason}
-                  onChange={(e) => setConversionForm((f) => ({ ...f, reason: e.target.value }))}
-                >
-                  <option value="">Selecionar motivo...</option>
-                  <option value="proposal_accepted">Proposta aceita</option>
-                  <option value="referral">Indicação</option>
-                  <option value="inbound">Inbound</option>
-                  <option value="trial_converted">Trial convertido</option>
-                  <option value="other">Outro</option>
-                </select>
+                  onChange={(value) => setConversionForm((f) => ({ ...f, reason: value }))}
+                  placeholder="Selecionar motivo..."
+                  options={[
+                    { value: "proposal_accepted", label: "Proposta aceita" },
+                    { value: "referral", label: "Indicação" },
+                    { value: "inbound", label: "Inbound" },
+                    { value: "trial_converted", label: "Trial convertido" },
+                    { value: "other", label: "Outro" },
+                  ]}
+                />
               </label>
 
               <div className="convert-section">
@@ -713,36 +716,26 @@ export default function LeadsPage() {
                 </label>
                 <label className="field">
                   <span>Pipeline</span>
-                  <select
+                  <Select
                     value={conversionForm.pipelineId}
-                    onChange={(e) =>
-                      setConversionForm((f) => ({ ...f, pipelineId: e.target.value, stageId: "" }))
+                    onChange={(value) =>
+                      setConversionForm((f) => ({ ...f, pipelineId: value, stageId: "" }))
                     }
-                  >
-                    <option value="">Selecionar pipeline...</option>
-                    {pipelines.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Selecionar pipeline..."
+                    options={pipelines.map((p) => ({ value: String(p.id), label: p.name }))}
+                  />
                 </label>
                 {conversionForm.pipelineId ? (
                   <label className="field">
                     <span>Estágio inicial</span>
-                    <select
+                    <Select
                       value={conversionForm.stageId}
-                      onChange={(e) =>
-                        setConversionForm((f) => ({ ...f, stageId: e.target.value }))
+                      onChange={(value) =>
+                        setConversionForm((f) => ({ ...f, stageId: value }))
                       }
-                    >
-                      <option value="">Selecionar estágio...</option>
-                      {availableStages.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Selecionar estágio..."
+                      options={availableStages.map((s) => ({ value: String(s.id), label: s.name }))}
+                    />
                   </label>
                 ) : null}
               </div>
@@ -799,13 +792,14 @@ export default function LeadsPage() {
                 </label>
                 <label className="field">
                   <span>Status</span>
-                  <select value={editState.status} onChange={(event) => setEditState((current) => ({ ...current, status: event.target.value }))}>
-                    {leadStatusOptions.map((option) => (
-                      <option key={option.value} value={option.label}>
-                        {leadStatusLabels[option.label] ?? option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    value={editState.status}
+                    onChange={(value) => setEditState((current) => ({ ...current, status: value }))}
+                    options={leadStatusOptions.map((option) => ({
+                      value: option.label,
+                      label: leadStatusLabels[option.label] ?? option.label,
+                    }))}
+                  />
                 </label>
                 <div className="compact-insight">
                   <span>Pré-qualificação</span>

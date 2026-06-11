@@ -181,6 +181,21 @@ textarea {
 
 button { cursor: pointer; }
 
+/* Custom select arrow — removes native chrome and adds a unified chevron */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a948e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 13px 13px;
+  cursor: pointer;
+}
+
+:root[data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237a6555' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -192,11 +207,13 @@ button { cursor: pointer; }
 
 /* ---------- Shell ---------- */
 .shell-bg {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .shell-panel {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 248px 1fr;
   background: var(--shell);
@@ -221,7 +238,9 @@ button { cursor: pointer; }
   background: var(--sidebar);
   border-right: 1px solid var(--border);
   transition: padding 200ms var(--ease);
-  overflow: hidden;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Brand */
@@ -481,12 +500,13 @@ button { cursor: pointer; }
 
 /* ---------- Main shell ---------- */
 .main-shell {
-  display: grid;
-  gap: 20px;
-  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px 0;
   min-width: 0;
-  min-height: 100vh;
-  align-content: start;
+  height: 100%;
+  overflow: hidden;
+  gap: 20px;
 }
 
 .shell-panel,
@@ -616,7 +636,14 @@ button { cursor: pointer; }
 }
 
 /* ---------- Layout primitives ---------- */
-.content,
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 28px;
+}
+
 .page-grid {
   display: grid;
   gap: 20px;
@@ -1094,22 +1121,27 @@ button { cursor: pointer; }
 .lead-kanban-section { display: grid; gap: 16px; }
 
 .lead-kanban {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(200px, 1fr));
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
+  height: min(58vh, 560px);
   overflow-x: auto;
-  padding-bottom: 6px;
+  overflow-y: hidden;
+  padding-bottom: 8px;
 }
 
 .lead-column {
-  min-width: 200px;
-  display: grid;
+  flex: 0 0 248px;
+  min-width: 248px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-content: start;
   padding: 14px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--panel-soft);
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .lead-column header,
@@ -1117,6 +1149,7 @@ button { cursor: pointer; }
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .lead-column header {
@@ -1146,7 +1179,15 @@ button { cursor: pointer; }
 .status-dot.muted   { background: var(--muted); }
 .status-dot.warning { background: var(--warning); }
 
-.lead-card-list { display: grid; gap: 8px; }
+.lead-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 2px;
+}
 
 .lead-card {
   display: grid;
@@ -1189,14 +1230,12 @@ button { cursor: pointer; }
 
 .lead-card-footer { display: grid; gap: 8px; }
 
-.lead-card-footer select {
-  width: 100%;
+.lead-card-footer .ui-select-trigger,
+.kanban-card .ui-select-trigger {
   min-height: 34px;
   padding: 0 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
   background: var(--panel-muted);
-  color: var(--text);
   font-size: 0.82rem;
 }
 
@@ -1217,19 +1256,27 @@ button { cursor: pointer; }
 
 /* ---------- Kanban (pipeline) ---------- */
 .kanban-board {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  align-items: flex-start;
   gap: 16px;
+  height: min(58vh, 560px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
 }
 
 .kanban-column {
+  flex: 0 0 272px;
+  min-width: 272px;
   padding: 16px;
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-content: start;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .kanban-column header {
@@ -1239,6 +1286,17 @@ button { cursor: pointer; }
   color: var(--muted);
   font-size: 0.82rem;
   padding-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 2px;
 }
 
 .kanban-column header strong {
@@ -1267,7 +1325,7 @@ button { cursor: pointer; }
   transform: translateY(-1px);
 }
 
-.kanban-card select { width: 100%; }
+/* (selects dos cards usam o combobox custom — ver .ui-select acima) */
 
 /* ---------- Tags & Badges ---------- */
 .tag {
@@ -1405,6 +1463,8 @@ button { cursor: pointer; }
     background var(--duration) var(--ease);
 }
 
+.field select { padding-right: 38px; }
+
 .field input:hover,
 .field select:hover,
 .field textarea:hover {
@@ -1449,6 +1509,147 @@ button { cursor: pointer; }
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+/* ---------- Custom select (combobox) ---------- */
+.ui-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-select-trigger {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease),
+    background var(--duration) var(--ease);
+}
+
+:root[data-theme="light"] .ui-select-trigger {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.ui-select-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: var(--panel-hover);
+}
+
+.ui-select-trigger:focus-visible,
+.ui-select.open .ui-select-trigger {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--panel-hover);
+}
+
+.ui-select-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ui-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-placeholder { color: var(--muted); }
+
+.ui-select-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform var(--duration) var(--ease);
+}
+
+.ui-select.open .ui-select-chevron { transform: rotate(180deg); }
+
+/* Select nativo oculto — só para validação de formulário (required) */
+.ui-select-native {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+}
+
+.ui-select-menu {
+  z-index: 500;
+  margin: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  list-style: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: rgba(12, 13, 17, 0.78);
+  backdrop-filter: var(--glass-heavy);
+  -webkit-backdrop-filter: var(--glass-heavy);
+  box-shadow: var(--shadow-lg);
+  animation: selectMenuIn 140ms var(--ease) both;
+}
+
+:root[data-theme="light"] .ui-select-menu {
+  background: rgba(255, 252, 248, 0.82);
+}
+
+@keyframes selectMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ui-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+
+.ui-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-option.highlighted {
+  background: var(--panel-hover);
+  color: var(--text);
+}
+
+.ui-select-option.selected {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.ui-select-option.selected.highlighted {
+  background: rgba(255, 106, 0, 0.18);
+}
+
+.ui-select-empty {
+  color: var(--muted);
+  cursor: default;
 }
 
 /* ---------- Buttons ---------- */
@@ -1977,8 +2178,7 @@ button { cursor: pointer; }
   .two-column,
   .settings-grid,
   .lead-command-card,
-  .lead-workspace,
-  .kanban-board {
+  .lead-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -2544,10 +2744,17 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 1060px) {
+  .shell-bg, .shell-panel { height: auto; overflow: visible; }
   .shell-panel { grid-template-columns: 1fr; }
   .shell-panel.sidebar-collapsed { grid-template-columns: 1fr; }
+  .main-shell { height: auto; overflow: visible; }
+  .content { overflow: visible; padding-bottom: 28px; }
+  .lead-kanban,
+  .kanban-board { height: min(70vh, 560px); }
 
   .rockart-sidebar {
+    height: auto;
+    overflow-y: visible;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
@@ -2756,7 +2963,7 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 760px) {
-  .main-shell { padding: 16px 18px; }
+  .main-shell { padding: 16px 18px 0; }
 
   .topbar,
   .hero-card { flex-direction: column; align-items: stretch; }

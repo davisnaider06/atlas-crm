@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { Customer, Lead, PagedResult } from "@/lib/types";
@@ -215,10 +216,14 @@ export default function CustomersPage() {
             </label>
             <label className="field">
               <span>Lead vinculado</span>
-              <select value={form.leadId} onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}>
-                <option value="">Sem lead vinculado</option>
-                {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              <Select
+                value={form.leadId}
+                onChange={(value) => setForm((f) => ({ ...f, leadId: value }))}
+                options={[
+                  { value: "", label: "Sem lead vinculado" },
+                  ...leads.map((l) => ({ value: String(l.id), label: l.name })),
+                ]}
+              />
             </label>
             <button type="submit" className="primary-button" disabled={submitting}>
               {submitting ? "Salvando..." : "Criar cliente"}
@@ -281,10 +286,14 @@ export default function CustomersPage() {
               </label>
               <label className="field">
                 <span>Lead vinculado</span>
-                <select value={editForm.leadId} onChange={(e) => setEditForm((f) => ({ ...f, leadId: e.target.value }))}>
-                  <option value="">Sem lead vinculado</option>
-                  {leads.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
+                <Select
+                  value={editForm.leadId}
+                  onChange={(value) => setEditForm((f) => ({ ...f, leadId: value }))}
+                  options={[
+                    { value: "", label: "Sem lead vinculado" },
+                    ...leads.map((l) => ({ value: String(l.id), label: l.name })),
+                  ]}
+                />
               </label>
               <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                 {submitting ? "Atualizando..." : "Salvar cliente"}

@@ -6,6 +6,7 @@ import { read, utils } from "xlsx";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import { WHATSAPP_PROVIDER_OPTIONS, WHATSAPP_STATUS_OPTIONS } from "@/lib/constants";
 import type {
@@ -189,9 +190,11 @@ export default function WhatsAppPage() {
 
           <label className="field">
             <span>Provedor</span>
-            <select value={form.provider} onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}>
-              {WHATSAPP_PROVIDER_OPTIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
+            <Select
+              value={form.provider}
+              onChange={(value) => setForm((f) => ({ ...f, provider: value }))}
+              options={WHATSAPP_PROVIDER_OPTIONS.map((p) => ({ value: String(p.value), label: p.label }))}
+            />
           </label>
           <label className="field">
             <span>Nome da instância</span>
@@ -223,9 +226,11 @@ export default function WhatsAppPage() {
           </label>
           <label className="field">
             <span>Status</span>
-            <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-              {WHATSAPP_STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            <Select
+              value={form.status}
+              onChange={(value) => setForm((f) => ({ ...f, status: value }))}
+              options={WHATSAPP_STATUS_OPTIONS.map((s) => ({ value: String(s.value), label: s.label }))}
+            />
           </label>
           {error && <p className="form-error">{error}</p>}
           <button type="submit" className="primary-button" disabled={saving}>

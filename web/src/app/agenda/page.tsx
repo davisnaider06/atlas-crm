@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
+import { Select } from "@/components/ui/select";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import { APPOINTMENT_TYPE_OPTIONS, APPOINTMENT_STATUS_OPTIONS } from "@/lib/constants";
@@ -402,42 +403,46 @@ export default function AgendaPage() {
               <div className="field-row">
                 <label className="field">
                   <span>Tipo</span>
-                  <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                    {APPOINTMENT_TYPE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={form.type}
+                    onChange={(value) => setForm((f) => ({ ...f, type: value }))}
+                    options={APPOINTMENT_TYPE_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                  />
                 </label>
                 {modalMode === "edit" && (
                   <label className="field">
                     <span>Status</span>
-                    <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-                      {APPOINTMENT_STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={form.status}
+                      onChange={(value) => setForm((f) => ({ ...f, status: value }))}
+                      options={APPOINTMENT_STATUS_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                    />
                   </label>
                 )}
               </div>
 
               <label className="field">
                 <span>Lead vinculado</span>
-                <select value={form.leadId} onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}>
-                  <option value="">Sem vínculo</option>
-                  {leads.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={form.leadId}
+                  onChange={(value) => setForm((f) => ({ ...f, leadId: value }))}
+                  options={[
+                    { value: "", label: "Sem vínculo" },
+                    ...leads.map((l) => ({ value: String(l.id), label: l.name })),
+                  ]}
+                />
               </label>
 
               <label className="field">
                 <span>Responsável</span>
-                <select value={form.assignedUserId} onChange={(e) => setForm((f) => ({ ...f, assignedUserId: e.target.value }))}>
-                  <option value="">Não atribuído</option>
-                  {teamMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={form.assignedUserId}
+                  onChange={(value) => setForm((f) => ({ ...f, assignedUserId: value }))}
+                  options={[
+                    { value: "", label: "Não atribuído" },
+                    ...teamMembers.map((m) => ({ value: String(m.id), label: m.name })),
+                  ]}
+                />
               </label>
 
               <label className="field">
