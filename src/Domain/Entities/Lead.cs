@@ -16,6 +16,32 @@ public sealed class Lead : TenantEntity
     public string? ExtraDataJson { get; set; }
     public long? OwnerUserId { get; set; }
 
+    // --- Processo comercial Atlas (funil de 7 etapas) ---
+    /// <summary>Etapa atual no funil fixo de 7 etapas.</summary>
+    public FunnelStage FunnelStage { get; set; } = FunnelStage.Mapped;
+    /// <summary>Desfecho quando o lead chega na etapa Closed (Ganho/Perdido).</summary>
+    public FunnelOutcome Outcome { get; set; } = FunnelOutcome.None;
+    /// <summary>Canal de entrada: Instagram | WhatsApp | indicação.</summary>
+    public string? Channel { get; set; }
+    /// <summary>Empresa/nicho do prospect (texto livre).</summary>
+    public string? CompanyName { get; set; }
+    /// <summary>@ do Instagram ou telefone, conforme o canal.</summary>
+    public string? ContactHandle { get; set; }
+    public DateTime? LastContactAtUtc { get; set; }
+    public DateTime? NextFollowUpAtUtc { get; set; }
+    /// <summary>Observações livres.</summary>
+    public string? Observations { get; set; }
+    /// <summary>Valor da proposta — editável a partir da etapa Proposta enviada.</summary>
+    public decimal? ProposalValue { get; set; }
+    /// <summary>Valor do contrato — obrigatório ao marcar como Fechado.</summary>
+    public decimal? ContractValue { get; set; }
+    /// <summary>Motivo da perda — obrigatório ao marcar como Perdido.</summary>
+    public LossReason LossReason { get; set; } = LossReason.None;
+    /// <summary>Status "Frio": lead sem resposta após D+10 (não é exclusão, não muda a etapa).</summary>
+    public bool IsCold { get; set; }
+    /// <summary>Passo da sequência de follow-up automático (0 = nenhum ainda).</summary>
+    public int FollowUpStep { get; set; }
+
     public Company? Company { get; set; }
     public User? OwnerUser { get; set; }
     public ICollection<Deal> Deals { get; set; } = new List<Deal>();

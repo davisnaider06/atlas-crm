@@ -148,6 +148,45 @@ export default function DashboardPage() {
         </article>
       </section>
 
+      {/* Métricas do processo comercial (automáticas) */}
+      <section className="dashboard-panel wide">
+        <div className="panel-heading">
+          <div>
+            <h3>Processo comercial</h3>
+            <p>Métricas automáticas — semana atual e mês corrente.</p>
+          </div>
+        </div>
+        <div className="lead-metrics commercial-metrics">
+          <article>
+            <span>Mensagens enviadas (semana)</span>
+            <strong>{dashboard.weeklyMessagesSent}</strong>
+            <small>leads movidos para Prospectado</small>
+          </article>
+          <article>
+            <span>Taxa de resposta (semana)</span>
+            <strong>{Math.round(dashboard.weeklyResponseRate * 100)}%</strong>
+            <small>{dashboard.weeklyReplies} responderam</small>
+          </article>
+          <article>
+            <span>Reuniões agendadas (semana)</span>
+            <strong>{dashboard.weeklyMeetingsScheduled}</strong>
+          </article>
+          <article>
+            <span>Propostas enviadas (semana)</span>
+            <strong>{dashboard.weeklyProposalsSent}</strong>
+          </article>
+          <article>
+            <span>Fechamentos (mês)</span>
+            <strong>{dashboard.monthlyClosedWon}</strong>
+          </article>
+          <article className="metric-highlight">
+            <span>Receita do mês</span>
+            <strong>{formatCurrency(dashboard.monthlyRevenue)}</strong>
+            <small>puxada do financeiro</small>
+          </article>
+        </div>
+      </section>
+
       {/* Charts row */}
       <section className="dashboard-panel wide">
         <div className="panel-heading">

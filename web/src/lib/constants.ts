@@ -1,3 +1,36 @@
+// --- Processo comercial Atlas: funil de 7 etapas (fixas) ---
+export const FUNNEL_STAGE_OPTIONS = [
+  { value: "Mapped", label: "Mapeado", order: 1 },
+  { value: "Prospected", label: "Prospectado", order: 2 },
+  { value: "Replied", label: "Respondeu", order: 3 },
+  { value: "MeetingScheduled", label: "Reunião agendada", order: 4 },
+  { value: "MeetingDone", label: "Reunião feita", order: 5 },
+  { value: "ProposalSent", label: "Proposta enviada", order: 6 },
+  { value: "Closed", label: "Fechado / Perdido", order: 7 },
+] as const;
+
+export const FUNNEL_STAGE_LABELS: Record<string, string> = Object.fromEntries(
+  FUNNEL_STAGE_OPTIONS.map((s) => [s.value, s.label]),
+);
+
+export const CHANNEL_OPTIONS = [
+  { value: "Instagram", label: "Instagram" },
+  { value: "WhatsApp", label: "WhatsApp" },
+  { value: "Indicação", label: "Indicação" },
+] as const;
+
+export const LOSS_REASON_OPTIONS = [
+  { value: "NoBudget", label: "Sem orçamento" },
+  { value: "NoInterest", label: "Sem interesse" },
+  { value: "StoppedResponding", label: "Parou de responder" },
+  { value: "ClosedWithCompetitor", label: "Fechou com outro" },
+  { value: "Other", label: "Outro" },
+] as const;
+
+export const LOSS_REASON_LABELS: Record<string, string> = Object.fromEntries(
+  LOSS_REASON_OPTIONS.map((r) => [r.value, r.label]),
+);
+
 export const LEAD_STATUS_OPTIONS = [
   { value: "New", label: "Novo" },
   { value: "Contacted", label: "Contactado" },

@@ -12,5 +12,9 @@ public sealed class FinanceEntry : TenantEntity
     public string? Notes { get; set; }
     public string? AttachmentFileName { get; set; }
 
+    /// <summary>Lead de origem quando a receita foi gerada por um fechamento no funil.</summary>
+    public long? SourceLeadId { get; set; }
+
     public Company? Company { get; set; }
+    public Lead? SourceLead { get; set; }
 }

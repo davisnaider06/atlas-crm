@@ -26,6 +26,25 @@ export type PagedResult<T> = {
   totalCount: number;
 };
 
+export type FunnelStage =
+  | "Mapped"
+  | "Prospected"
+  | "Replied"
+  | "MeetingScheduled"
+  | "MeetingDone"
+  | "ProposalSent"
+  | "Closed";
+
+export type FunnelOutcome = "None" | "Won" | "Lost";
+
+export type LossReason =
+  | "None"
+  | "NoBudget"
+  | "NoInterest"
+  | "StoppedResponding"
+  | "ClosedWithCompetitor"
+  | "Other";
+
 export type Lead = {
   id: number;
   name: string;
@@ -40,6 +59,20 @@ export type Lead = {
   ownerName?: string | null;
   extraDataJson?: string | null;
   createdAtUtc: string;
+  // Processo comercial Atlas (funil de 7 etapas)
+  funnelStage: FunnelStage;
+  outcome: FunnelOutcome;
+  channel?: string | null;
+  companyName?: string | null;
+  contactHandle?: string | null;
+  lastContactAtUtc?: string | null;
+  nextFollowUpAtUtc?: string | null;
+  observations?: string | null;
+  proposalValue?: number | null;
+  contractValue?: number | null;
+  lossReason: LossReason;
+  isCold: boolean;
+  followUpStep: number;
 };
 
 export type Conversation = {
@@ -179,6 +212,14 @@ export type Dashboard = {
     dealCount: number;
     totalValue: number;
   }[];
+  // Métricas do processo comercial
+  weeklyMessagesSent: number;
+  weeklyReplies: number;
+  weeklyResponseRate: number;
+  weeklyMeetingsScheduled: number;
+  weeklyProposalsSent: number;
+  monthlyClosedWon: number;
+  monthlyRevenue: number;
 };
 
 export type WhatsAppIntegration = {

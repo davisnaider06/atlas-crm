@@ -81,7 +81,20 @@ public sealed class LeadService : ILeadService
                 OwnerUserId = x.OwnerUserId,
                 OwnerName = x.OwnerUser != null ? x.OwnerUser.Name : null,
                 ExtraDataJson = x.ExtraDataJson,
-                CreatedAtUtc = x.CreatedAtUtc
+                CreatedAtUtc = x.CreatedAtUtc,
+                FunnelStage = x.FunnelStage,
+                Outcome = x.Outcome,
+                Channel = x.Channel,
+                CompanyName = x.CompanyName,
+                ContactHandle = x.ContactHandle,
+                LastContactAtUtc = x.LastContactAtUtc,
+                NextFollowUpAtUtc = x.NextFollowUpAtUtc,
+                Observations = x.Observations,
+                ProposalValue = x.ProposalValue,
+                ContractValue = x.ContractValue,
+                LossReason = x.LossReason,
+                IsCold = x.IsCold,
+                FollowUpStep = x.FollowUpStep
             })
             .ToListAsync(cancellationToken);
 
@@ -122,7 +135,13 @@ public sealed class LeadService : ILeadService
             QualificationScore = Math.Clamp(request.QualificationScore, 0, 100),
             QualificationNotes = request.QualificationNotes?.Trim(),
             ExtraDataJson = request.ExtraDataJson,
-            OwnerUserId = request.OwnerUserId ?? user.UserId
+            OwnerUserId = request.OwnerUserId ?? user.UserId,
+            Channel = request.Channel?.Trim(),
+            CompanyName = request.CompanyName?.Trim(),
+            ContactHandle = request.ContactHandle?.Trim(),
+            NextFollowUpAtUtc = request.NextFollowUpAtUtc,
+            Observations = request.Observations?.Trim()
+            // FunnelStage = Mapped (default da entidade) — todo lead entra na etapa 1.
         };
 
         _dbContext.Leads.Add(lead);
@@ -133,22 +152,7 @@ public sealed class LeadService : ILeadService
             new { lead.Id, lead.Name, lead.Status },
             cancellationToken: cancellationToken);
 
-        return new LeadDto
-        {
-            Id = lead.Id,
-            Name = lead.Name,
-            Email = lead.Email,
-            Phone = lead.Phone,
-            Source = lead.Source,
-            Status = lead.Status,
-            QualificationTemperature = lead.QualificationTemperature,
-            QualificationScore = lead.QualificationScore,
-            QualificationNotes = lead.QualificationNotes,
-            OwnerUserId = lead.OwnerUserId,
-            OwnerName = null,
-            ExtraDataJson = lead.ExtraDataJson,
-            CreatedAtUtc = lead.CreatedAtUtc
-        };
+        return ToDto(lead);
     }
 
     public async Task<LeadDto> UpdateAsync(long id, UpdateLeadRequest request, CancellationToken cancellationToken = default)
@@ -166,6 +170,14 @@ public sealed class LeadService : ILeadService
         lead.QualificationNotes = request.QualificationNotes?.Trim();
         lead.ExtraDataJson = request.ExtraDataJson ?? lead.ExtraDataJson;
         lead.OwnerUserId = request.OwnerUserId;
+        // Campos descritivos do processo comercial (a etapa/desfecho NÃO mudam aqui).
+        lead.Channel = request.Channel?.Trim();
+        lead.CompanyName = request.CompanyName?.Trim();
+        lead.ContactHandle = request.ContactHandle?.Trim();
+        lead.LastContactAtUtc = request.LastContactAtUtc;
+        lead.NextFollowUpAtUtc = request.NextFollowUpAtUtc;
+        lead.Observations = request.Observations?.Trim();
+        lead.ProposalValue = request.ProposalValue;
         lead.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -174,22 +186,7 @@ public sealed class LeadService : ILeadService
             new { lead.Id, lead.Status },
             cancellationToken: cancellationToken);
 
-        return new LeadDto
-        {
-            Id = lead.Id,
-            Name = lead.Name,
-            Email = lead.Email,
-            Phone = lead.Phone,
-            Source = lead.Source,
-            Status = lead.Status,
-            QualificationTemperature = lead.QualificationTemperature,
-            QualificationScore = lead.QualificationScore,
-            QualificationNotes = lead.QualificationNotes,
-            OwnerUserId = lead.OwnerUserId,
-            OwnerName = null,
-            ExtraDataJson = lead.ExtraDataJson,
-            CreatedAtUtc = lead.CreatedAtUtc
-        };
+        return ToDto(lead);
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
@@ -210,6 +207,219 @@ public sealed class LeadService : ILeadService
             new { lead.Id, lead.Name },
             cancellationToken: cancellationToken);
     }
+
+    public async Task<LeadDto> MoveStageAsync(long id, MoveLeadStageRequest request, CancellationToken cancellationToken = default)
+    {
+        var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Lead não encontrado.", 404);
+
+        var previousStage = lead.FunnelStage;
+
+        // Validações da 7ª etapa (Fechado / Perdido): desfecho obrigatório.
+        if (request.FunnelStage == FunnelStage.Closed)
+        {
+            if (request.Outcome == FunnelOutcome.None)
+            {
+                throw new AppException("Defina o desfecho do lead: Fechado ou Perdido.", 400);
+            }
+
+            if (request.Outcome == FunnelOutcome.Won && (!request.ContractValue.HasValue || request.ContractValue.Value <= 0))
+            {
+                throw new AppException("Informe o valor do contrato para marcar o lead como Fechado.", 400);
+            }
+
+            if (request.Outcome == FunnelOutcome.Lost && request.LossReason == LossReason.None)
+            {
+                throw new AppException("Selecione o motivo da perda para marcar o lead como Perdido.", 400);
+            }
+        }
+
+        lead.FunnelStage = request.FunnelStage;
+
+        if (request.FunnelStage == FunnelStage.Closed)
+        {
+            lead.Outcome = request.Outcome;
+            if (request.Outcome == FunnelOutcome.Won)
+            {
+                lead.ContractValue = request.ContractValue;
+                lead.LossReason = LossReason.None;
+                lead.IsCold = false;
+                lead.NextFollowUpAtUtc = null;
+                lead.Status = LeadStatus.Converted; // mantém compatibilidade com o status legado
+            }
+            else // Lost
+            {
+                lead.LossReason = request.LossReason;
+                lead.NextFollowUpAtUtc = null;
+                lead.Status = LeadStatus.Lost;
+            }
+        }
+        else
+        {
+            // Saiu (ou nunca esteve) da etapa final: zera desfecho.
+            lead.Outcome = FunnelOutcome.None;
+        }
+
+        // Agendamento automático de follow-up + status "Frio" é aplicado aqui (passo 5).
+        ApplyFollowUpScheduling(lead, previousStage);
+
+        lead.UpdatedAtUtc = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Receita automática no fechamento — idempotente por lead.
+        if (request.FunnelStage == FunnelStage.Closed && request.Outcome == FunnelOutcome.Won)
+        {
+            var alreadyBilled = await _dbContext.FinanceEntries.AnyAsync(x => x.SourceLeadId == lead.Id, cancellationToken);
+            if (!alreadyBilled)
+            {
+                _dbContext.FinanceEntries.Add(new FinanceEntry
+                {
+                    CompanyId = lead.CompanyId,
+                    OccurredAtUtc = DateTime.UtcNow,
+                    Type = "income",
+                    Category = "Contrato fechado",
+                    Amount = request.ContractValue!.Value,
+                    Currency = "BRL",
+                    Notes = $"Receita do lead #{lead.Id} - {lead.Name}",
+                    SourceLeadId = lead.Id
+                });
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        await _eventLogService.LogAsync(
+            EventLogType.LeadStageChanged,
+            new
+            {
+                lead.Id,
+                From = previousStage.ToString(),
+                To = lead.FunnelStage.ToString(),
+                Outcome = lead.Outcome.ToString()
+            },
+            cancellationToken: cancellationToken);
+
+        return ToDto(lead);
+    }
+
+    // Cadências de follow-up automático (dias a partir da mudança de etapa).
+    private static readonly int[] ProspectedFollowUpDays = { 2, 5, 10 }; // D+2, D+5, D+10 -> Frio
+    private static readonly int[] ProposalFollowUpDays = { 1, 3, 7 };    // D+1, D+3, D+7
+
+    /// <summary>
+    /// Ao mudar de etapa, registra o contato e preenche a 1ª data de follow-up
+    /// da cadência da etapa de destino (editável depois). Sem cadência definida,
+    /// a data atual é preservada.
+    /// </summary>
+    private static void ApplyFollowUpScheduling(Lead lead, FunnelStage previousStage)
+    {
+        if (lead.FunnelStage == previousStage || lead.FunnelStage == FunnelStage.Closed)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        lead.LastContactAtUtc = now;
+
+        switch (lead.FunnelStage)
+        {
+            case FunnelStage.Prospected:
+                lead.FollowUpStep = 1;
+                lead.IsCold = false;
+                lead.NextFollowUpAtUtc = now.AddDays(ProspectedFollowUpDays[0]);
+                break;
+            case FunnelStage.ProposalSent:
+                lead.FollowUpStep = 1;
+                lead.NextFollowUpAtUtc = now.AddDays(ProposalFollowUpDays[0]);
+                break;
+            default:
+                lead.FollowUpStep = 0;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Registra um follow-up feito e avança a cadência da etapa atual.
+    /// Prospectado: D+2 -> D+5 -> D+10 -> "Frio". Proposta enviada: D+1 -> D+3 -> D+7.
+    /// </summary>
+    public async Task<LeadDto> AdvanceFollowUpAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Lead não encontrado.", 404);
+
+        var now = DateTime.UtcNow;
+        lead.LastContactAtUtc = now;
+
+        switch (lead.FunnelStage)
+        {
+            case FunnelStage.Prospected:
+                if (lead.FollowUpStep < ProspectedFollowUpDays.Length)
+                {
+                    lead.FollowUpStep++;
+                    lead.NextFollowUpAtUtc = now.AddDays(ProspectedFollowUpDays[lead.FollowUpStep - 1]);
+                }
+                else
+                {
+                    // Esgotou D+10 sem resposta -> Frio (não exclui, não muda de etapa).
+                    lead.IsCold = true;
+                    lead.NextFollowUpAtUtc = null;
+                }
+                break;
+            case FunnelStage.ProposalSent:
+                if (lead.FollowUpStep < ProposalFollowUpDays.Length)
+                {
+                    lead.FollowUpStep++;
+                    lead.NextFollowUpAtUtc = now.AddDays(ProposalFollowUpDays[lead.FollowUpStep - 1]);
+                }
+                else
+                {
+                    lead.NextFollowUpAtUtc = null;
+                }
+                break;
+            default:
+                // Etapas sem cadência definida: apenas conclui o follow-up atual.
+                lead.NextFollowUpAtUtc = null;
+                break;
+        }
+
+        lead.UpdatedAtUtc = now;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.LeadUpdated,
+            new { lead.Id, FollowUpStep = lead.FollowUpStep, lead.IsCold },
+            cancellationToken: cancellationToken);
+
+        return ToDto(lead);
+    }
+
+    private static LeadDto ToDto(Lead lead, string? ownerName = null) => new()
+    {
+        Id = lead.Id,
+        Name = lead.Name,
+        Email = lead.Email,
+        Phone = lead.Phone,
+        Source = lead.Source,
+        Status = lead.Status,
+        QualificationTemperature = lead.QualificationTemperature,
+        QualificationScore = lead.QualificationScore,
+        QualificationNotes = lead.QualificationNotes,
+        OwnerUserId = lead.OwnerUserId,
+        OwnerName = ownerName,
+        ExtraDataJson = lead.ExtraDataJson,
+        CreatedAtUtc = lead.CreatedAtUtc,
+        FunnelStage = lead.FunnelStage,
+        Outcome = lead.Outcome,
+        Channel = lead.Channel,
+        CompanyName = lead.CompanyName,
+        ContactHandle = lead.ContactHandle,
+        LastContactAtUtc = lead.LastContactAtUtc,
+        NextFollowUpAtUtc = lead.NextFollowUpAtUtc,
+        Observations = lead.Observations,
+        ProposalValue = lead.ProposalValue,
+        ContractValue = lead.ContractValue,
+        LossReason = lead.LossReason,
+        IsCold = lead.IsCold,
+        FollowUpStep = lead.FollowUpStep
+    };
 
     private async Task ApplyLeadCreatedAutomationsAsync(Lead lead, CancellationToken cancellationToken)
     {

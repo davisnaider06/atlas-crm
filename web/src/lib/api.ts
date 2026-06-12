@@ -206,6 +206,11 @@ export const api = {
       qualificationScore?: number;
       qualificationNotes?: string | null;
       extraDataJson?: string | null;
+      channel?: string | null;
+      companyName?: string | null;
+      contactHandle?: string | null;
+      nextFollowUpAtUtc?: string | null;
+      observations?: string | null;
     },
   ) =>
     request<Lead>("/leads", {
@@ -227,12 +232,39 @@ export const api = {
       qualificationNotes?: string | null;
       ownerUserId?: number | null;
       extraDataJson?: string | null;
+      channel?: string | null;
+      companyName?: string | null;
+      contactHandle?: string | null;
+      lastContactAtUtc?: string | null;
+      nextFollowUpAtUtc?: string | null;
+      observations?: string | null;
+      proposalValue?: number | null;
     },
   ) =>
     request<Lead>(`/leads/${id}`, {
       method: "PUT",
       token,
       body: JSON.stringify(payload),
+    }),
+  moveLeadStage: (
+    token: string,
+    id: number,
+    payload: {
+      funnelStage: string;
+      outcome?: string;
+      contractValue?: number | null;
+      lossReason?: string;
+    },
+  ) =>
+    request<Lead>(`/leads/${id}/move`, {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    }),
+  advanceLeadFollowUp: (token: string, id: number) =>
+    request<Lead>(`/leads/${id}/followup`, {
+      method: "POST",
+      token,
     }),
   deleteLead: (token: string, id: number) =>
     request<void>(`/leads/${id}`, {

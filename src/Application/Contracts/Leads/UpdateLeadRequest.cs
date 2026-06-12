@@ -14,4 +14,16 @@ public sealed class UpdateLeadRequest
     public string? QualificationNotes { get; set; }
     public string? ExtraDataJson { get; set; }
     public long? OwnerUserId { get; set; }
+
+    // Campos descritivos do processo comercial (edição livre).
+    // A etapa do funil, o desfecho, o valor de contrato e o motivo de perda
+    // NÃO são alterados aqui — usam o endpoint de movimentação (/leads/{id}/move).
+    public string? Channel { get; set; }
+    public string? CompanyName { get; set; }
+    public string? ContactHandle { get; set; }
+    public DateTime? LastContactAtUtc { get; set; }
+    public DateTime? NextFollowUpAtUtc { get; set; }
+    public string? Observations { get; set; }
+    /// <summary>Valor da proposta — editável a partir da etapa Proposta enviada.</summary>
+    public decimal? ProposalValue { get; set; }
 }

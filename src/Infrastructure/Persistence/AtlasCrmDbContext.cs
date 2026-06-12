@@ -86,9 +86,21 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.QualificationScore).HasDefaultValue(0);
             entity.Property(x => x.QualificationTemperature).HasDefaultValue(LeadTemperature.Cold);
             entity.Property(x => x.QualificationNotes).HasMaxLength(500);
+            // Processo comercial Atlas (funil de 7 etapas)
+            entity.Property(x => x.FunnelStage).HasDefaultValue(FunnelStage.Mapped);
+            entity.Property(x => x.Outcome).HasDefaultValue(FunnelOutcome.None);
+            entity.Property(x => x.LossReason).HasDefaultValue(LossReason.None);
+            entity.Property(x => x.Channel).HasMaxLength(40);
+            entity.Property(x => x.CompanyName).HasMaxLength(180);
+            entity.Property(x => x.ContactHandle).HasMaxLength(140);
+            entity.Property(x => x.Observations).HasMaxLength(2000);
+            entity.Property(x => x.ProposalValue).HasColumnType("numeric(18,2)");
+            entity.Property(x => x.ContractValue).HasColumnType("numeric(18,2)");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
             entity.HasIndex(x => new { x.CompanyId, x.QualificationTemperature });
+            entity.HasIndex(x => new { x.CompanyId, x.FunnelStage });
+            entity.HasIndex(x => new { x.CompanyId, x.NextFollowUpAtUtc });
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 
@@ -171,6 +183,22 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Value).HasColumnType("numeric(18,2)");
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.StageId });
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<FinanceEntry>(entity =>
+        {
+            entity.ToTable("finance_entries");
+            entity.Property(x => x.Amount).HasColumnType("numeric(18,2)");
+            entity.Property(x => x.Type).HasMaxLength(16);
+            entity.Property(x => x.Category).HasMaxLength(120);
+            entity.Property(x => x.Currency).HasMaxLength(10);
+            entity.HasIndex(x => x.CompanyId);
+            entity.HasIndex(x => new { x.CompanyId, x.OccurredAtUtc });
+            entity.HasOne(x => x.SourceLead)
+                .WithMany()
+                .HasForeignKey(x => x.SourceLeadId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 

@@ -1103,6 +1103,14 @@ select {
 
 .lead-metrics article:hover { border-color: rgba(255, 255, 255, 0.12); }
 
+/* Métricas comerciais no dashboard */
+.commercial-metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.lead-metrics small { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
+.lead-metrics article.metric-highlight {
+  border-color: var(--accent, #d9a441);
+  background: rgba(217, 164, 65, 0.08);
+}
+
 .lead-metrics span {
   color: var(--muted);
   font-size: 0.74rem;
@@ -1230,6 +1238,49 @@ select {
 }
 
 .lead-card-footer { display: grid; gap: 8px; }
+
+/* Processo comercial: badges do card e barra de etapa no detalhe */
+.lead-card-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.lead-card-badges:empty { display: none; }
+.lead-card-badges .tag { font-size: 0.72rem; padding: 2px 8px; }
+
+.lead-detail-stagebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.lead-detail-stagebar .field { flex: 1 1 220px; margin: 0; }
+
+/* Tela "Hoje" — mobile-first */
+.today-list { display: grid; gap: 12px; }
+.today-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+.today-card-main { flex: 1 1 240px; display: grid; gap: 6px; min-width: 0; }
+.today-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.today-card-head strong { font-size: 1rem; }
+.today-card-sub { color: var(--muted); font-size: 0.85rem; }
+.today-card-contact { font-size: 0.85rem; }
+.today-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.today-card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.primary-button.small { padding: 8px 14px; font-size: 0.82rem; }
+.today-empty { display: grid; gap: 6px; text-align: center; padding: 40px 16px; }
+@media (max-width: 640px) {
+  .today-card { flex-direction: column; align-items: stretch; }
+  .today-card-actions { justify-content: space-between; }
+}
 
 .lead-card-footer .ui-select-trigger,
 .kanban-card .ui-select-trigger {
