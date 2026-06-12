@@ -1231,6 +1231,22 @@ select {
 
 .lead-card-footer { display: grid; gap: 8px; }
 
+/* Processo comercial: badges do card e barra de etapa no detalhe */
+.lead-card-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.lead-card-badges:empty { display: none; }
+.lead-card-badges .tag { font-size: 0.72rem; padding: 2px 8px; }
+
+.lead-detail-stagebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.lead-detail-stagebar .field { flex: 1 1 220px; margin: 0; }
+
 .lead-card-footer .ui-select-trigger,
 .kanban-card .ui-select-trigger {
   min-height: 34px;

@@ -1,95 +1,71 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, formatDate } from "@/lib/api";
+import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
 import { QuickContactActions } from "@/components/ui/quick-actions";
 import { CustomFieldInputs } from "@/components/ui/custom-field-inputs";
 import { mergeCustomFieldValues, readCustomFieldValues } from "@/lib/custom-fields";
-import type { CustomFieldDef } from "@/lib/types";
+import {
+  FUNNEL_STAGE_OPTIONS,
+  FUNNEL_STAGE_LABELS,
+  CHANNEL_OPTIONS,
+  LOSS_REASON_OPTIONS,
+  LOSS_REASON_LABELS,
+} from "@/lib/constants";
+import type { CustomFieldDef, FunnelStage } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
 
-const leadStatusOptions = [
-  { value: 1, label: "New" },
-  { value: 2, label: "Contacted" },
-  { value: 3, label: "Qualified" },
-  { value: 4, label: "Lost" },
-  { value: 5, label: "Converted" },
-  { value: 6, label: "MessageSent" },
-  { value: 7, label: "FollowUp" },
-  { value: 8, label: "InNegotiation" },
-  { value: 9, label: "MeetingScheduled" },
-];
+const PROPOSAL_STAGE_ORDER = 6; // valor_proposta editável a partir de "Proposta enviada"
 
-const leadStatusLabels: Record<string, string> = {
-  New: "Novo",
-  Contacted: "Contato feito",
-  Qualified: "Qualificado",
-  Lost: "Perdido",
-  Converted: "Convertido",
-  MessageSent: "Mensagem enviada",
-  FollowUp: "Fazer follow-up",
-  InNegotiation: "Em negociação",
-  MeetingScheduled: "Reunião marcada",
-};
-
-const statusTones: Record<string, string> = {
-  New: "orange",
-  Contacted: "blue",
-  Qualified: "gold",
-  Lost: "danger",
-  Converted: "success",
-  MessageSent: "orange",
-  FollowUp: "gold",
-  InNegotiation: "warning",
-  MeetingScheduled: "blue",
-};
-
-const qualificationLabels: Record<string, string> = {
-  Hot: "Quente",
-  Warm: "Morno",
-  Cold: "Frio",
-  Unqualified: "Sem fit",
-};
-
-const qualificationTones: Record<string, string> = {
-  Hot: "danger",
-  Warm: "gold",
-  Cold: "blue",
-  Unqualified: "muted",
-};
-
-const qualificationValues: Record<string, number> = {
-  Unqualified: 1,
-  Cold: 2,
-  Warm: 3,
-  Hot: 4,
+const stageTones: Record<string, string> = {
+  Mapped: "muted",
+  Prospected: "orange",
+  Replied: "blue",
+  MeetingScheduled: "gold",
+  MeetingDone: "warning",
+  ProposalSent: "gold",
+  Closed: "success",
 };
 
 const eventTypeLabels: Record<string, string> = {
   LeadCreated: "Lead criado",
   LeadUpdated: "Dados atualizados",
-  LeadStatusChanged: "Status alterado",
+  LeadStageChanged: "Etapa alterada",
   LeadConverted: "Convertido em cliente",
   CustomerCreated: "Cliente criado",
   DealCreated: "Negócio criado",
   ActivityCreated: "Atividade registrada",
-  ActivityUpdated: "Atividade atualizada",
 };
+
+function stageOrder(stage: FunnelStage): number {
+  return FUNNEL_STAGE_OPTIONS.find((s) => s.value === stage)?.order ?? 0;
+}
+
+function toDateInput(iso?: string | null): string {
+  return iso ? iso.slice(0, 10) : "";
+}
+
+function fromDateInput(value: string): string | null {
+  return value ? new Date(`${value}T12:00:00`).toISOString() : null;
+}
 
 function formatHistoryDetail(item: HistoryItem): string {
   try {
     const data = JSON.parse(item.dataJson) as Record<string, unknown>;
     const parts: string[] = [];
-    if (typeof data.status === "string") {
-      parts.push(leadStatusLabels[data.status] ?? data.status);
+    if (typeof data.To === "string") {
+      parts.push(FUNNEL_STAGE_LABELS[data.To] ?? data.To);
+    }
+    if (typeof data.Outcome === "string" && data.Outcome !== "None") {
+      parts.push(data.Outcome === "Won" ? "Fechado" : "Perdido");
     }
     if (typeof data.value === "number") {
-      parts.push(`R$ ${data.value.toLocaleString("pt-BR")}`);
+      parts.push(formatCurrency(data.value));
     }
     if (typeof data.name === "string") {
       parts.push(data.name);
@@ -112,27 +88,28 @@ export default function LeadsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
-  const [conversionForm, setConversionForm] = useState({
-    reason: "",
-    dealValue: "",
-    pipelineId: "",
-    stageId: "",
-  });
+  const [conversionForm, setConversionForm] = useState({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
+  // Fechamento (etapa 7): desfecho + valor de contrato / motivo de perda
+  const [closeModal, setCloseModal] = useState<{ lead: Lead } | null>(null);
+  const [closeForm, setCloseForm] = useState({ outcome: "", contractValue: "", lossReason: "" });
   const { notify } = useNotification();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
   const [dragLeadId, setDragLeadId] = useState<number | null>(null);
-  const [dropStatus, setDropStatus] = useState<number | null>(null);
+  const [dropStage, setDropStage] = useState<string | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [editCustomValues, setEditCustomValues] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: "",
+    channel: "",
+    companyName: "",
+    contactHandle: "",
     email: "",
     phone: "",
     source: "",
-    status: "6",
+    observations: "",
+    nextFollowUp: "",
   });
 
   const editForm = useMemo(
@@ -141,7 +118,13 @@ export default function LeadsPage() {
       email: selectedLead?.email ?? "",
       phone: selectedLead?.phone ?? "",
       source: selectedLead?.source ?? "",
-      status: selectedLead?.status ?? "New",
+      channel: selectedLead?.channel ?? "",
+      companyName: selectedLead?.companyName ?? "",
+      contactHandle: selectedLead?.contactHandle ?? "",
+      observations: selectedLead?.observations ?? "",
+      proposalValue: selectedLead?.proposalValue != null ? String(selectedLead.proposalValue) : "",
+      lastContact: toDateInput(selectedLead?.lastContactAtUtc),
+      nextFollowUp: toDateInput(selectedLead?.nextFollowUpAtUtc),
     }),
     [selectedLead],
   );
@@ -162,9 +145,9 @@ export default function LeadsPage() {
 
   const groupedLeads = useMemo(
     () =>
-      leadStatusOptions.map((status) => ({
-        ...status,
-        items: leads.filter((lead) => lead.status === status.label),
+      FUNNEL_STAGE_OPTIONS.map((stage) => ({
+        ...stage,
+        items: leads.filter((lead) => lead.funnelStage === stage.value),
       })),
     [leads],
   );
@@ -172,9 +155,10 @@ export default function LeadsPage() {
   const leadMetrics = useMemo(
     () => ({
       total: leads.length,
-      qualified: leads.filter((lead) => lead.status === "Qualified").length,
-      converted: leads.filter((lead) => lead.status === "Converted").length,
-      lost: leads.filter((lead) => lead.status === "Lost").length,
+      active: leads.filter((lead) => lead.funnelStage !== "Closed").length,
+      won: leads.filter((lead) => lead.outcome === "Won").length,
+      lost: leads.filter((lead) => lead.outcome === "Lost").length,
+      cold: leads.filter((lead) => lead.isCold).length,
     }),
     [leads],
   );
@@ -219,22 +203,21 @@ export default function LeadsPage() {
     try {
       const response = (await api.getLeads(token, {
         search: search || undefined,
-        status: statusFilter || undefined,
         ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
       })) as PagedResult<Lead>;
       setLeads(response.items);
       const ownerResponse = await api.getLeadOwners(token);
       setOwners(ownerResponse);
-      setSelectedLead((current) => current ? response.items.find((item) => item.id === current.id) ?? null : null);
+      setSelectedLead((current) => (current ? response.items.find((item) => item.id === current.id) ?? null : null));
     } catch (err) {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao carregar leads.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para ver leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao carregar leads" });
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para ver leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao carregar leads" });
     } finally {
       setLoading(false);
     }
-  }, [token, search, statusFilter, ownerFilter, notify]);
+  }, [token, search, ownerFilter, notify]);
 
   useEffect(() => {
     void load();
@@ -251,9 +234,7 @@ export default function LeadsPage() {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     setSubmitting(true);
     setError(null);
@@ -262,11 +243,16 @@ export default function LeadsPage() {
         name: form.name,
         email: form.email || undefined,
         phone: form.phone || undefined,
-        source: form.source,
-        status: Number(form.status),
+        source: form.source || form.channel || "Outro",
+        status: 6,
+        channel: form.channel || undefined,
+        companyName: form.companyName || undefined,
+        contactHandle: form.contactHandle || undefined,
+        observations: form.observations || undefined,
+        nextFollowUpAtUtc: fromDateInput(form.nextFollowUp),
         extraDataJson: customFields.length > 0 ? mergeCustomFieldValues(null, customValues) : undefined,
       });
-      setForm({ name: "", email: "", phone: "", source: "", status: "1" });
+      setForm({ name: "", channel: "", companyName: "", contactHandle: "", email: "", phone: "", source: "", observations: "", nextFollowUp: "" });
       setCustomValues({});
       setCreateModalOpen(false);
       await load();
@@ -275,7 +261,7 @@ export default function LeadsPage() {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao criar lead.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para criar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao criar lead" });
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para criar leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao criar lead" });
     } finally {
       setSubmitting(false);
     }
@@ -283,28 +269,27 @@ export default function LeadsPage() {
 
   const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !selectedLead) {
-      return;
-    }
+    if (!token || !selectedLead) return;
 
     setSubmitting(true);
     setError(null);
     try {
-      const matchedStatus = leadStatusOptions.find((option) => option.label === editState.status)?.value ?? 1;
       await api.updateLead(token, selectedLead.id, {
         name: editState.name,
         email: editState.email || undefined,
         phone: editState.phone || undefined,
-        source: editState.source,
-        status: matchedStatus,
-        qualificationTemperature: qualificationValues[selectedLead.qualificationTemperature] ?? 2,
-        qualificationScore: selectedLead.qualificationScore ?? 0,
-        qualificationNotes: selectedLead.qualificationNotes ?? null,
+        source: editState.source || editState.channel || "Outro",
+        status: 6,
         ownerUserId: selectedLead.ownerUserId ?? null,
+        channel: editState.channel || undefined,
+        companyName: editState.companyName || undefined,
+        contactHandle: editState.contactHandle || undefined,
+        observations: editState.observations || undefined,
+        proposalValue: editState.proposalValue ? Number(editState.proposalValue) : null,
+        lastContactAtUtc: fromDateInput(editState.lastContact),
+        nextFollowUpAtUtc: fromDateInput(editState.nextFollowUp),
         extraDataJson:
-          customFields.length > 0
-            ? mergeCustomFieldValues(selectedLead.extraDataJson, editCustomValues)
-            : undefined,
+          customFields.length > 0 ? mergeCustomFieldValues(selectedLead.extraDataJson, editCustomValues) : undefined,
       });
       await load();
       notify({ type: "success", message: "Lead atualizado.", title: "Sucesso" });
@@ -312,16 +297,14 @@ export default function LeadsPage() {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao atualizar lead.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao atualizar lead" });
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para editar leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao atualizar lead" });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!token || !selectedLead) {
-      return;
-    }
+    if (!token || !selectedLead) return;
 
     setSubmitting(true);
     setError(null);
@@ -330,43 +313,94 @@ export default function LeadsPage() {
       setSelectedLead(null);
       setHistory([]);
       await load();
-      notify({ type: "success", message: "Lead excluido.", title: "Excluido" });
+      notify({ type: "success", message: "Lead excluído.", title: "Excluído" });
     } catch (err) {
       const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao excluir lead.";
       setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para excluir leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao excluir lead" });
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para excluir leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao excluir lead" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleMoveLead = async (lead: Lead, statusValue: number) => {
-    if (!token) {
+  // Move um lead de etapa. Ao mover para "Closed" abre o modal de fechamento/perda.
+  const handleMoveStage = async (lead: Lead, stageValue: string) => {
+    if (!token || stageValue === lead.funnelStage) return;
+
+    if (stageValue === "Closed") {
+      setCloseForm({ outcome: "", contractValue: "", lossReason: "" });
+      setCloseModal({ lead });
       return;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      await api.updateLead(token, lead.id, {
-        name: lead.name,
-        email: lead.email || undefined,
-        phone: lead.phone || undefined,
-        source: lead.source,
-        status: statusValue,
-        qualificationTemperature: qualificationValues[lead.qualificationTemperature] ?? 2,
-        qualificationScore: lead.qualificationScore ?? 0,
-        qualificationNotes: lead.qualificationNotes ?? null,
-        ownerUserId: lead.ownerUserId ?? null,
-      });
+      await api.moveLeadStage(token, lead.id, { funnelStage: stageValue });
       await load();
-      notify({ type: "success", message: "Lead movido com sucesso.", title: "Sucesso" });
+      notify({ type: "success", message: `Lead movido para "${FUNNEL_STAGE_LABELS[stageValue]}".`, title: "Etapa atualizada" });
     } catch (err) {
-      const status = (err as any)?.status;
       const message = err instanceof Error ? err.message : "Erro ao mover lead.";
-      setError(message);
-      notify({ type: "error", message: status === 403 ? "Voce nao tem permissao para editar leads." : message, title: status === 403 ? "Permissao negada" : "Erro ao mover lead" });
+      notify({ type: "error", message, title: "Erro ao mover lead" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirmClose = async () => {
+    if (!token || !closeModal) return;
+
+    if (!closeForm.outcome) {
+      notify({ type: "error", message: "Selecione o desfecho: Fechado ou Perdido.", title: "Desfecho obrigatório" });
+      return;
+    }
+    if (closeForm.outcome === "Won" && (!closeForm.contractValue || Number(closeForm.contractValue) <= 0)) {
+      notify({ type: "error", message: "Informe o valor do contrato para marcar como Fechado.", title: "Valor obrigatório" });
+      return;
+    }
+    if (closeForm.outcome === "Lost" && !closeForm.lossReason) {
+      notify({ type: "error", message: "Selecione o motivo da perda.", title: "Motivo obrigatório" });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.moveLeadStage(token, closeModal.lead.id, {
+        funnelStage: "Closed",
+        outcome: closeForm.outcome,
+        contractValue: closeForm.outcome === "Won" ? Number(closeForm.contractValue) : null,
+        lossReason: closeForm.outcome === "Lost" ? closeForm.lossReason : undefined,
+      });
+      setCloseModal(null);
+      await load();
+      notify({
+        type: "success",
+        message: closeForm.outcome === "Won" ? "Lead fechado e receita lançada no financeiro." : "Lead marcado como perdido.",
+        title: closeForm.outcome === "Won" ? "Fechado 🎉" : "Perdido",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao fechar lead.";
+      notify({ type: "error", message, title: "Erro ao fechar lead" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAdvanceFollowUp = async (lead: Lead) => {
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      const updated = await api.advanceLeadFollowUp(token, lead.id);
+      await load();
+      notify({
+        type: "success",
+        message: updated.isCold ? "Sem resposta após D+10 — lead marcado como Frio." : "Follow-up registrado e próxima data agendada.",
+        title: "Follow-up",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao registrar follow-up.";
+      notify({ type: "error", message, title: "Erro" });
     } finally {
       setSubmitting(false);
     }
@@ -425,12 +459,14 @@ export default function LeadsPage() {
     return <ErrorState message={error} onRetry={() => void load()} />;
   }
 
+  const selectedProposalEditable = selectedLead ? stageOrder(selectedLead.funnelStage) >= PROPOSAL_STAGE_ORDER : false;
+
   return (
     <div className="page-grid">
       <section className="lead-command-card">
         <div>
-          <p className="eyebrow">Central de leads</p>
-          <h2>Entrada, qualificação e conversão em uma visão única.</h2>
+          <p className="eyebrow">Funil comercial</p>
+          <h2>Sete etapas, do lead mapeado ao contrato fechado.</h2>
         </div>
         <div className="lead-command-actions">
           <div className="lead-metrics">
@@ -439,16 +475,20 @@ export default function LeadsPage() {
               <strong>{leadMetrics.total}</strong>
             </article>
             <article>
-              <span>Qualificados</span>
-              <strong>{leadMetrics.qualified}</strong>
+              <span>Em andamento</span>
+              <strong>{leadMetrics.active}</strong>
             </article>
             <article>
-              <span>Convertidos</span>
-              <strong>{leadMetrics.converted}</strong>
+              <span>Fechados</span>
+              <strong>{leadMetrics.won}</strong>
             </article>
             <article>
               <span>Perdidos</span>
               <strong>{leadMetrics.lost}</strong>
+            </article>
+            <article>
+              <span>Frios</span>
+              <strong>{leadMetrics.cold}</strong>
             </article>
           </div>
           {canCreate ? (
@@ -463,20 +503,6 @@ export default function LeadsPage() {
         <label className="field compact">
           <span>Buscar</span>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, email ou telefone" />
-        </label>
-        <label className="field compact">
-          <span>Status</span>
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: "", label: "Todos" },
-              ...leadStatusOptions.map((option) => ({
-                value: option.label,
-                label: leadStatusLabels[option.label] ?? option.label,
-              })),
-            ]}
-          />
         </label>
         <label className="field compact">
           <span>Vendedor</span>
@@ -498,7 +524,7 @@ export default function LeadsPage() {
         <div className="card-header">
           <div>
             <h3>Leads por vendedor</h3>
-            <p>Acompanhe a distribuicao dos leads entre os responsaveis comerciais.</p>
+            <p>Acompanhe a distribuição dos leads entre os responsáveis comerciais.</p>
           </div>
           <span className="tag">{owners.length} vendedores</span>
         </div>
@@ -521,41 +547,41 @@ export default function LeadsPage() {
       <section className="table-card lead-kanban-section">
         <div className="card-header">
           <div>
-            <h3>Kanban de leads</h3>
-            <p>Mova o status pelo seletor em cada card e acompanhe o funil de entrada.</p>
+            <h3>Funil de 7 etapas</h3>
+            <p>Arraste o card ou use o seletor para mover de etapa. A etapa final exige desfecho.</p>
           </div>
           <span className="tag">{leads.length} leads</span>
         </div>
 
-        <div className="lead-kanban">
+        <div className="lead-kanban funnel-kanban">
           {groupedLeads.map((column) => (
             <div
-              key={column.label}
-              className={`lead-column${dropStatus === column.value ? " drop-target" : ""}`}
+              key={column.value}
+              className={`lead-column${dropStage === column.value ? " drop-target" : ""}`}
               onDragOver={(e) => {
                 if (dragLeadId === null) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
-                if (dropStatus !== column.value) setDropStatus(column.value);
+                if (dropStage !== column.value) setDropStage(column.value);
               }}
               onDragLeave={(e) => {
                 if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                setDropStatus((current) => (current === column.value ? null : current));
+                setDropStage((current) => (current === column.value ? null : current));
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 const leadId = dragLeadId;
                 setDragLeadId(null);
-                setDropStatus(null);
+                setDropStage(null);
                 if (leadId === null) return;
                 const lead = leads.find((item) => item.id === leadId);
-                if (lead && lead.status !== column.label) void handleMoveLead(lead, column.value);
+                if (lead && lead.funnelStage !== column.value) void handleMoveStage(lead, column.value);
               }}
             >
               <header>
                 <div>
-                  <span className={`status-dot ${statusTones[column.label] ?? "orange"}`} />
-                  <strong>{leadStatusLabels[column.label] ?? column.label}</strong>
+                  <span className={`status-dot ${stageTones[column.value] ?? "orange"}`} />
+                  <strong>{column.order}. {column.label}</strong>
                 </div>
                 <small>{column.items.length}</small>
               </header>
@@ -572,34 +598,34 @@ export default function LeadsPage() {
                     }}
                     onDragEnd={() => {
                       setDragLeadId(null);
-                      setDropStatus(null);
+                      setDropStage(null);
                     }}
                     onClick={() => setSelectedLead(lead)}
                   >
                     <div className="lead-card-top">
                       <strong>{lead.name}</strong>
-                      <span>{lead.source}</span>
+                      <span>{lead.channel || lead.source}</span>
                     </div>
-                    <p>{lead.email || lead.phone || "Contato não informado"}</p>
-                    <p>{lead.ownerName ? `Vendedor: ${lead.ownerName}` : "Sem vendedor definido"}</p>
-                    <div className="lead-qualification-row">
-                      <div className="lead-qualification-info">
-                        <span className={`tag ${qualificationTones[lead.qualificationTemperature] ?? "muted"}`}>
-                          {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature}
+                    <p>{lead.companyName || "Empresa/nicho não informado"}</p>
+                    <p>{lead.contactHandle || lead.email || lead.phone || "Contato não informado"}</p>
+                    <div className="lead-card-badges">
+                      {lead.outcome === "Won" ? <span className="tag success">Fechado</span> : null}
+                      {lead.outcome === "Lost" ? (
+                        <span className="tag danger">Perdido{lead.lossReason !== "None" ? ` · ${LOSS_REASON_LABELS[lead.lossReason] ?? ""}` : ""}</span>
+                      ) : null}
+                      {lead.isCold ? <span className="tag muted">Frio</span> : null}
+                      {lead.nextFollowUpAtUtc && lead.outcome === "None" ? (
+                        <span className={`tag ${new Date(lead.nextFollowUpAtUtc) < new Date() ? "danger" : "blue"}`}>
+                          Follow-up {formatDate(lead.nextFollowUpAtUtc)}
                         </span>
-                        <small>{lead.qualificationScore} pts</small>
-                      </div>
-                      <QuickContactActions phone={lead.phone} email={lead.email} name={lead.name} />
+                      ) : null}
                     </div>
                     <div className="lead-card-footer">
-                      <small>{formatDate(lead.createdAtUtc)}</small>
+                      <QuickContactActions phone={lead.phone} email={lead.email} name={lead.name} />
                       <Select
-                        value={String(leadStatusOptions.find((option) => option.label === lead.status)?.value ?? 1)}
-                        onChange={(value) => void handleMoveLead(lead, Number(value))}
-                        options={leadStatusOptions.map((option) => ({
-                          value: String(option.value),
-                          label: leadStatusLabels[option.label] ?? option.label,
-                        }))}
+                        value={lead.funnelStage}
+                        onChange={(value) => void handleMoveStage(lead, value)}
+                        options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${option.label}` }))}
                         disabled={submitting || !canEdit}
                       />
                     </div>
@@ -617,7 +643,7 @@ export default function LeadsPage() {
           <div className="card-header">
             <div>
               <h3>Lista completa</h3>
-              <p>Selecione um lead para editar ou ver historico</p>
+              <p>Selecione um lead para editar, mover de etapa ou ver histórico</p>
             </div>
             <span className="tag">{leads.length} itens</span>
           </div>
@@ -626,11 +652,11 @@ export default function LeadsPage() {
             <thead>
               <tr>
                 <th>Nome</th>
-                <th>Origem</th>
-                <th>Temperatura</th>
-                <th>Status</th>
+                <th>Empresa/nicho</th>
+                <th>Canal</th>
+                <th>Etapa</th>
+                <th>Próx. follow-up</th>
                 <th>Vendedor</th>
-                <th>Criado em</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -642,25 +668,27 @@ export default function LeadsPage() {
                   onClick={() => setSelectedLead(lead)}
                 >
                   <td>{lead.name}</td>
-                  <td>{lead.source}</td>
+                  <td>{lead.companyName ?? "-"}</td>
+                  <td>{lead.channel ?? lead.source}</td>
                   <td>
-                    {qualificationLabels[lead.qualificationTemperature] ?? lead.qualificationTemperature} ({lead.qualificationScore})
+                    <span className={`tag ${stageTones[lead.funnelStage] ?? "muted"}`}>
+                      {FUNNEL_STAGE_LABELS[lead.funnelStage] ?? lead.funnelStage}
+                    </span>
                   </td>
-                  <td>{leadStatusLabels[lead.status] ?? lead.status}</td>
+                  <td>{lead.nextFollowUpAtUtc ? formatDate(lead.nextFollowUpAtUtc) : "-"}</td>
                   <td>{lead.ownerName ?? "Sem vendedor"}</td>
-                  <td>{formatDate(lead.createdAtUtc)}</td>
                   <td>
                     <div className="table-action-row">
                       <QuickContactActions phone={lead.phone} email={lead.email} name={lead.name} />
                       <button
                         type="button"
-                        className="table-action danger"
+                        className="table-action"
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedLead(lead);
                         }}
                       >
-                        Selecionar
+                        Abrir
                       </button>
                     </div>
                   </td>
@@ -677,15 +705,32 @@ export default function LeadsPage() {
             <div className="card-header">
               <div>
                 <h3>Novo lead</h3>
-                <p>Cadastre uma nova entrada comercial.</p>
+                <p>Entra na etapa 1 (Mapeado).</p>
               </div>
               <button type="button" className="table-action" onClick={() => setCreateModalOpen(false)}>
                 Fechar
               </button>
             </div>
             <label className="field">
-              <span>Nome</span>
+              <span>Nome do contato</span>
               <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+            </label>
+            <label className="field">
+              <span>Empresa / nicho</span>
+              <input value={form.companyName} onChange={(event) => setForm((current) => ({ ...current, companyName: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Canal</span>
+              <Select
+                value={form.channel}
+                onChange={(value) => setForm((current) => ({ ...current, channel: value }))}
+                placeholder="Selecione o canal"
+                options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+              />
+            </label>
+            <label className="field">
+              <span>@ ou telefone</span>
+              <input value={form.contactHandle} onChange={(event) => setForm((current) => ({ ...current, contactHandle: event.target.value }))} placeholder="@usuario ou (11) 99999-9999" />
             </label>
             <label className="field">
               <span>Email</span>
@@ -696,19 +741,12 @@ export default function LeadsPage() {
               <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Origem</span>
-              <input value={form.source} onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))} required />
+              <span>Próximo follow-up</span>
+              <input type="date" value={form.nextFollowUp} onChange={(event) => setForm((current) => ({ ...current, nextFollowUp: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Status</span>
-              <Select
-                value={form.status}
-                onChange={(value) => setForm((current) => ({ ...current, status: value }))}
-                options={leadStatusOptions.map((option) => ({
-                  value: String(option.value),
-                  label: leadStatusLabels[option.label] ?? option.label,
-                }))}
-              />
+              <span>Observações</span>
+              <textarea value={form.observations} onChange={(event) => setForm((current) => ({ ...current, observations: event.target.value }))} />
             </label>
             <CustomFieldInputs
               defs={customFields}
@@ -720,6 +758,73 @@ export default function LeadsPage() {
               {submitting ? "Salvando..." : "Criar lead"}
             </button>
           </form>
+        </div>
+      ) : null}
+
+      {closeModal ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCloseModal(null)}>
+          <div className="modal-panel narrow" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="card-header">
+              <div>
+                <h3>Encerrar lead</h3>
+                <p>{closeModal.lead.name} — defina o desfecho.</p>
+              </div>
+              <button type="button" className="table-action" onClick={() => setCloseModal(null)}>
+                Fechar
+              </button>
+            </div>
+            <div className="modal-body">
+              <label className="field">
+                <span>Desfecho</span>
+                <Select
+                  value={closeForm.outcome}
+                  onChange={(value) => setCloseForm((f) => ({ ...f, outcome: value }))}
+                  placeholder="Selecionar..."
+                  options={[
+                    { value: "Won", label: "Fechado (ganho)" },
+                    { value: "Lost", label: "Perdido" },
+                  ]}
+                />
+              </label>
+
+              {closeForm.outcome === "Won" ? (
+                <label className="field">
+                  <span>Valor do contrato (R$) *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={closeForm.contractValue}
+                    onChange={(e) => setCloseForm((f) => ({ ...f, contractValue: e.target.value }))}
+                    placeholder="Obrigatório"
+                    required
+                  />
+                  <small className="muted-mini">Entra automaticamente como receita no financeiro.</small>
+                </label>
+              ) : null}
+
+              {closeForm.outcome === "Lost" ? (
+                <label className="field">
+                  <span>Motivo da perda *</span>
+                  <Select
+                    value={closeForm.lossReason}
+                    onChange={(value) => setCloseForm((f) => ({ ...f, lossReason: value }))}
+                    placeholder="Selecionar motivo..."
+                    options={LOSS_REASON_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+                  />
+                </label>
+              ) : null}
+
+              <div className="modal-actions">
+                <button type="button" className="ghost-button" onClick={() => setCloseModal(null)}>
+                  Cancelar
+                </button>
+                <button type="button" className="primary-button" onClick={() => void handleConfirmClose()} disabled={submitting}>
+                  {submitting ? "Salvando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -742,9 +847,7 @@ export default function LeadsPage() {
                 <div className="checklist-grid">
                   {conversionChecklist.map((check) => (
                     <div key={check.label} className="checklist-item">
-                      <em className={`checklist-icon ${check.ok ? "ok" : "warn"}`}>
-                        {check.ok ? "✓" : "!"}
-                      </em>
+                      <em className={`checklist-icon ${check.ok ? "ok" : "warn"}`}>{check.ok ? "✓" : "!"}</em>
                       <span>{check.label}</span>
                     </div>
                   ))}
@@ -784,9 +887,7 @@ export default function LeadsPage() {
                   <span>Pipeline</span>
                   <Select
                     value={conversionForm.pipelineId}
-                    onChange={(value) =>
-                      setConversionForm((f) => ({ ...f, pipelineId: value, stageId: "" }))
-                    }
+                    onChange={(value) => setConversionForm((f) => ({ ...f, pipelineId: value, stageId: "" }))}
                     placeholder="Selecionar pipeline..."
                     options={pipelines.map((p) => ({ value: String(p.id), label: p.name }))}
                   />
@@ -796,9 +897,7 @@ export default function LeadsPage() {
                     <span>Estágio inicial</span>
                     <Select
                       value={conversionForm.stageId}
-                      onChange={(value) =>
-                        setConversionForm((f) => ({ ...f, stageId: value }))
-                      }
+                      onChange={(value) => setConversionForm((f) => ({ ...f, stageId: value }))}
                       placeholder="Selecionar estágio..."
                       options={availableStages.map((s) => ({ value: String(s.id), label: s.name }))}
                     />
@@ -812,12 +911,7 @@ export default function LeadsPage() {
                 <button type="button" className="ghost-button" onClick={() => setConvertModalOpen(false)}>
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => void handleConvertToCustomer()}
-                  disabled={submitting}
-                >
+                <button type="button" className="primary-button" onClick={() => void handleConvertToCustomer()} disabled={submitting}>
                   {submitting ? "Convertendo..." : "Converter em cliente"}
                 </button>
               </div>
@@ -826,23 +920,64 @@ export default function LeadsPage() {
         </div>
       ) : null}
 
-      {selectedLead && !convertModalOpen ? (
+      {selectedLead && !convertModalOpen && !closeModal ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedLead(null)}>
           <div className="modal-panel lead-detail-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="card-header">
               <div>
                 <h3>Detalhes do lead</h3>
-                <p>Atualize informações, converta em cliente ou consulte o histórico.</p>
+                <p>
+                  Etapa atual:{" "}
+                  <strong>{FUNNEL_STAGE_LABELS[selectedLead.funnelStage] ?? selectedLead.funnelStage}</strong>
+                  {selectedLead.outcome === "Won" ? " · Fechado" : ""}
+                  {selectedLead.outcome === "Lost" ? ` · Perdido (${LOSS_REASON_LABELS[selectedLead.lossReason] ?? ""})` : ""}
+                  {selectedLead.isCold ? " · Frio" : ""}
+                </p>
               </div>
               <button type="button" className="table-action" onClick={() => setSelectedLead(null)}>
                 Fechar
               </button>
             </div>
+
+            <div className="lead-detail-stagebar">
+              <label className="field compact">
+                <span>Mover de etapa</span>
+                <Select
+                  value={selectedLead.funnelStage}
+                  onChange={(value) => void handleMoveStage(selectedLead, value)}
+                  options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${option.label}` }))}
+                  disabled={submitting || !canEdit}
+                />
+              </label>
+              {(selectedLead.funnelStage === "Prospected" || selectedLead.funnelStage === "ProposalSent") && canEdit ? (
+                <button type="button" className="ghost-button" onClick={() => void handleAdvanceFollowUp(selectedLead)} disabled={submitting}>
+                  Registrar follow-up
+                </button>
+              ) : null}
+            </div>
+
             <div className="two-column modal-columns">
               <form className="form-card" onSubmit={handleUpdate}>
                 <label className="field">
-                  <span>Nome</span>
+                  <span>Nome do contato</span>
                   <input value={editState.name} onChange={(event) => setEditState((current) => ({ ...current, name: event.target.value }))} required />
+                </label>
+                <label className="field">
+                  <span>Empresa / nicho</span>
+                  <input value={editState.companyName} onChange={(event) => setEditState((current) => ({ ...current, companyName: event.target.value }))} />
+                </label>
+                <label className="field">
+                  <span>Canal</span>
+                  <Select
+                    value={editState.channel}
+                    onChange={(value) => setEditState((current) => ({ ...current, channel: value }))}
+                    placeholder="Selecione o canal"
+                    options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+                  />
+                </label>
+                <label className="field">
+                  <span>@ ou telefone</span>
+                  <input value={editState.contactHandle} onChange={(event) => setEditState((current) => ({ ...current, contactHandle: event.target.value }))} />
                 </label>
                 <label className="field">
                   <span>Email</span>
@@ -852,33 +987,44 @@ export default function LeadsPage() {
                   <span>Telefone</span>
                   <input value={editState.phone} onChange={(event) => setEditState((current) => ({ ...current, phone: event.target.value }))} />
                 </label>
+                <div className="two-column">
+                  <label className="field">
+                    <span>Último contato</span>
+                    <input type="date" value={editState.lastContact} onChange={(event) => setEditState((current) => ({ ...current, lastContact: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Próximo follow-up</span>
+                    <input type="date" value={editState.nextFollowUp} onChange={(event) => setEditState((current) => ({ ...current, nextFollowUp: event.target.value }))} />
+                  </label>
+                </div>
                 <label className="field">
-                  <span>Origem</span>
-                  <input value={editState.source} onChange={(event) => setEditState((current) => ({ ...current, source: event.target.value }))} required />
+                  <span>Valor da proposta (R$)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editState.proposalValue}
+                    disabled={!selectedProposalEditable}
+                    placeholder={selectedProposalEditable ? "0,00" : "Disponível a partir de Proposta enviada"}
+                    onChange={(event) => setEditState((current) => ({ ...current, proposalValue: event.target.value }))}
+                  />
                 </label>
                 <label className="field">
-                  <span>Status</span>
-                  <Select
-                    value={editState.status}
-                    onChange={(value) => setEditState((current) => ({ ...current, status: value }))}
-                    options={leadStatusOptions.map((option) => ({
-                      value: option.label,
-                      label: leadStatusLabels[option.label] ?? option.label,
-                    }))}
-                  />
+                  <span>Observações</span>
+                  <textarea value={editState.observations} onChange={(event) => setEditState((current) => ({ ...current, observations: event.target.value }))} />
                 </label>
                 <CustomFieldInputs
                   defs={customFields}
                   values={editCustomValues}
                   onChange={(key, value) => setEditCustomValues((current) => ({ ...current, [key]: value }))}
                 />
-                <div className="compact-insight">
-                  <span>Pré-qualificação</span>
-                  <strong>
-                    {qualificationLabels[selectedLead.qualificationTemperature] ?? selectedLead.qualificationTemperature} · {selectedLead.qualificationScore} pts
-                  </strong>
-                  <p>{selectedLead.qualificationNotes || "Sem notas de qualificação."}</p>
-                </div>
+                {selectedLead.outcome === "Won" && selectedLead.contractValue != null ? (
+                  <div className="compact-insight">
+                    <span>Contrato fechado</span>
+                    <strong>{formatCurrency(selectedLead.contractValue)}</strong>
+                    <p>Receita lançada no financeiro.</p>
+                  </div>
+                ) : null}
                 <button type="submit" className="primary-button" disabled={submitting || !canEdit}>
                   {submitting ? "Atualizando..." : "Salvar alterações"}
                 </button>
