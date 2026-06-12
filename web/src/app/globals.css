@@ -1103,6 +1103,14 @@ select {
 
 .lead-metrics article:hover { border-color: rgba(255, 255, 255, 0.12); }
 
+/* Métricas comerciais no dashboard */
+.commercial-metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.lead-metrics small { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
+.lead-metrics article.metric-highlight {
+  border-color: var(--accent, #d9a441);
+  background: rgba(217, 164, 65, 0.08);
+}
+
 .lead-metrics span {
   color: var(--muted);
   font-size: 0.74rem;
