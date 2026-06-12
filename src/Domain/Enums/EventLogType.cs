@@ -23,5 +23,6 @@ public enum EventLogType
     CustomerCreated = 19,
     CustomerUpdated = 20,
     CustomerDeleted = 21,
-    LeadConverted = 22
+    LeadConverted = 22,
+    LeadStageChanged = 23
 }

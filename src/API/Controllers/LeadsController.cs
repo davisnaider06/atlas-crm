@@ -52,6 +52,13 @@ public sealed class LeadsController : ControllerBase
         return Ok(await _leadService.UpdateAsync(id, request, cancellationToken));
     }
 
+    [HttpPost("{id:long}/move")]
+    [Authorize(Policy = CrmPermissions.LeadsEdit)]
+    public async Task<ActionResult<LeadDto>> Move(long id, [FromBody] MoveLeadStageRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _leadService.MoveStageAsync(id, request, cancellationToken));
+    }
+
     [HttpDelete("{id:long}")]
     [Authorize(Policy = CrmPermissions.LeadsDelete)]
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
