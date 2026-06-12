@@ -301,13 +301,94 @@ public sealed class LeadService : ILeadService
         return ToDto(lead);
     }
 
+    // Cadências de follow-up automático (dias a partir da mudança de etapa).
+    private static readonly int[] ProspectedFollowUpDays = { 2, 5, 10 }; // D+2, D+5, D+10 -> Frio
+    private static readonly int[] ProposalFollowUpDays = { 1, 3, 7 };    // D+1, D+3, D+7
+
     /// <summary>
-    /// Preenche automaticamente a data do próximo follow-up ao mudar de etapa (editável depois).
-    /// Implementado no passo 5.
+    /// Ao mudar de etapa, registra o contato e preenche a 1ª data de follow-up
+    /// da cadência da etapa de destino (editável depois). Sem cadência definida,
+    /// a data atual é preservada.
     /// </summary>
     private static void ApplyFollowUpScheduling(Lead lead, FunnelStage previousStage)
     {
-        // placeholder — lógica adicionada no passo 5
+        if (lead.FunnelStage == previousStage || lead.FunnelStage == FunnelStage.Closed)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        lead.LastContactAtUtc = now;
+
+        switch (lead.FunnelStage)
+        {
+            case FunnelStage.Prospected:
+                lead.FollowUpStep = 1;
+                lead.IsCold = false;
+                lead.NextFollowUpAtUtc = now.AddDays(ProspectedFollowUpDays[0]);
+                break;
+            case FunnelStage.ProposalSent:
+                lead.FollowUpStep = 1;
+                lead.NextFollowUpAtUtc = now.AddDays(ProposalFollowUpDays[0]);
+                break;
+            default:
+                lead.FollowUpStep = 0;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Registra um follow-up feito e avança a cadência da etapa atual.
+    /// Prospectado: D+2 -> D+5 -> D+10 -> "Frio". Proposta enviada: D+1 -> D+3 -> D+7.
+    /// </summary>
+    public async Task<LeadDto> AdvanceFollowUpAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new AppException("Lead não encontrado.", 404);
+
+        var now = DateTime.UtcNow;
+        lead.LastContactAtUtc = now;
+
+        switch (lead.FunnelStage)
+        {
+            case FunnelStage.Prospected:
+                if (lead.FollowUpStep < ProspectedFollowUpDays.Length)
+                {
+                    lead.FollowUpStep++;
+                    lead.NextFollowUpAtUtc = now.AddDays(ProspectedFollowUpDays[lead.FollowUpStep - 1]);
+                }
+                else
+                {
+                    // Esgotou D+10 sem resposta -> Frio (não exclui, não muda de etapa).
+                    lead.IsCold = true;
+                    lead.NextFollowUpAtUtc = null;
+                }
+                break;
+            case FunnelStage.ProposalSent:
+                if (lead.FollowUpStep < ProposalFollowUpDays.Length)
+                {
+                    lead.FollowUpStep++;
+                    lead.NextFollowUpAtUtc = now.AddDays(ProposalFollowUpDays[lead.FollowUpStep - 1]);
+                }
+                else
+                {
+                    lead.NextFollowUpAtUtc = null;
+                }
+                break;
+            default:
+                // Etapas sem cadência definida: apenas conclui o follow-up atual.
+                lead.NextFollowUpAtUtc = null;
+                break;
+        }
+
+        lead.UpdatedAtUtc = now;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _eventLogService.LogAsync(
+            EventLogType.LeadUpdated,
+            new { lead.Id, FollowUpStep = lead.FollowUpStep, lead.IsCold },
+            cancellationToken: cancellationToken);
+
+        return ToDto(lead);
     }
 
     private static LeadDto ToDto(Lead lead, string? ownerName = null) => new()
