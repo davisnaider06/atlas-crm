@@ -19,6 +19,7 @@ import {
   WhatsAppIcon,
   TeamIcon,
   SettingsIcon,
+  AlertIcon,
   HelpIcon,
   LogoutIcon,
   ChevronLeftIcon,
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
   {
     label: "COMERCIAL",
     items: [
+      { href: "/hoje",      label: "Hoje",       Icon: AlertIcon,     permission: permissions.leadsView },
       { href: "/leads",     label: "Leads",      Icon: LeadsIcon,     permission: permissions.leadsView },
       { href: "/conversas", label: "Conversas",  Icon: ChatIcon,      permission: permissions.leadsView },
       { href: "/clientes",  label: "Clientes",   Icon: ClientsIcon,   permission: permissions.customersView },
@@ -84,6 +86,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
     title: "Bom te ver de novo",
     subtitle: "Monitore o desempenho comercial e acompanhe o crescimento do time.",
+  },
+  "/hoje": {
+    title: "Seu dia",
+    subtitle: "Os follow-ups vencidos e de hoje, do mais atrasado ao mais recente.",
   },
   "/leads": {
     title: "Gestão de leads",

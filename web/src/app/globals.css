@@ -1247,6 +1247,33 @@ select {
 }
 .lead-detail-stagebar .field { flex: 1 1 220px; margin: 0; }
 
+/* Tela "Hoje" — mobile-first */
+.today-list { display: grid; gap: 12px; }
+.today-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+.today-card-main { flex: 1 1 240px; display: grid; gap: 6px; min-width: 0; }
+.today-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.today-card-head strong { font-size: 1rem; }
+.today-card-sub { color: var(--muted); font-size: 0.85rem; }
+.today-card-contact { font-size: 0.85rem; }
+.today-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.today-card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.primary-button.small { padding: 8px 14px; font-size: 0.82rem; }
+.today-empty { display: grid; gap: 6px; text-align: center; padding: 40px 16px; }
+@media (max-width: 640px) {
+  .today-card { flex-direction: column; align-items: stretch; }
+  .today-card-actions { justify-content: space-between; }
+}
+
 .lead-card-footer .ui-select-trigger,
 .kanban-card .ui-select-trigger {
   min-height: 34px;
