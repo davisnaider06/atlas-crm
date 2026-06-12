@@ -2166,7 +2166,7 @@ select {
 }
 
 .login-logo span {
-  width: 40px;
+  width: 80px;
   height: 40px;
   display: inline-grid;
   place-items: center;
