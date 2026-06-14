@@ -1103,8 +1103,16 @@ select {
 
 .lead-metrics article:hover { border-color: rgba(255, 255, 255, 0.12); }
 
-/* Métricas comerciais no dashboard */
-.commercial-metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* Métricas comerciais no dashboard: 6 tiles em uma única linha ocupando a
+   largura toda do painel (baixo e largo, em vez de alto). Seletor com dupla
+   classe para vencer os media queries gerais de .lead-metrics em qualquer largura. */
+.lead-metrics.commercial-metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1280px) {
+  .lead-metrics.commercial-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .lead-metrics.commercial-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .lead-metrics small { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
 .lead-metrics article.metric-highlight {
   border-color: var(--accent, #d9a441);
