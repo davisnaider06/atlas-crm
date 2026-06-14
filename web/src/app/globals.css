@@ -1103,8 +1103,16 @@ select {
 
 .lead-metrics article:hover { border-color: rgba(255, 255, 255, 0.12); }
 
-/* Métricas comerciais no dashboard */
-.commercial-metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* Métricas comerciais no dashboard: 6 tiles em uma única linha ocupando a
+   largura toda do painel (baixo e largo, em vez de alto). Seletor com dupla
+   classe para vencer os media queries gerais de .lead-metrics em qualquer largura. */
+.lead-metrics.commercial-metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1280px) {
+  .lead-metrics.commercial-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .lead-metrics.commercial-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .lead-metrics small { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
 .lead-metrics article.metric-highlight {
   border-color: var(--accent, #d9a441);
@@ -1648,6 +1656,29 @@ select {
 
 .form-card { display: grid; gap: 14px; }
 
+.field-group-label {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.bant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+
+@media (max-width: 520px) {
+  .bant-grid { grid-template-columns: 1fr; }
+}
+
 .form-error {
   color: var(--danger);
   font-size: 0.82rem;
@@ -2020,6 +2051,168 @@ select {
   margin-top: 7px;
 }
 .timeline-body { flex: 1; min-width: 0; }
+
+.timeline-dot.is-positive { background: var(--success, #34d399); opacity: 1; }
+.timeline-item.is-interaction { padding-left: 2px; }
+
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.timeline-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+.timeline-remove:hover { color: var(--danger); }
+
+.interaction-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+.interaction-form .card-header { margin-bottom: 2px; }
+
+.modal-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+.wa-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+
+.wa-thread {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wa-bubble {
+  max-width: 85%;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+.wa-bubble p { margin: 0; overflow-wrap: anywhere; }
+.wa-bubble span { display: block; margin-top: 3px; font-size: 0.7rem; color: var(--muted); }
+.wa-bubble.inbound {
+  justify-self: start;
+  background: var(--surface-3, rgba(255, 255, 255, 0.06));
+  border-bottom-left-radius: 3px;
+}
+.wa-bubble.outbound {
+  justify-self: end;
+  background: var(--accent-soft, rgba(52, 211, 153, 0.16));
+  border-bottom-right-radius: 3px;
+}
+
+.wa-composer { display: flex; gap: 8px; }
+.wa-composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--input-bg, rgba(255, 255, 255, 0.04));
+  color: inherit;
+}
+.wa-composer .primary-button { flex-shrink: 0; padding-inline: 16px; }
+
+/* ---------- Funil de conversão por etapa ---------- */
+.funnel-list { display: grid; gap: 14px; }
+.funnel-row { display: grid; gap: 6px; }
+.funnel-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.funnel-stage-name { font-size: 0.88rem; font-weight: 600; }
+.funnel-stage-count { font-size: 0.82rem; color: var(--muted); flex-shrink: 0; }
+.funnel-bar-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  overflow: hidden;
+}
+.funnel-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)));
+  transition: width 240ms var(--ease, ease);
+}
+.funnel-row-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.funnel-drop { color: var(--danger); flex-shrink: 0; }
+
+/* ---------- Prontidão da ficha (base para IA) ---------- */
+.ai-readiness {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+}
+.ai-readiness-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.ai-readiness-head strong { font-size: 1.05rem; }
+.ai-readiness-head strong.good { color: var(--success, #34d399); }
+.ai-readiness-head strong.mid { color: var(--warning, #f59e0b); }
+.ai-readiness-head strong.low { color: var(--danger, #f87171); }
+.ai-readiness-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+}
+.ai-readiness-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)));
+  transition: width 240ms var(--ease, ease);
+}
+.ai-readiness-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-chip {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.ai-chip.ok {
+  color: var(--success, #34d399);
+  border-color: color-mix(in srgb, var(--success, #34d399) 40%, transparent);
+}
+.ai-readiness-note { font-size: 0.76rem; color: var(--muted); margin: 0; }
 
 /* ---------- QR Code panel ---------- */
 .qr-panel {
@@ -3480,6 +3673,34 @@ body.mobile-nav-locked { overflow: hidden; }
   backdrop-filter: blur(8px) brightness(0.7);
   -webkit-backdrop-filter: blur(8px) brightness(0.7);
   background: rgba(0, 0, 0, 0.45);
+}
+
+/* ------------------------------------------------------------------
+   Modo claro: o bloco de glass acima usa sombras escuras (rgba(0,0,0,~0.4))
+   e bordas brancas pensadas para o tema escuro. No tema claro isso vira um
+   halo cinza pesado nos cards. Aqui trocamos pelos tokens claros e suaves.
+   ------------------------------------------------------------------ */
+:root[data-theme="light"] :is(
+  .hero-card, .dashboard-panel, .toolbar-card, .table-card,
+  .timeline-card, .settings-card, .panel, .impact-card
+) {
+  box-shadow: var(--shadow);
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] .rockart-sidebar {
+  box-shadow: var(--shadow-sm);
+  border-right-color: var(--border);
+}
+
+:root[data-theme="light"] :is(.kanban-column, .lead-column) {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] :is(.kanban-card, .lead-card) {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
 }
 
 @media (max-width: 760px) {

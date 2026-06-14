@@ -7,6 +7,8 @@ public sealed class DashboardDto
     public decimal PipelineValue { get; init; }
     public int PendingActivities { get; init; }
     public IReadOnlyList<StageSummaryDto> StageSummary { get; init; } = Array.Empty<StageSummaryDto>();
+    /// <summary>Conversão/abandono por etapa do funil comercial (7 etapas).</summary>
+    public IReadOnlyList<FunnelConversionStageDto> FunnelConversion { get; init; } = Array.Empty<FunnelConversionStageDto>();
 
     // --- Métricas do processo comercial (sem conta manual) ---
     // Semana (movimentações de etapa nos últimos 7 dias)

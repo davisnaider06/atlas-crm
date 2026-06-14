@@ -27,6 +27,25 @@ public sealed class Lead : TenantEntity
     public string? CompanyName { get; set; }
     /// <summary>@ do Instagram ou telefone, conforme o canal.</summary>
     public string? ContactHandle { get; set; }
+
+    // --- Ficha completa do lead (identidade para o SDR não pesquisar do zero) ---
+    /// <summary>Cidade/praça do prospect.</summary>
+    public string? City { get; set; }
+    /// <summary>@ do Instagram (campo próprio, separado de telefone/ContactHandle).</summary>
+    public string? InstagramHandle { get; set; }
+    /// <summary>Nota da avaliação no Google (0–5), quando houver ficha no Google Meu Negócio.</summary>
+    public decimal? GoogleRating { get; set; }
+
+    // --- Qualificação BANT estruturada (preenchida durante a prospecção) ---
+    /// <summary>Budget — tem orçamento/verba para contratar.</summary>
+    public BantLevel BantBudget { get; set; } = BantLevel.Unknown;
+    /// <summary>Authority — é o decisor (ou fala direto com ele).</summary>
+    public BantLevel BantAuthority { get; set; } = BantLevel.Unknown;
+    /// <summary>Need — tem a necessidade/dor que resolvemos.</summary>
+    public BantLevel BantNeed { get; set; } = BantLevel.Unknown;
+    /// <summary>Timeline — tem prazo/urgência para decidir.</summary>
+    public BantLevel BantTimeline { get; set; } = BantLevel.Unknown;
+
     public DateTime? LastContactAtUtc { get; set; }
     public DateTime? NextFollowUpAtUtc { get; set; }
     /// <summary>Observações livres.</summary>

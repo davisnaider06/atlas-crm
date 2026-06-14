@@ -164,7 +164,7 @@ export default function DashboardPage() {
           </article>
           <article>
             <span>Taxa de resposta (semana)</span>
-            <strong>{Math.round(dashboard.weeklyResponseRate * 100)}%</strong>
+            <strong>{Math.round((dashboard.weeklyResponseRate || 0) * 100)}%</strong>
             <small>{dashboard.weeklyReplies} responderam</small>
           </article>
           <article>
@@ -229,6 +229,47 @@ export default function DashboardPage() {
               : [{ label: "Sem dados", value: 0 }]
           }
         />
+      </section>
+
+      <section className="dashboard-panel wide">
+        <div className="panel-heading">
+          <div>
+            <h3>Conversão por etapa</h3>
+            <p>Quantos leads alcançam cada etapa e onde abandonam o funil.</p>
+          </div>
+        </div>
+        {(() => {
+          const stages = dashboard.funnelConversion ?? [];
+          const top = stages[0]?.reachedCount ?? 0;
+          if (stages.length === 0 || top === 0) {
+            return <div className="empty-card">Sem movimentação de etapas ainda.</div>;
+          }
+          return (
+            <div className="funnel-list">
+              {stages.map((s, i) => {
+                const widthPct = top > 0 ? Math.max(4, Math.round((s.reachedCount / top) * 100)) : 0;
+                const next = stages[i + 1];
+                return (
+                  <div className="funnel-row" key={s.stageName}>
+                    <div className="funnel-row-head">
+                      <span className="funnel-stage-name">{s.order}. {s.stageName}</span>
+                      <span className="funnel-stage-count">{s.reachedCount} leads</span>
+                    </div>
+                    <div className="funnel-bar-track">
+                      <div className="funnel-bar-fill" style={{ width: `${widthPct}%` }} />
+                    </div>
+                    {next ? (
+                      <div className="funnel-row-foot">
+                        <span>Conversão p/ próxima: <strong>{Math.round(s.conversionRate * 100)}%</strong></span>
+                        {s.droppedCount > 0 ? <span className="funnel-drop">−{s.droppedCount} abandonaram</span> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </section>
 
       {/* Bottom row */}

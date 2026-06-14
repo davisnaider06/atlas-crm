@@ -38,6 +38,8 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
     public DbSet<WhatsAppConversation> WhatsAppConversations => Set<WhatsAppConversation>();
     public DbSet<WhatsAppMessage> WhatsAppMessages => Set<WhatsAppMessage>();
+    public DbSet<Script> Scripts => Set<Script>();
+    public DbSet<LeadInteraction> LeadInteractions => Set<LeadInteraction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -96,6 +98,13 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Observations).HasMaxLength(2000);
             entity.Property(x => x.ProposalValue).HasColumnType("numeric(18,2)");
             entity.Property(x => x.ContractValue).HasColumnType("numeric(18,2)");
+            entity.Property(x => x.City).HasMaxLength(120);
+            entity.Property(x => x.InstagramHandle).HasMaxLength(140);
+            entity.Property(x => x.GoogleRating).HasColumnType("numeric(2,1)");
+            entity.Property(x => x.BantBudget).HasDefaultValue(BantLevel.Unknown);
+            entity.Property(x => x.BantAuthority).HasDefaultValue(BantLevel.Unknown);
+            entity.Property(x => x.BantNeed).HasDefaultValue(BantLevel.Unknown);
+            entity.Property(x => x.BantTimeline).HasDefaultValue(BantLevel.Unknown);
             entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => new { x.CompanyId, x.Status });
             entity.HasIndex(x => new { x.CompanyId, x.QualificationTemperature });
@@ -146,6 +155,39 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
                 .WithMany(x => x.Messages)
                 .HasForeignKey(x => x.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<Script>(entity =>
+        {
+            entity.ToTable("scripts");
+            entity.Property(x => x.Name).HasMaxLength(160);
+            entity.Property(x => x.Channel).HasMaxLength(40);
+            entity.Property(x => x.Body).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.CompanyId, x.IsActive });
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<LeadInteraction>(entity =>
+        {
+            entity.ToTable("lead_interactions");
+            entity.Property(x => x.Channel).HasMaxLength(40);
+            entity.Property(x => x.ScriptName).HasMaxLength(160);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.CompanyId, x.LeadId, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.CompanyId, x.ScriptId });
+            entity.HasOne(x => x.Lead)
+                .WithMany()
+                .HasForeignKey(x => x.LeadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Script)
+                .WithMany()
+                .HasForeignKey(x => x.ScriptId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 

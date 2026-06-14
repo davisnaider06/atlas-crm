@@ -13,8 +13,10 @@ import type {
   DocumentItem,
   HistoryItem,
   Lead,
+  LeadInteraction,
   LeadOwner,
   PagedResult,
+  Script,
   PermissionCatalogItem,
   Pipeline,
   RegisterPayload,
@@ -31,16 +33,40 @@ type RequestOptions = RequestInit & {
   token?: string | null;
 };
 
-let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+const REQUEST_TIMEOUT_MS = 20000;
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
+let isRefreshing = false;
+let refreshSubscribers: ((token: string | null) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
   refreshSubscribers.push(cb);
 }
 
-function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
+// Notifica todos os aguardando o refresh. Passa o novo token em caso de sucesso
+// ou null em caso de falha — assim ninguém fica preso esperando para sempre.
+function notifyRefreshSubscribers(token: string | null) {
+  const subscribers = refreshSubscribers;
   refreshSubscribers = [];
+  subscribers.forEach((cb) => cb(token));
+}
+
+// fetch com timeout: corta a requisição se a API/DB demorar demais, em vez de
+// deixar a tela travada indefinidamente.
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      const timeoutError = new Error("A requisição demorou demais e foi cancelada. Tente novamente.");
+      (timeoutError as { status?: number }).status = 408;
+      throw timeoutError;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -54,7 +80,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.set("Authorization", `Bearer ${options.token}`);
   }
 
-  let response = await fetch(`${API_URL}${path}`, {
+  let response = await fetchWithTimeout(`${API_URL}${path}`, {
     ...options,
     headers,
   });
@@ -62,61 +88,67 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (response.status === 401 && typeof window !== "undefined" && path !== "/auth/login" && path !== "/auth/refresh") {
     const storageKey = "atlascrm.auth";
     const raw = window.localStorage.getItem(storageKey);
-    
-    if (raw) {
+    const refreshToken = (() => {
+      if (!raw) return null;
       try {
-        const parsed = JSON.parse(raw);
-        if (parsed?.user?.refreshToken) {
-          if (!isRefreshing) {
-            isRefreshing = true;
-            try {
-              const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken: parsed.user.refreshToken }),
-              });
+        return JSON.parse(raw)?.user?.refreshToken ?? null;
+      } catch {
+        return null;
+      }
+    })();
 
-              if (refreshResponse.ok) {
-                const newAuthData = await refreshResponse.json();
-                
-                window.localStorage.setItem(
-                  storageKey,
-                  JSON.stringify({ token: newAuthData.accessToken, user: newAuthData })
-                );
-                
-                window.dispatchEvent(new CustomEvent("atlascrm:auth:refresh", { detail: newAuthData }));
-                
-                isRefreshing = false;
-                onRefreshed(newAuthData.accessToken);
-              } else {
-                throw new Error("Refresh failed");
-              }
-            } catch (err) {
-              isRefreshing = false;
-              window.localStorage.removeItem(storageKey);
-              window.dispatchEvent(new Event("atlascrm:auth:logout"));
-              throw err;
-            }
-          }
-          
-          const newToken = await new Promise<string>((resolve) => {
-            subscribeTokenRefresh(resolve);
+    if (refreshToken) {
+      let newToken: string | null = null;
+
+      if (isRefreshing) {
+        // Já há um refresh em andamento: aguarda o resultado dele.
+        newToken = await new Promise<string | null>((resolve) => {
+          subscribeTokenRefresh(resolve);
+        });
+      } else {
+        isRefreshing = true;
+        try {
+          const refreshResponse = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
           });
-          
-          const newHeaders = new Headers(options.headers);
-          if (!newHeaders.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-            newHeaders.set("Content-Type", "application/json");
+
+          if (!refreshResponse.ok) {
+            throw new Error("Refresh failed");
           }
-          newHeaders.set("Authorization", `Bearer ${newToken}`);
-          
-          response = await fetch(`${API_URL}${path}`, {
-            ...options,
-            headers: newHeaders,
-          });
-          
+
+          const newAuthData = await refreshResponse.json();
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({ token: newAuthData.accessToken, user: newAuthData }),
+          );
+          window.dispatchEvent(new CustomEvent("atlascrm:auth:refresh", { detail: newAuthData }));
+          isRefreshing = false;
+          newToken = newAuthData.accessToken;
+          notifyRefreshSubscribers(newToken);
+        } catch (err) {
+          // Falha no refresh: libera todos os que aguardavam (com null) e desloga,
+          // evitando requisições penduradas para sempre.
+          isRefreshing = false;
+          notifyRefreshSubscribers(null);
+          window.localStorage.removeItem(storageKey);
+          window.dispatchEvent(new Event("atlascrm:auth:logout"));
+          throw err;
         }
-      } catch (e) {
-        // Ignore JSON parse errors
+      }
+
+      if (newToken) {
+        const newHeaders = new Headers(options.headers);
+        if (!newHeaders.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+          newHeaders.set("Content-Type", "application/json");
+        }
+        newHeaders.set("Authorization", `Bearer ${newToken}`);
+
+        response = await fetchWithTimeout(`${API_URL}${path}`, {
+          ...options,
+          headers: newHeaders,
+        });
       }
     }
   }
@@ -211,6 +243,13 @@ export const api = {
       contactHandle?: string | null;
       nextFollowUpAtUtc?: string | null;
       observations?: string | null;
+      city?: string | null;
+      instagramHandle?: string | null;
+      googleRating?: number | null;
+      bantBudget?: string;
+      bantAuthority?: string;
+      bantNeed?: string;
+      bantTimeline?: string;
     },
   ) =>
     request<Lead>("/leads", {
@@ -239,6 +278,13 @@ export const api = {
       nextFollowUpAtUtc?: string | null;
       observations?: string | null;
       proposalValue?: number | null;
+      city?: string | null;
+      instagramHandle?: string | null;
+      googleRating?: number | null;
+      bantBudget?: string;
+      bantAuthority?: string;
+      bantNeed?: string;
+      bantTimeline?: string;
     },
   ) =>
     request<Lead>(`/leads/${id}`, {
@@ -449,6 +495,29 @@ export const api = {
       method: "DELETE",
       token,
     }),
+  getScripts: (token: string) => request<Script[]>("/scripts", { token }),
+  createScript: (
+    token: string,
+    payload: { name: string; channel?: string | null; body?: string | null; isActive: boolean },
+  ) => request<Script>("/scripts", { method: "POST", token, body: JSON.stringify(payload) }),
+  updateScript: (
+    token: string,
+    id: number,
+    payload: { name: string; channel?: string | null; body?: string | null; isActive: boolean },
+  ) => request<Script>(`/scripts/${id}`, { method: "PUT", token, body: JSON.stringify(payload) }),
+  deleteScript: (token: string, id: number) =>
+    request<void>(`/scripts/${id}`, { method: "DELETE", token }),
+
+  getLeadInteractions: (token: string, leadId: number) =>
+    request<LeadInteraction[]>(`/leads/${leadId}/interacoes`, { token }),
+  createLeadInteraction: (
+    token: string,
+    leadId: number,
+    payload: { channel: string; scriptId?: number | null; outcome: string; notes?: string | null; occurredAtUtc?: string | null },
+  ) => request<LeadInteraction>(`/leads/${leadId}/interacoes`, { method: "POST", token, body: JSON.stringify(payload) }),
+  deleteLeadInteraction: (token: string, interactionId: number) =>
+    request<void>(`/leads/interacoes/${interactionId}`, { method: "DELETE", token }),
+
   getHistory: (token: string, params?: { leadId?: number; dealId?: number }) => {
     const query = new URLSearchParams();
     if (params?.leadId) query.set("leadId", String(params.leadId));

@@ -94,7 +94,14 @@ public sealed class LeadService : ILeadService
                 ContractValue = x.ContractValue,
                 LossReason = x.LossReason,
                 IsCold = x.IsCold,
-                FollowUpStep = x.FollowUpStep
+                FollowUpStep = x.FollowUpStep,
+                City = x.City,
+                InstagramHandle = x.InstagramHandle,
+                GoogleRating = x.GoogleRating,
+                BantBudget = x.BantBudget,
+                BantAuthority = x.BantAuthority,
+                BantNeed = x.BantNeed,
+                BantTimeline = x.BantTimeline
             })
             .ToListAsync(cancellationToken);
 
@@ -103,21 +110,33 @@ public sealed class LeadService : ILeadService
 
     public async Task<IReadOnlyList<LeadOwnerDto>> GetOwnersAsync(CancellationToken cancellationToken = default)
     {
-        var owners = await _dbContext.Users
+        var users = await _dbContext.Users
             .AsNoTracking()
             .Where(x => x.IsActive && (x.Role == UserRole.Sales || x.Role == UserRole.Manager || x.Role == UserRole.Admin))
             .OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, x.Email, x.Role })
+            .ToListAsync(cancellationToken);
+
+        // Contagem de leads por dono em uma única consulta agregada (evita N+1).
+        var leadCounts = await _dbContext.Leads
+            .AsNoTracking()
+            .Where(x => x.OwnerUserId != null)
+            .GroupBy(x => x.OwnerUserId!.Value)
+            .Select(g => new { OwnerUserId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var countMap = leadCounts.ToDictionary(x => x.OwnerUserId, x => x.Count);
+
+        return users
             .Select(x => new LeadOwnerDto
             {
                 Id = x.Id,
                 Name = x.Name,
                 Email = x.Email,
                 Role = x.Role.ToString(),
-                LeadCount = _dbContext.Leads.Count(lead => lead.OwnerUserId == x.Id)
+                LeadCount = countMap.TryGetValue(x.Id, out var count) ? count : 0
             })
-            .ToListAsync(cancellationToken);
-
-        return owners;
+            .ToList();
     }
 
     public async Task<LeadDto> CreateAsync(CreateLeadRequest request, CancellationToken cancellationToken = default)
@@ -140,7 +159,14 @@ public sealed class LeadService : ILeadService
             CompanyName = request.CompanyName?.Trim(),
             ContactHandle = request.ContactHandle?.Trim(),
             NextFollowUpAtUtc = request.NextFollowUpAtUtc,
-            Observations = request.Observations?.Trim()
+            Observations = request.Observations?.Trim(),
+            City = request.City?.Trim(),
+            InstagramHandle = request.InstagramHandle?.Trim(),
+            GoogleRating = request.GoogleRating,
+            BantBudget = request.BantBudget,
+            BantAuthority = request.BantAuthority,
+            BantNeed = request.BantNeed,
+            BantTimeline = request.BantTimeline
             // FunnelStage = Mapped (default da entidade) — todo lead entra na etapa 1.
         };
 
@@ -178,6 +204,13 @@ public sealed class LeadService : ILeadService
         lead.NextFollowUpAtUtc = request.NextFollowUpAtUtc;
         lead.Observations = request.Observations?.Trim();
         lead.ProposalValue = request.ProposalValue;
+        lead.City = request.City?.Trim();
+        lead.InstagramHandle = request.InstagramHandle?.Trim();
+        lead.GoogleRating = request.GoogleRating;
+        lead.BantBudget = request.BantBudget;
+        lead.BantAuthority = request.BantAuthority;
+        lead.BantNeed = request.BantNeed;
+        lead.BantTimeline = request.BantTimeline;
         lead.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -418,7 +451,14 @@ public sealed class LeadService : ILeadService
         ContractValue = lead.ContractValue,
         LossReason = lead.LossReason,
         IsCold = lead.IsCold,
-        FollowUpStep = lead.FollowUpStep
+        FollowUpStep = lead.FollowUpStep,
+        City = lead.City,
+        InstagramHandle = lead.InstagramHandle,
+        GoogleRating = lead.GoogleRating,
+        BantBudget = lead.BantBudget,
+        BantAuthority = lead.BantAuthority,
+        BantNeed = lead.BantNeed,
+        BantTimeline = lead.BantTimeline
     };
 
     private async Task ApplyLeadCreatedAutomationsAsync(Lead lead, CancellationToken cancellationToken)

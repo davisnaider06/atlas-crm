@@ -25,6 +25,8 @@ public interface IApplicationDbContext
     DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; }
     DbSet<WhatsAppConversation> WhatsAppConversations { get; }
     DbSet<WhatsAppMessage> WhatsAppMessages { get; }
+    DbSet<Script> Scripts { get; }
+    DbSet<LeadInteraction> LeadInteractions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

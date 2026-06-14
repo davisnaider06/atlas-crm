@@ -13,10 +13,12 @@ namespace AtlasCRM.API.Controllers;
 public sealed class LeadsController : ControllerBase
 {
     private readonly ILeadService _leadService;
+    private readonly ILeadInteractionService _interactionService;
 
-    public LeadsController(ILeadService leadService)
+    public LeadsController(ILeadService leadService, ILeadInteractionService interactionService)
     {
         _leadService = leadService;
+        _interactionService = interactionService;
     }
 
     [HttpGet]
@@ -71,6 +73,27 @@ public sealed class LeadsController : ControllerBase
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         await _leadService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpGet("{id:long}/interacoes")]
+    public async Task<ActionResult<IReadOnlyList<LeadInteractionDto>>> GetInteractions(long id, CancellationToken cancellationToken)
+    {
+        return Ok(await _interactionService.GetByLeadAsync(id, cancellationToken));
+    }
+
+    [HttpPost("{id:long}/interacoes")]
+    [Authorize(Policy = CrmPermissions.LeadsEdit)]
+    public async Task<ActionResult<LeadInteractionDto>> CreateInteraction(long id, [FromBody] CreateLeadInteractionRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _interactionService.CreateAsync(id, request, cancellationToken));
+    }
+
+    [HttpDelete("interacoes/{interactionId:long}")]
+    [Authorize(Policy = CrmPermissions.LeadsEdit)]
+    public async Task<IActionResult> DeleteInteraction(long interactionId, CancellationToken cancellationToken)
+    {
+        await _interactionService.DeleteAsync(interactionId, cancellationToken);
         return NoContent();
     }
 }
