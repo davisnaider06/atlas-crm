@@ -215,13 +215,15 @@ select {
   height: 100vh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 248px 1fr;
+  /* +24px em relação à largura interna da sidebar para acomodar a margem
+     flutuante (12px de cada lado) sem apertar o conteúdo. */
+  grid-template-columns: 272px 1fr;
   background: var(--shell);
   transition: grid-template-columns 200ms var(--ease);
 }
 
 .shell-panel.sidebar-collapsed {
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 88px 1fr;
 }
 
 /* ---------- Sidebar ---------- */
@@ -236,9 +238,12 @@ select {
   display: flex;
   flex-direction: column;
   background: var(--sidebar);
-  border-right: 1px solid var(--border);
+  /* Sidebar flutuante: destacada das bordas, com cantos arredondados. */
+  margin: 12px;
+  height: calc(100vh - 24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   transition: padding 200ms var(--ease);
-  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -3431,6 +3436,12 @@ body.mobile-nav-locked { overflow: hidden; }
 
   .rockart-sidebar {
     width: 100%;
+    /* No drawer mobile a sidebar ocupa a tela toda — sem flutuar. */
+    margin: 0;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     background: rgba(8, 9, 12, 0.92);
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
@@ -3519,12 +3530,12 @@ body.mobile-nav-locked { overflow: hidden; }
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
 }
 
-/* Sidebar */
+/* Sidebar flutuante */
 .rockart-sidebar {
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
-  border-right-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.40);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
 /* Impact / KPI cards */
@@ -3699,7 +3710,7 @@ body.mobile-nav-locked { overflow: hidden; }
 
 :root[data-theme="light"] .rockart-sidebar {
   box-shadow: none;
-  border-right-color: var(--border);
+  border-color: var(--border);
 }
 
 @media (max-width: 760px) {
