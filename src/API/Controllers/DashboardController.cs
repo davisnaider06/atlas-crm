@@ -19,8 +19,8 @@ public sealed class DashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<DashboardDto>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<DashboardDto>> Get([FromQuery] string? period = null, CancellationToken cancellationToken = default)
     {
-        return Ok(await _dashboardService.GetAsync(cancellationToken));
+        return Ok(await _dashboardService.GetAsync(period, cancellationToken));
     }
 }
