@@ -301,6 +301,10 @@ select {
   color: var(--text);
 }
 
+/* No desktop só existe o toggle de recolher; o "X" (fechar drawer) é exclusivo
+   do mobile. O media query mobile reativa o .mobile-nav-close. */
+.mobile-nav-close { display: none; }
+
 /* Nav */
 .nav {
   display: grid;
@@ -441,7 +445,10 @@ select {
 
 .sidebar-collapsed .rockart-brand {
   width: 100%;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
   padding-inline: 0;
 }
 
@@ -3677,30 +3684,22 @@ body.mobile-nav-locked { overflow: hidden; }
 
 /* ------------------------------------------------------------------
    Modo claro: o bloco de glass acima usa sombras escuras (rgba(0,0,0,~0.4))
-   e bordas brancas pensadas para o tema escuro. No tema claro isso vira um
-   halo cinza pesado nos cards. Aqui trocamos pelos tokens claros e suaves.
-   ------------------------------------------------------------------ */
+   e bordas brancas pensadas para o tema escuro. No tema claro isso virava um
+   halo cinza pesado e com cantos "quadrados" nos cards. Removemos a sombra e
+   deixamos a definição por conta da borda (visual limpo e plano). O modo
+   escuro mantém o glass intacto. */
 :root[data-theme="light"] :is(
   .hero-card, .dashboard-panel, .toolbar-card, .table-card,
-  .timeline-card, .settings-card, .panel, .impact-card
+  .timeline-card, .settings-card, .panel, .impact-card,
+  .kanban-column, .lead-column, .kanban-card, .lead-card
 ) {
-  box-shadow: var(--shadow);
+  box-shadow: none;
   border-color: var(--border);
 }
 
 :root[data-theme="light"] .rockart-sidebar {
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   border-right-color: var(--border);
-}
-
-:root[data-theme="light"] :is(.kanban-column, .lead-column) {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border);
-}
-
-:root[data-theme="light"] :is(.kanban-card, .lead-card) {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border);
 }
 
 @media (max-width: 760px) {
