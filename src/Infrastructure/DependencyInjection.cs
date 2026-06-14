@@ -18,7 +18,19 @@ public static class DependencyInjection
 
         services.AddDbContext<AtlasCrmDbContext>(options =>
             options
-                .UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+                .UseNpgsql(
+                    configuration.GetConnectionString("DefaultConnection"),
+                    npgsql =>
+                    {
+                        // Reexecuta operações em falhas transitórias (rede/cold-start do Postgres gerenciado),
+                        // que hoje sobem como "erro de API" para o usuário.
+                        npgsql.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(3),
+                            errorCodesToAdd: null);
+                        // Evita requisições penduradas: corta consultas lentas em 30s.
+                        npgsql.CommandTimeout(30);
+                    })
                 .UseSnakeCaseNamingConvention());
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AtlasCrmDbContext>());

@@ -22,4 +22,15 @@ public sealed class CreateLeadRequest
     public string? ContactHandle { get; set; }
     public DateTime? NextFollowUpAtUtc { get; set; }
     public string? Observations { get; set; }
+
+    // Ficha completa do lead
+    public string? City { get; set; }
+    public string? InstagramHandle { get; set; }
+    public decimal? GoogleRating { get; set; }
+
+    // Qualificação BANT
+    public BantLevel BantBudget { get; set; } = BantLevel.Unknown;
+    public BantLevel BantAuthority { get; set; } = BantLevel.Unknown;
+    public BantLevel BantNeed { get; set; } = BantLevel.Unknown;
+    public BantLevel BantTimeline { get; set; } = BantLevel.Unknown;
 }

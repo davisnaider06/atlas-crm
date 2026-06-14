@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentService, AppointmentService>();
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IWhatsAppInboxService, WhatsAppInboxService>();
+        services.AddScoped<IScriptService, ScriptService>();
+        services.AddScoped<ILeadInteractionService, LeadInteractionService>();
 
         return services;
     }

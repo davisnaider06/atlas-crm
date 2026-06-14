@@ -8,9 +8,9 @@ import { useTheme } from "@/components/theme/theme-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
-import { AUTOMATION_EVENT_OPTIONS } from "@/lib/constants";
+import { AUTOMATION_EVENT_OPTIONS, INTERACTION_CHANNEL_OPTIONS } from "@/lib/constants";
 import { CUSTOM_FIELD_TYPE_OPTIONS, customFieldTypeLabels } from "@/lib/custom-fields";
-import type { Automation, CustomFieldDef, PagedResult } from "@/lib/types";
+import type { Automation, CustomFieldDef, PagedResult, Script } from "@/lib/types";
 
 const automationPresets = [
   {
@@ -61,6 +61,8 @@ export default function SettingsPage() {
   });
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [fieldForm, setFieldForm] = useState({ name: "", type: "1", options: "" });
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [scriptForm, setScriptForm] = useState({ name: "", channel: "", body: "" });
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -71,6 +73,8 @@ export default function SettingsPage() {
       setAutomations((res as PagedResult<Automation>).items);
       const fields = await api.getCustomFields(token, "Lead").catch(() => []);
       setCustomFields(fields);
+      const scriptList = await api.getScripts(token).catch(() => []);
+      setScripts(scriptList);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao carregar configurações.";
       setError(msg);
@@ -166,6 +170,43 @@ export default function SettingsPage() {
       notify({ type: "success", message: "Campo excluído.", title: "Excluído" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao excluir campo.";
+      notify({ type: "error", message: msg, title: "Erro" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateScript = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await api.createScript(token, {
+        name: scriptForm.name,
+        channel: scriptForm.channel || null,
+        body: scriptForm.body || null,
+        isActive: true,
+      });
+      setScriptForm({ name: "", channel: "", body: "" });
+      await load();
+      notify({ type: "success", message: "Script criado.", title: "Sucesso" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao criar script.";
+      notify({ type: "error", message: msg, title: "Erro" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteScript = async (id: number) => {
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await api.deleteScript(token, id);
+      await load();
+      notify({ type: "success", message: "Script excluído.", title: "Excluído" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao excluir script.";
       notify({ type: "error", message: msg, title: "Erro" });
     } finally {
       setSubmitting(false);
@@ -373,6 +414,88 @@ export default function SettingsPage() {
           ) : null}
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? "Salvando..." : "Criar campo"}
+          </button>
+        </form>
+      </section>
+
+      <section className="two-column">
+        <div className="table-card">
+          <div className="card-header">
+            <div>
+              <h3>Biblioteca de scripts</h3>
+              <p>Abordagens reutilizáveis. A taxa de resposta mostra o que funciona.</p>
+            </div>
+            <span className="tag">{scripts.length} scripts</span>
+          </div>
+
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Canal</th>
+                <th>Usos</th>
+                <th>Resposta</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scripts.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name}</td>
+                  <td>{s.channel || "—"}</td>
+                  <td>{s.usageCount}</td>
+                  <td>{s.usageCount > 0 ? `${Math.round(s.replyRate * 100)}%` : "—"}</td>
+                  <td>
+                    <button type="button" className="table-action danger" onClick={() => void handleDeleteScript(s.id)} disabled={submitting}>
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {scripts.length === 0 && (
+            <div className="empty-card">Nenhum script cadastrado. Crie o primeiro ao lado.</div>
+          )}
+        </div>
+
+        <form className="settings-card form-card" onSubmit={handleCreateScript}>
+          <div className="card-header">
+            <div>
+              <h3>Novo script</h3>
+              <p>Modelo de mensagem ou roteiro de ligação</p>
+            </div>
+            <span className="tag">Prospecção</span>
+          </div>
+
+          <label className="field">
+            <span>Nome</span>
+            <input
+              value={scriptForm.name}
+              onChange={(e) => setScriptForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ex.: Abordagem fria Instagram"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Canal sugerido</span>
+            <Select
+              value={scriptForm.channel}
+              onChange={(value) => setScriptForm((f) => ({ ...f, channel: value }))}
+              placeholder="Opcional"
+              options={INTERACTION_CHANNEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
+          </label>
+          <label className="field">
+            <span>Conteúdo do script</span>
+            <textarea
+              value={scriptForm.body}
+              onChange={(e) => setScriptForm((f) => ({ ...f, body: e.target.value }))}
+              placeholder="Texto do modelo / roteiro"
+            />
+          </label>
+          <button type="submit" className="primary-button" disabled={submitting}>
+            {submitting ? "Salvando..." : "Criar script"}
           </button>
         </form>
       </section>

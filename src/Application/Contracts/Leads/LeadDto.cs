@@ -32,4 +32,15 @@ public sealed class LeadDto
     public LossReason LossReason { get; init; }
     public bool IsCold { get; init; }
     public int FollowUpStep { get; init; }
+
+    // Ficha completa do lead
+    public string? City { get; init; }
+    public string? InstagramHandle { get; init; }
+    public decimal? GoogleRating { get; init; }
+
+    // Qualificação BANT
+    public BantLevel BantBudget { get; init; }
+    public BantLevel BantAuthority { get; init; }
+    public BantLevel BantNeed { get; init; }
+    public BantLevel BantTimeline { get; init; }
 }

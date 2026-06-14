@@ -20,15 +20,55 @@ export const CHANNEL_OPTIONS = [
 ] as const;
 
 export const LOSS_REASON_OPTIONS = [
-  { value: "NoBudget", label: "Sem orçamento" },
   { value: "NoInterest", label: "Sem interesse" },
-  { value: "StoppedResponding", label: "Parou de responder" },
-  { value: "ClosedWithCompetitor", label: "Fechou com outro" },
+  { value: "NoBudget", label: "Sem verba" },
+  { value: "NoAuthority", label: "Sem autoridade" },
+  { value: "ClosedWithCompetitor", label: "Concorrente" },
+  { value: "StoppedResponding", label: "Fantasma (parou de responder)" },
   { value: "Other", label: "Outro" },
 ] as const;
 
 export const LOSS_REASON_LABELS: Record<string, string> = Object.fromEntries(
   LOSS_REASON_OPTIONS.map((r) => [r.value, r.label]),
+);
+
+// Qualificação BANT — opções fixas por dimensão (Budget, Authority, Need, Timeline)
+export const BANT_LEVEL_OPTIONS = [
+  { value: "Unknown", label: "Não avaliado" },
+  { value: "No", label: "Não" },
+  { value: "Partial", label: "Parcial" },
+  { value: "Yes", label: "Sim" },
+] as const;
+
+export const BANT_LEVEL_LABELS: Record<string, string> = Object.fromEntries(
+  BANT_LEVEL_OPTIONS.map((b) => [b.value, b.label]),
+);
+
+export const BANT_DIMENSIONS = [
+  { key: "bantBudget", label: "Orçamento (Budget)", short: "B" },
+  { key: "bantAuthority", label: "Autoridade (Authority)", short: "A" },
+  { key: "bantNeed", label: "Necessidade (Need)", short: "N" },
+  { key: "bantTimeline", label: "Prazo (Timeline)", short: "T" },
+] as const;
+
+// Registro de contato / script usado
+export const INTERACTION_CHANNEL_OPTIONS = [
+  { value: "Instagram", label: "Instagram" },
+  { value: "WhatsApp", label: "WhatsApp" },
+  { value: "Ligação", label: "Ligação" },
+  { value: "Email", label: "E-mail" },
+  { value: "Presencial", label: "Presencial" },
+] as const;
+
+export const INTERACTION_OUTCOME_OPTIONS = [
+  { value: "NoReply", label: "Sem resposta" },
+  { value: "Replied", label: "Respondeu" },
+  { value: "Positive", label: "Resposta positiva" },
+  { value: "Negative", label: "Resposta negativa" },
+] as const;
+
+export const INTERACTION_OUTCOME_LABELS: Record<string, string> = Object.fromEntries(
+  INTERACTION_OUTCOME_OPTIONS.map((o) => [o.value, o.label]),
 );
 
 export const LEAD_STATUS_OPTIONS = [

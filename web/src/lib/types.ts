@@ -43,7 +43,10 @@ export type LossReason =
   | "NoInterest"
   | "StoppedResponding"
   | "ClosedWithCompetitor"
-  | "Other";
+  | "Other"
+  | "NoAuthority";
+
+export type BantLevel = "Unknown" | "No" | "Partial" | "Yes";
 
 export type Lead = {
   id: number;
@@ -73,6 +76,15 @@ export type Lead = {
   lossReason: LossReason;
   isCold: boolean;
   followUpStep: number;
+  // Ficha completa do lead
+  city?: string | null;
+  instagramHandle?: string | null;
+  googleRating?: number | null;
+  // Qualificação BANT
+  bantBudget: BantLevel;
+  bantAuthority: BantLevel;
+  bantNeed: BantLevel;
+  bantTimeline: BantLevel;
 };
 
 export type Conversation = {
@@ -92,6 +104,32 @@ export type ChatMessage = {
   text: string;
   sentAtUtc: string;
   senderName?: string | null;
+};
+
+export type InteractionOutcome = "NoReply" | "Replied" | "Positive" | "Negative";
+
+export type Script = {
+  id: number;
+  name: string;
+  channel?: string | null;
+  body?: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+  usageCount: number;
+  replyRate: number;
+};
+
+export type LeadInteraction = {
+  id: number;
+  leadId: number;
+  channel: string;
+  scriptId?: number | null;
+  scriptName?: string | null;
+  outcome: InteractionOutcome;
+  notes?: string | null;
+  occurredAtUtc: string;
+  createdByUserId?: number | null;
+  createdByName?: string | null;
 };
 
 export type CustomFieldDef = {
@@ -211,6 +249,13 @@ export type Dashboard = {
     stageName: string;
     dealCount: number;
     totalValue: number;
+  }[];
+  funnelConversion: {
+    stageName: string;
+    order: number;
+    reachedCount: number;
+    droppedCount: number;
+    conversionRate: number;
   }[];
   // Métricas do processo comercial
   weeklyMessagesSent: number;

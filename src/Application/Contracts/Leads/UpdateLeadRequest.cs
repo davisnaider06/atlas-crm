@@ -26,4 +26,15 @@ public sealed class UpdateLeadRequest
     public string? Observations { get; set; }
     /// <summary>Valor da proposta — editável a partir da etapa Proposta enviada.</summary>
     public decimal? ProposalValue { get; set; }
+
+    // Ficha completa do lead
+    public string? City { get; set; }
+    public string? InstagramHandle { get; set; }
+    public decimal? GoogleRating { get; set; }
+
+    // Qualificação BANT
+    public BantLevel BantBudget { get; set; } = BantLevel.Unknown;
+    public BantLevel BantAuthority { get; set; } = BantLevel.Unknown;
+    public BantLevel BantNeed { get; set; } = BantLevel.Unknown;
+    public BantLevel BantTimeline { get; set; } = BantLevel.Unknown;
 }

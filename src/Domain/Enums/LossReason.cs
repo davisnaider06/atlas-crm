@@ -6,9 +6,10 @@ namespace AtlasCRM.Domain.Enums;
 public enum LossReason
 {
     None = 0,                  // sem motivo (lead ainda não perdido)
-    NoBudget = 1,              // sem orçamento
+    NoBudget = 1,              // sem orçamento / sem verba
     NoInterest = 2,            // sem interesse
-    StoppedResponding = 3,     // parou de responder
-    ClosedWithCompetitor = 4,  // fechou com outro
-    Other = 5                  // outro
+    StoppedResponding = 3,     // parou de responder / fantasma
+    ClosedWithCompetitor = 4,  // fechou com concorrente
+    Other = 5,                 // outro
+    NoAuthority = 6            // sem autoridade (não é o decisor)
 }

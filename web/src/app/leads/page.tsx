@@ -14,8 +14,13 @@ import {
   CHANNEL_OPTIONS,
   LOSS_REASON_OPTIONS,
   LOSS_REASON_LABELS,
+  BANT_LEVEL_OPTIONS,
+  BANT_DIMENSIONS,
+  INTERACTION_CHANNEL_OPTIONS,
+  INTERACTION_OUTCOME_OPTIONS,
+  INTERACTION_OUTCOME_LABELS,
 } from "@/lib/constants";
-import type { CustomFieldDef, FunnelStage } from "@/lib/types";
+import type { ChatMessage, Conversation, CustomFieldDef, FunnelStage, LeadInteraction, Script } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
@@ -100,6 +105,13 @@ export default function LeadsPage() {
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [editCustomValues, setEditCustomValues] = useState<Record<string, string>>({});
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [interactions, setInteractions] = useState<LeadInteraction[]>([]);
+  const [interactionForm, setInteractionForm] = useState({ channel: "", scriptId: "", outcome: "NoReply", notes: "" });
+  const [leadConversation, setLeadConversation] = useState<Conversation | null>(null);
+  const [leadMessages, setLeadMessages] = useState<ChatMessage[]>([]);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [form, setForm] = useState({
     name: "",
     channel: "",
@@ -110,6 +122,13 @@ export default function LeadsPage() {
     source: "",
     observations: "",
     nextFollowUp: "",
+    city: "",
+    instagramHandle: "",
+    googleRating: "",
+    bantBudget: "Unknown",
+    bantAuthority: "Unknown",
+    bantNeed: "Unknown",
+    bantTimeline: "Unknown",
   });
 
   const editForm = useMemo(
@@ -125,6 +144,13 @@ export default function LeadsPage() {
       proposalValue: selectedLead?.proposalValue != null ? String(selectedLead.proposalValue) : "",
       lastContact: toDateInput(selectedLead?.lastContactAtUtc),
       nextFollowUp: toDateInput(selectedLead?.nextFollowUpAtUtc),
+      city: selectedLead?.city ?? "",
+      instagramHandle: selectedLead?.instagramHandle ?? "",
+      googleRating: selectedLead?.googleRating != null ? String(selectedLead.googleRating) : "",
+      bantBudget: selectedLead?.bantBudget ?? "Unknown",
+      bantAuthority: selectedLead?.bantAuthority ?? "Unknown",
+      bantNeed: selectedLead?.bantNeed ?? "Unknown",
+      bantTimeline: selectedLead?.bantTimeline ?? "Unknown",
     }),
     [selectedLead],
   );
@@ -141,7 +167,50 @@ export default function LeadsPage() {
   useEffect(() => {
     if (!token) return;
     void api.getCustomFields(token, "Lead").then(setCustomFields).catch(() => setCustomFields([]));
+    void api.getScripts(token).then(setScripts).catch(() => setScripts([]));
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !selectedLead) {
+      setInteractions([]);
+      return;
+    }
+    void api.getLeadInteractions(token, selectedLead.id).then(setInteractions).catch(() => setInteractions([]));
+  }, [selectedLead, token]);
+
+  // WhatsApp do lead: localiza a conversa vinculada e carrega as mensagens.
+  useEffect(() => {
+    if (!token || !selectedLead) {
+      setLeadConversation(null);
+      setLeadMessages([]);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .getConversations(token)
+      .then((all) => {
+        const match = all.find((c) => c.leadId === selectedLead.id) ?? null;
+        if (cancelled) return;
+        setLeadConversation(match);
+        if (match) {
+          void api
+            .getConversationMessages(token, match.id)
+            .then((msgs) => !cancelled && setLeadMessages(msgs))
+            .catch(() => !cancelled && setLeadMessages([]));
+        } else {
+          setLeadMessages([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLeadConversation(null);
+          setLeadMessages([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLead, token]);
 
   const groupedLeads = useMemo(
     () =>
@@ -183,6 +252,57 @@ export default function LeadsPage() {
     [selectedLead, history],
   );
 
+  // Prontidão da ficha para IA: % de campos estruturados preenchidos de forma consistente.
+  const aiReadiness = useMemo(() => {
+    if (!selectedLead) return { pct: 0, checks: [] as { label: string; ok: boolean }[] };
+    const checks = [
+      { label: "Empresa / nicho", ok: !!selectedLead.companyName },
+      { label: "Cidade", ok: !!selectedLead.city },
+      { label: "Canal de entrada", ok: !!selectedLead.channel },
+      { label: "Contato (Instagram ou telefone)", ok: !!(selectedLead.instagramHandle || selectedLead.phone || selectedLead.contactHandle) },
+      { label: "Fonte", ok: !!selectedLead.source },
+      { label: "BANT — Orçamento", ok: selectedLead.bantBudget !== "Unknown" },
+      { label: "BANT — Autoridade", ok: selectedLead.bantAuthority !== "Unknown" },
+      { label: "BANT — Necessidade", ok: selectedLead.bantNeed !== "Unknown" },
+      { label: "BANT — Prazo", ok: selectedLead.bantTimeline !== "Unknown" },
+      { label: "Histórico de contato registrado", ok: interactions.length > 0 },
+    ];
+    const done = checks.filter((c) => c.ok).length;
+    return { pct: Math.round((done / checks.length) * 100), checks };
+  }, [selectedLead, interactions]);
+
+  // Timeline unificada: eventos do sistema (EventLog) + contatos registrados manualmente.
+  const timelineEntries = useMemo(() => {
+    const fromHistory = history.map((item) => ({
+      key: `h-${item.id}`,
+      kind: "event" as const,
+      at: item.occurredAtUtc,
+      title: eventTypeLabels[item.type] ?? item.type,
+      detail: formatHistoryDetail(item),
+      outcome: null as string | null,
+      interactionId: null as number | null,
+    }));
+    const fromInteractions = interactions.map((it) => ({
+      key: `i-${it.id}`,
+      kind: "interaction" as const,
+      at: it.occurredAtUtc,
+      title: `Contato · ${it.channel}`,
+      detail: [
+        it.scriptName ? `Script: ${it.scriptName}` : null,
+        INTERACTION_OUTCOME_LABELS[it.outcome] ?? it.outcome,
+        it.notes,
+        it.createdByName,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      outcome: it.outcome,
+      interactionId: it.id,
+    }));
+    return [...fromHistory, ...fromInteractions].sort(
+      (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
+    );
+  }, [history, interactions]);
+
   const availableStages = useMemo(() => {
     const found = pipelines.find((p) => String(p.id) === conversionForm.pipelineId);
     return found?.stages ?? [];
@@ -201,12 +321,14 @@ export default function LeadsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = (await api.getLeads(token, {
-        search: search || undefined,
-        ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
-      })) as PagedResult<Lead>;
+      const [response, ownerResponse] = await Promise.all([
+        api.getLeads(token, {
+          search: search || undefined,
+          ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
+        }) as Promise<PagedResult<Lead>>,
+        api.getLeadOwners(token),
+      ]);
       setLeads(response.items);
-      const ownerResponse = await api.getLeadOwners(token);
       setOwners(ownerResponse);
       setSelectedLead((current) => (current ? response.items.find((item) => item.id === current.id) ?? null : null));
     } catch (err) {
@@ -250,9 +372,16 @@ export default function LeadsPage() {
         contactHandle: form.contactHandle || undefined,
         observations: form.observations || undefined,
         nextFollowUpAtUtc: fromDateInput(form.nextFollowUp),
+        city: form.city || undefined,
+        instagramHandle: form.instagramHandle || undefined,
+        googleRating: form.googleRating ? Number(form.googleRating) : undefined,
+        bantBudget: form.bantBudget,
+        bantAuthority: form.bantAuthority,
+        bantNeed: form.bantNeed,
+        bantTimeline: form.bantTimeline,
         extraDataJson: customFields.length > 0 ? mergeCustomFieldValues(null, customValues) : undefined,
       });
-      setForm({ name: "", channel: "", companyName: "", contactHandle: "", email: "", phone: "", source: "", observations: "", nextFollowUp: "" });
+      setForm({ name: "", channel: "", companyName: "", contactHandle: "", email: "", phone: "", source: "", observations: "", nextFollowUp: "", city: "", instagramHandle: "", googleRating: "", bantBudget: "Unknown", bantAuthority: "Unknown", bantNeed: "Unknown", bantTimeline: "Unknown" });
       setCustomValues({});
       setCreateModalOpen(false);
       await load();
@@ -286,6 +415,13 @@ export default function LeadsPage() {
         contactHandle: editState.contactHandle || undefined,
         observations: editState.observations || undefined,
         proposalValue: editState.proposalValue ? Number(editState.proposalValue) : null,
+        city: editState.city || undefined,
+        instagramHandle: editState.instagramHandle || undefined,
+        googleRating: editState.googleRating ? Number(editState.googleRating) : null,
+        bantBudget: editState.bantBudget,
+        bantAuthority: editState.bantAuthority,
+        bantNeed: editState.bantNeed,
+        bantTimeline: editState.bantTimeline,
         lastContactAtUtc: fromDateInput(editState.lastContact),
         nextFollowUpAtUtc: fromDateInput(editState.nextFollowUp),
         extraDataJson:
@@ -300,6 +436,67 @@ export default function LeadsPage() {
       notify({ type: "error", message: status === 403 ? "Você não tem permissão para editar leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao atualizar lead" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleLogInteraction = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !selectedLead) return;
+    if (!interactionForm.channel) {
+      notify({ type: "error", message: "Selecione o canal do contato.", title: "Campo obrigatório" });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.createLeadInteraction(token, selectedLead.id, {
+        channel: interactionForm.channel,
+        scriptId: interactionForm.scriptId ? Number(interactionForm.scriptId) : null,
+        outcome: interactionForm.outcome,
+        notes: interactionForm.notes || null,
+      });
+      setInteractionForm({ channel: "", scriptId: "", outcome: "NoReply", notes: "" });
+      const [refreshed, refreshedScripts] = await Promise.all([
+        api.getLeadInteractions(token, selectedLead.id),
+        api.getScripts(token),
+      ]);
+      setInteractions(refreshed);
+      setScripts(refreshedScripts);
+      await load();
+      notify({ type: "success", message: "Contato registrado.", title: "Sucesso" });
+    } catch (err) {
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : "Erro ao registrar contato.";
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para registrar contatos." : message, title: status === 403 ? "Permissão negada" : "Erro" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSendWhatsApp = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !leadConversation || !messageDraft.trim()) return;
+    setSendingMessage(true);
+    try {
+      const sent = await api.sendConversationMessage(token, leadConversation.id, messageDraft.trim());
+      setLeadMessages((current) => [...current, sent]);
+      setMessageDraft("");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao enviar mensagem.";
+      notify({ type: "error", message, title: "Erro" });
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleDeleteInteraction = async (interactionId: number) => {
+    if (!token || !selectedLead) return;
+    try {
+      await api.deleteLeadInteraction(token, interactionId);
+      setInteractions((current) => current.filter((i) => i.id !== interactionId));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao excluir contato.";
+      notify({ type: "error", message, title: "Erro" });
     }
   };
 
@@ -728,18 +925,43 @@ export default function LeadsPage() {
                 options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
               />
             </label>
-            <label className="field">
-              <span>@ ou telefone</span>
-              <input value={form.contactHandle} onChange={(event) => setForm((current) => ({ ...current, contactHandle: event.target.value }))} placeholder="@usuario ou (11) 99999-9999" />
-            </label>
+            <div className="two-column">
+              <label className="field">
+                <span>Instagram</span>
+                <input value={form.instagramHandle} onChange={(event) => setForm((current) => ({ ...current, instagramHandle: event.target.value }))} placeholder="@usuario" />
+              </label>
+              <label className="field">
+                <span>Telefone</span>
+                <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} placeholder="(11) 99999-9999" />
+              </label>
+            </div>
+            <div className="two-column">
+              <label className="field">
+                <span>Cidade</span>
+                <input value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Avaliação Google</span>
+                <input type="number" min="0" max="5" step="0.1" value={form.googleRating} onChange={(event) => setForm((current) => ({ ...current, googleRating: event.target.value }))} placeholder="0,0 a 5,0" />
+              </label>
+            </div>
             <label className="field">
               <span>Email</span>
               <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
             </label>
-            <label className="field">
-              <span>Telefone</span>
-              <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
-            </label>
+            <div className="bant-grid">
+              <span className="field-group-label">Qualificação BANT</span>
+              {BANT_DIMENSIONS.map((dim) => (
+                <label className="field compact" key={dim.key}>
+                  <span>{dim.label}</span>
+                  <Select
+                    value={form[dim.key as keyof typeof form] as string}
+                    onChange={(value) => setForm((current) => ({ ...current, [dim.key]: value }))}
+                    options={BANT_LEVEL_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
+                  />
+                </label>
+              ))}
+            </div>
             <label className="field">
               <span>Próximo follow-up</span>
               <input type="date" value={form.nextFollowUp} onChange={(event) => setForm((current) => ({ ...current, nextFollowUp: event.target.value }))} />
@@ -956,6 +1178,26 @@ export default function LeadsPage() {
               ) : null}
             </div>
 
+            <div className="ai-readiness">
+              <div className="ai-readiness-head">
+                <span>Prontidão da ficha</span>
+                <strong className={aiReadiness.pct >= 80 ? "good" : aiReadiness.pct >= 50 ? "mid" : "low"}>
+                  {aiReadiness.pct}%
+                </strong>
+              </div>
+              <div className="ai-readiness-track">
+                <div className="ai-readiness-fill" style={{ width: `${aiReadiness.pct}%` }} />
+              </div>
+              <div className="ai-readiness-chips">
+                {aiReadiness.checks.map((c) => (
+                  <span key={c.label} className={`ai-chip${c.ok ? " ok" : ""}`}>
+                    {c.ok ? "✓" : "•"} {c.label}
+                  </span>
+                ))}
+              </div>
+              <p className="ai-readiness-note">Campos estruturados completos deixam a base pronta para automações e IA.</p>
+            </div>
+
             <div className="two-column modal-columns">
               <form className="form-card" onSubmit={handleUpdate}>
                 <label className="field">
@@ -975,18 +1217,44 @@ export default function LeadsPage() {
                     options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
                   />
                 </label>
-                <label className="field">
-                  <span>@ ou telefone</span>
-                  <input value={editState.contactHandle} onChange={(event) => setEditState((current) => ({ ...current, contactHandle: event.target.value }))} />
-                </label>
+                <div className="two-column">
+                  <label className="field">
+                    <span>Instagram</span>
+                    <input value={editState.instagramHandle} onChange={(event) => setEditState((current) => ({ ...current, instagramHandle: event.target.value }))} placeholder="@usuario" />
+                  </label>
+                  <label className="field">
+                    <span>Telefone</span>
+                    <input value={editState.phone} onChange={(event) => setEditState((current) => ({ ...current, phone: event.target.value }))} />
+                  </label>
+                </div>
+                <div className="two-column">
+                  <label className="field">
+                    <span>Cidade</span>
+                    <input value={editState.city} onChange={(event) => setEditState((current) => ({ ...current, city: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Avaliação Google</span>
+                    <input type="number" min="0" max="5" step="0.1" value={editState.googleRating} onChange={(event) => setEditState((current) => ({ ...current, googleRating: event.target.value }))} placeholder="0,0 a 5,0" />
+                  </label>
+                </div>
                 <label className="field">
                   <span>Email</span>
                   <input value={editState.email} onChange={(event) => setEditState((current) => ({ ...current, email: event.target.value }))} />
                 </label>
-                <label className="field">
-                  <span>Telefone</span>
-                  <input value={editState.phone} onChange={(event) => setEditState((current) => ({ ...current, phone: event.target.value }))} />
-                </label>
+                <div className="bant-grid">
+                  <span className="field-group-label">Qualificação BANT</span>
+                  {BANT_DIMENSIONS.map((dim) => (
+                    <label className="field compact" key={dim.key}>
+                      <span>{dim.label}</span>
+                      <Select
+                        value={editState[dim.key as keyof typeof editState] as string}
+                        onChange={(value) => setEditState((current) => ({ ...current, [dim.key]: value }))}
+                        options={BANT_LEVEL_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
+                        disabled={!canEdit}
+                      />
+                    </label>
+                  ))}
+                </div>
                 <div className="two-column">
                   <label className="field">
                     <span>Último contato</span>
@@ -1045,28 +1313,125 @@ export default function LeadsPage() {
                 ) : null}
               </form>
 
+              <div className="modal-side">
+              <div className="wa-panel">
+                <div className="card-header">
+                  <div>
+                    <h3>WhatsApp</h3>
+                    <p>{leadConversation ? `Conversa com ${leadConversation.contactName || leadConversation.contactPhone}` : "Sem conversa vinculada a este lead."}</p>
+                  </div>
+                  {leadConversation ? <span className="tag">{leadMessages.length} msgs</span> : null}
+                </div>
+                {leadConversation ? (
+                  <>
+                    <div className="wa-thread">
+                      {leadMessages.map((m) => (
+                        <div key={m.id} className={`wa-bubble${m.isInbound ? " inbound" : " outbound"}`}>
+                          <p>{m.text}</p>
+                          <span>{formatDate(m.sentAtUtc)}</span>
+                        </div>
+                      ))}
+                      {leadMessages.length === 0 ? <div className="empty-card">Sem mensagens ainda.</div> : null}
+                    </div>
+                    {canEdit ? (
+                      <form className="wa-composer" onSubmit={handleSendWhatsApp}>
+                        <input
+                          value={messageDraft}
+                          onChange={(event) => setMessageDraft(event.target.value)}
+                          placeholder="Escreva uma mensagem..."
+                        />
+                        <button type="submit" className="primary-button" disabled={sendingMessage || !messageDraft.trim()}>
+                          {sendingMessage ? "..." : "Enviar"}
+                        </button>
+                      </form>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="empty-card">
+                    Quando o lead tiver telefone e uma conversa no módulo WhatsApp, ela aparece aqui automaticamente.
+                  </div>
+                )}
+              </div>
+
               <div className="timeline">
+                {canEdit ? (
+                  <form className="interaction-form" onSubmit={handleLogInteraction}>
+                    <div className="card-header">
+                      <div>
+                        <h3>Registrar contato</h3>
+                        <p>Anote o canal, o script usado e o resultado.</p>
+                      </div>
+                    </div>
+                    <div className="two-column">
+                      <label className="field compact">
+                        <span>Canal</span>
+                        <Select
+                          value={interactionForm.channel}
+                          onChange={(value) => setInteractionForm((c) => ({ ...c, channel: value }))}
+                          placeholder="Selecione"
+                          options={INTERACTION_CHANNEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                        />
+                      </label>
+                      <label className="field compact">
+                        <span>Resultado</span>
+                        <Select
+                          value={interactionForm.outcome}
+                          onChange={(value) => setInteractionForm((c) => ({ ...c, outcome: value }))}
+                          options={INTERACTION_OUTCOME_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                        />
+                      </label>
+                    </div>
+                    <label className="field compact">
+                      <span>Script usado</span>
+                      <Select
+                        value={interactionForm.scriptId}
+                        onChange={(value) => setInteractionForm((c) => ({ ...c, scriptId: value }))}
+                        placeholder={scripts.length > 0 ? "Nenhum / livre" : "Cadastre scripts em Configurações"}
+                        options={scripts
+                          .filter((s) => s.isActive)
+                          .map((s) => ({ value: String(s.id), label: s.name }))}
+                      />
+                    </label>
+                    <label className="field compact">
+                      <span>Observação do contato</span>
+                      <textarea
+                        value={interactionForm.notes}
+                        onChange={(event) => setInteractionForm((c) => ({ ...c, notes: event.target.value }))}
+                        placeholder="O que foi dito / próximo passo"
+                      />
+                    </label>
+                    <button type="submit" className="ghost-button" disabled={submitting}>
+                      {submitting ? "Registrando..." : "Registrar contato"}
+                    </button>
+                  </form>
+                ) : null}
+
                 <div className="card-header">
                   <div>
                     <h3>Histórico</h3>
-                    <p>Eventos registrados para este lead.</p>
+                    <p>Linha do tempo unificada do lead.</p>
                   </div>
                   <span className="tag">#{selectedLead.id}</span>
                 </div>
-                {history.map((item) => {
-                  const detail = formatHistoryDetail(item);
-                  return (
-                    <article key={item.id} className="timeline-item">
-                      <span className="timeline-dot" />
-                      <div className="timeline-body">
-                        <strong>{eventTypeLabels[item.type] ?? item.type}</strong>
-                        {detail ? <p>{detail}</p> : null}
-                      </div>
-                      <span>{formatDate(item.occurredAtUtc)}</span>
-                    </article>
-                  );
-                })}
-                {history.length === 0 ? <div className="empty-card">Sem histórico encontrado.</div> : null}
+                {timelineEntries.map((entry) => (
+                  <article key={entry.key} className={`timeline-item${entry.kind === "interaction" ? " is-interaction" : ""}`}>
+                    <span className={`timeline-dot${entry.outcome && entry.outcome !== "NoReply" ? " is-positive" : ""}`} />
+                    <div className="timeline-body">
+                      <strong>{entry.title}</strong>
+                      {entry.detail ? <p>{entry.detail}</p> : null}
+                    </div>
+                    <div className="timeline-meta">
+                      <span>{formatDate(entry.at)}</span>
+                      {entry.interactionId && canEdit ? (
+                        <button type="button" className="timeline-remove" onClick={() => void handleDeleteInteraction(entry.interactionId!)} aria-label="Excluir contato">
+                          ×
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+                {timelineEntries.length === 0 ? <div className="empty-card">Sem histórico encontrado.</div> : null}
+              </div>
               </div>
             </div>
           </div>
