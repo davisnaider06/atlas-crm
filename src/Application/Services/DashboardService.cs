@@ -15,11 +15,12 @@ public sealed class DashboardService : IDashboardService
         _dbContext = dbContext;
     }
 
-    public async Task<DashboardDto> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<DashboardDto> GetAsync(string? period = null, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         var startOfWeek = StartOfWeek(now);
         var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var normalizedPeriod = NormalizePeriod(period);
 
         var totalLeads = await _dbContext.Leads.CountAsync(cancellationToken);
 
@@ -71,6 +72,12 @@ public sealed class DashboardService : IDashboardService
             .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
 
         var funnelConversion = await BuildFunnelConversionAsync(cancellationToken);
+        var (periodStart, periodTrend) = await BuildPeriodTrendAsync(normalizedPeriod, now, cancellationToken);
+
+        var periodNewLeads = await _dbContext.Leads
+            .CountAsync(x => x.CreatedAtUtc >= periodStart, cancellationToken);
+        var periodNewDeals = await _dbContext.Deals
+            .CountAsync(x => x.CreatedAtUtc >= periodStart, cancellationToken);
 
         return new DashboardDto
         {
@@ -80,6 +87,10 @@ public sealed class DashboardService : IDashboardService
             PendingActivities = pendingActivities,
             StageSummary = stageSummary,
             FunnelConversion = funnelConversion,
+            Period = normalizedPeriod,
+            PeriodNewLeads = periodNewLeads,
+            PeriodNewDeals = periodNewDeals,
+            PeriodTrend = periodTrend,
             WeeklyMessagesSent = weeklyMessages,
             WeeklyReplies = weeklyReplies,
             WeeklyResponseRate = responseRate,
@@ -215,6 +226,98 @@ public sealed class DashboardService : IDashboardService
         {
             return null;
         }
+    }
+
+    private static string NormalizePeriod(string? period) => period switch
+    {
+        "24h" => "24h",
+        "7d" => "7d",
+        "year" => "year",
+        _ => "30d",
+    };
+
+    private static readonly string[] MonthLabels =
+        { "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez" };
+    private static readonly string[] WeekdayLabels =
+        { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
+
+    /// <summary>
+    /// Janela do período + série temporal (buckets por hora para 24h, por dia para
+    /// 7d/30d, por mês para o ano). Computado no servidor para refletir todos os
+    /// dados, não só a página atual.
+    /// </summary>
+    private async Task<(DateTime PeriodStart, IReadOnlyList<TrendPointDto> Trend)> BuildPeriodTrendAsync(
+        string period, DateTime now, CancellationToken cancellationToken)
+    {
+        DateTime periodStart = period switch
+        {
+            "24h" => now.AddHours(-24),
+            "7d" => DateTime.SpecifyKind(now.Date.AddDays(-6), DateTimeKind.Utc),
+            "year" => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-11),
+            _ => DateTime.SpecifyKind(now.Date.AddDays(-29), DateTimeKind.Utc),
+        };
+
+        var leadDates = await _dbContext.Leads
+            .AsNoTracking()
+            .Where(x => x.CreatedAtUtc >= periodStart)
+            .Select(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+        var dealDates = await _dbContext.Deals
+            .AsNoTracking()
+            .Where(x => x.CreatedAtUtc >= periodStart)
+            .Select(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var trend = new List<TrendPointDto>();
+
+        if (period == "24h")
+        {
+            var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
+            for (var i = 23; i >= 0; i--)
+            {
+                var bucketStart = currentHour.AddHours(-i);
+                var bucketEnd = bucketStart.AddHours(1);
+                trend.Add(new TrendPointDto
+                {
+                    Label = bucketStart.ToString("HH'h'"),
+                    Leads = leadDates.Count(d => d >= bucketStart && d < bucketEnd),
+                    Deals = dealDates.Count(d => d >= bucketStart && d < bucketEnd),
+                });
+            }
+        }
+        else if (period == "year")
+        {
+            var firstMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-11);
+            for (var i = 0; i < 12; i++)
+            {
+                var monthStart = firstMonth.AddMonths(i);
+                var monthEnd = monthStart.AddMonths(1);
+                trend.Add(new TrendPointDto
+                {
+                    Label = MonthLabels[monthStart.Month - 1],
+                    Leads = leadDates.Count(d => d >= monthStart && d < monthEnd),
+                    Deals = dealDates.Count(d => d >= monthStart && d < monthEnd),
+                });
+            }
+        }
+        else
+        {
+            var days = period == "7d" ? 7 : 30;
+            var firstDay = DateTime.SpecifyKind(now.Date.AddDays(-(days - 1)), DateTimeKind.Utc);
+            for (var i = 0; i < days; i++)
+            {
+                var dayStart = firstDay.AddDays(i);
+                var dayEnd = dayStart.AddDays(1);
+                trend.Add(new TrendPointDto
+                {
+                    Label = days <= 7 ? WeekdayLabels[(int)dayStart.DayOfWeek] : dayStart.ToString("dd/MM"),
+                    Leads = leadDates.Count(d => d >= dayStart && d < dayEnd),
+                    Deals = dealDates.Count(d => d >= dayStart && d < dayEnd),
+                });
+            }
+        }
+
+        return (periodStart, trend);
     }
 
     private static DateTime StartOfWeek(DateTime nowUtc)

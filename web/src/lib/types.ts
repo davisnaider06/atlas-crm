@@ -265,6 +265,11 @@ export type Dashboard = {
   weeklyProposalsSent: number;
   monthlyClosedWon: number;
   monthlyRevenue: number;
+  // Filtro de período (24h | 7d | 30d | year)
+  period: string;
+  periodNewLeads: number;
+  periodNewDeals: number;
+  periodTrend: { label: string; leads: number; deals: number }[];
 };
 
 export type WhatsAppIntegration = {

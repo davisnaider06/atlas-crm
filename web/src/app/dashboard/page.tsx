@@ -1,61 +1,51 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { BarChart } from "@/components/ui/charts";
 import { useNotification } from "@/components/ui/notification-context";
-import type { Activity, Dashboard, Deal, Lead, PagedResult } from "@/lib/types";
+import type { Activity, Dashboard, Lead, PagedResult } from "@/lib/types";
 
-type TrendPoint = { label: string; leads: number; deals: number };
+const PERIOD_NEW_LEADS_LABEL: Record<string, string> = {
+  "24h": "nas últimas 24h",
+  "7d": "nos últimos 7 dias",
+  "30d": "nos últimos 30 dias",
+  year: "no último ano",
+};
 
-function startOfDay(value: string) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function buildTrend(leads: Lead[], deals: Deal[]): TrendPoint[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const offset = 6 - i;
-    const day = new Date(today);
-    day.setDate(today.getDate() - offset);
-    const label = day.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-    return {
-      label,
-      leads: leads.filter((l) => startOfDay(l.createdAtUtc).getTime() === day.getTime()).length,
-      deals: deals.filter((d) => startOfDay(d.createdAtUtc).getTime() === day.getTime()).length,
-    };
-  });
-}
+const PERIOD_TREND_LABEL: Record<string, string> = {
+  "24h": "Criados nas últimas 24 horas (por hora).",
+  "7d": "Criados nos últimos 7 dias.",
+  "30d": "Criados nos últimos 30 dias.",
+  year: "Criados nos últimos 12 meses (por mês).",
+};
 
 export default function DashboardPage() {
   const { token } = useAuth();
   const { notify } = useNotification();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [deals, setDeals] = useState<Deal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePeriod, setActivePeriod] = useState("30d");
+  // Mantém o período atual acessível dentro de load() sem recriá-lo a cada troca.
+  const periodRef = useRef(activePeriod);
+  periodRef.current = activePeriod;
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const [dashboardData, dealsData, leadsData, activitiesData] = await Promise.all([
-        api.getDashboard(token),
-        api.getDeals(token),
+      const [dashboardData, leadsData, activitiesData] = await Promise.all([
+        api.getDashboard(token, periodRef.current),
         api.getLeads(token),
         api.getActivities(token),
       ]);
       setDashboard(dashboardData);
-      setDeals((dealsData as PagedResult<Deal>).items);
       setLeads((leadsData as PagedResult<Lead>).items);
       setActivities((activitiesData as PagedResult<Activity>).items);
     } catch (err) {
@@ -69,7 +59,26 @@ export default function DashboardPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const trend = useMemo(() => buildTrend(leads, deals), [leads, deals]);
+  // Troca de período: refaz só o dashboard (sem recarregar tudo nem piscar a tela).
+  const periodInitialized = useRef(false);
+  useEffect(() => {
+    if (!token) return;
+    if (!periodInitialized.current) {
+      periodInitialized.current = true; // o load() inicial já buscou com o período padrão
+      return;
+    }
+    let cancelled = false;
+    void api
+      .getDashboard(token, activePeriod)
+      .then((d) => !cancelled && setDashboard(d))
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : "Erro ao atualizar período.";
+        notify({ type: "error", title: "Erro ao atualizar período", message: msg });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePeriod, token, notify]);
 
   const sourceMix = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -92,15 +101,12 @@ export default function DashboardPage() {
     );
   }, [activities]);
 
-  const leadsThisWeek = useMemo(
-    () => leads.filter((l) => (Date.now() - +new Date(l.createdAtUtc)) / 86400000 <= 7).length,
-    [leads],
-  );
-
   if (loading) return <LoadingState label="Carregando dashboard..." />;
   if (error || !dashboard) return <ErrorState message={error ?? "Dashboard indisponível."} onRetry={() => void load()} />;
 
   const maxSource = Math.max(...sourceMix.map((s) => s.value), 1);
+  const trend = dashboard.periodTrend ?? [];
+  const periodNewLeadsLabel = PERIOD_NEW_LEADS_LABEL[activePeriod] ?? "no período";
 
   return (
     <div className="dashboard-grid">
@@ -134,7 +140,7 @@ export default function DashboardPage() {
         <article className="impact-card featured">
           <span>Total de leads</span>
           <strong>{dashboard.totalLeads.toLocaleString("pt-BR")}</strong>
-          <small>+{leadsThisWeek} nos últimos 7 dias</small>
+          <small>+{dashboard.periodNewLeads} {periodNewLeadsLabel}</small>
         </article>
         <article className="impact-card gold">
           <span>Receita no pipeline</span>
@@ -192,7 +198,7 @@ export default function DashboardPage() {
         <div className="panel-heading">
           <div>
             <h3>Fluxo de leads vs negócios</h3>
-            <p>Registros criados nos últimos 7 dias.</p>
+            <p>{PERIOD_TREND_LABEL[activePeriod] ?? "Registros criados no período."}</p>
           </div>
         </div>
         <div className="legend-row dark">

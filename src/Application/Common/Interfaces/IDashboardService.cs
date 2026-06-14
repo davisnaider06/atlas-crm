@@ -4,5 +4,5 @@ namespace AtlasCRM.Application.Common.Interfaces;
 
 public interface IDashboardService
 {
-    Task<DashboardDto> GetAsync(CancellationToken cancellationToken = default);
+    Task<DashboardDto> GetAsync(string? period = null, CancellationToken cancellationToken = default);
 }

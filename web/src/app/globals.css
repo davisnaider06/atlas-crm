@@ -246,6 +246,15 @@ select {
   transition: padding 200ms var(--ease);
   overflow-x: hidden;
   overflow-y: auto;
+  /* Esconde a barra de rolagem (mantendo o scroll funcional). */
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge legado */
+}
+
+.rockart-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;                /* Chrome/Safari/Edge */
 }
 
 /* Brand */

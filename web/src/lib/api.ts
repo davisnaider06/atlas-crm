@@ -213,7 +213,8 @@ export const api = {
   deleteCustomField: (token: string, id: number) =>
     request<void>(`/custom-fields/${id}`, { method: "DELETE", token }),
 
-  getDashboard: (token: string) => request<Dashboard>("/dashboard", { token }),
+  getDashboard: (token: string, period?: string) =>
+    request<Dashboard>(`/dashboard${period ? `?period=${encodeURIComponent(period)}` : ""}`, { token }),
   getLeads: (
     token: string,
     params?: { search?: string; source?: string; status?: string; ownerUserId?: number },
