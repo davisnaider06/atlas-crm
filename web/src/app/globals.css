@@ -3667,6 +3667,34 @@ body.mobile-nav-locked { overflow: hidden; }
   background: rgba(0, 0, 0, 0.45);
 }
 
+/* ------------------------------------------------------------------
+   Modo claro: o bloco de glass acima usa sombras escuras (rgba(0,0,0,~0.4))
+   e bordas brancas pensadas para o tema escuro. No tema claro isso vira um
+   halo cinza pesado nos cards. Aqui trocamos pelos tokens claros e suaves.
+   ------------------------------------------------------------------ */
+:root[data-theme="light"] :is(
+  .hero-card, .dashboard-panel, .toolbar-card, .table-card,
+  .timeline-card, .settings-card, .panel, .impact-card
+) {
+  box-shadow: var(--shadow);
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] .rockart-sidebar {
+  box-shadow: var(--shadow-sm);
+  border-right-color: var(--border);
+}
+
+:root[data-theme="light"] :is(.kanban-column, .lead-column) {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] :is(.kanban-card, .lead-card) {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
+}
+
 @media (max-width: 760px) {
   /* Topbar compacta: hamburguer + título na 1ª linha, ferramentas na 2ª */
   .topbar {
