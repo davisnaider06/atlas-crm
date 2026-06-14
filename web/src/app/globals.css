@@ -3338,7 +3338,7 @@ body.mobile-nav-locked { overflow: hidden; }
 /* Heavy-glass modals */
 .modal-panel,
 .modal-box {
-  background: rgba(8, 9, 13, 0.50);
+  background: rgba(15, 17, 23, 0.98);
   backdrop-filter: var(--glass-heavy);
   -webkit-backdrop-filter: var(--glass-heavy);
   border-color: rgba(255, 255, 255, 0.11);
@@ -3347,8 +3347,8 @@ body.mobile-nav-locked { overflow: hidden; }
 
 :root[data-theme="light"] .modal-panel,
 :root[data-theme="light"] .modal-box {
-  background: rgba(255, 255, 255, 0.55);
-  border-color: rgba(255, 255, 255, 0.70);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 /* Form inputs */
