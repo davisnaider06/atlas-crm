@@ -164,7 +164,7 @@ export default function DashboardPage() {
           </article>
           <article>
             <span>Taxa de resposta (semana)</span>
-            <strong>{Math.round(dashboard.weeklyResponseRate * 100)}%</strong>
+            <strong>{Math.round((dashboard.weeklyResponseRate || 0) * 100)}%</strong>
             <small>{dashboard.weeklyReplies} responderam</small>
           </article>
           <article>
