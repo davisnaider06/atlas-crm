@@ -277,6 +277,7 @@ export const api = {
       contactHandle?: string | null;
       lastContactAtUtc?: string | null;
       nextFollowUpAtUtc?: string | null;
+      followUpStep?: number;
       observations?: string | null;
       proposalValue?: number | null;
       city?: string | null;

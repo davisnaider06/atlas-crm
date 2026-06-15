@@ -202,6 +202,7 @@ public sealed class LeadService : ILeadService
         lead.ContactHandle = request.ContactHandle?.Trim();
         lead.LastContactAtUtc = request.LastContactAtUtc;
         lead.NextFollowUpAtUtc = request.NextFollowUpAtUtc;
+        lead.FollowUpStep = Math.Clamp(request.FollowUpStep, 0, 7);
         lead.Observations = request.Observations?.Trim();
         lead.ProposalValue = request.ProposalValue;
         lead.City = request.City?.Trim();

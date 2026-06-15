@@ -144,6 +144,7 @@ export default function LeadsPage() {
       proposalValue: selectedLead?.proposalValue != null ? String(selectedLead.proposalValue) : "",
       lastContact: toDateInput(selectedLead?.lastContactAtUtc),
       nextFollowUp: toDateInput(selectedLead?.nextFollowUpAtUtc),
+      followUpStep: String(selectedLead?.followUpStep ?? 0),
       city: selectedLead?.city ?? "",
       instagramHandle: selectedLead?.instagramHandle ?? "",
       googleRating: selectedLead?.googleRating != null ? String(selectedLead.googleRating) : "",
@@ -424,6 +425,7 @@ export default function LeadsPage() {
         bantTimeline: editState.bantTimeline,
         lastContactAtUtc: fromDateInput(editState.lastContact),
         nextFollowUpAtUtc: fromDateInput(editState.nextFollowUp),
+        followUpStep: Number(editState.followUpStep) || 0,
         extraDataJson:
           customFields.length > 0 ? mergeCustomFieldValues(selectedLead.extraDataJson, editCustomValues) : undefined,
       });
@@ -1265,6 +1267,24 @@ export default function LeadsPage() {
                     <input type="date" value={editState.nextFollowUp} onChange={(event) => setEditState((current) => ({ ...current, nextFollowUp: event.target.value }))} />
                   </label>
                 </div>
+                <label className="field">
+                  <span>Follow-up atual</span>
+                  <Select
+                    value={editState.followUpStep}
+                    onChange={(value) => setEditState((current) => ({ ...current, followUpStep: value }))}
+                    disabled={!canEdit}
+                    options={[
+                      { value: "0", label: "Nenhum" },
+                      { value: "1", label: "Follow-up 1" },
+                      { value: "2", label: "Follow-up 2" },
+                      { value: "3", label: "Follow-up 3" },
+                      { value: "4", label: "Follow-up 4" },
+                      { value: "5", label: "Follow-up 5" },
+                      { value: "6", label: "Follow-up 6" },
+                      { value: "7", label: "Follow-up 7" },
+                    ]}
+                  />
+                </label>
                 <label className="field">
                   <span>Valor da proposta (R$)</span>
                   <input

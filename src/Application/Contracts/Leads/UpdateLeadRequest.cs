@@ -23,6 +23,8 @@ public sealed class UpdateLeadRequest
     public string? ContactHandle { get; set; }
     public DateTime? LastContactAtUtc { get; set; }
     public DateTime? NextFollowUpAtUtc { get; set; }
+    /// <summary>Em qual follow-up o lead está (0 = nenhum, 1 a 7). Editável manualmente.</summary>
+    public int FollowUpStep { get; set; }
     public string? Observations { get; set; }
     /// <summary>Valor da proposta — editável a partir da etapa Proposta enviada.</summary>
     public decimal? ProposalValue { get; set; }
