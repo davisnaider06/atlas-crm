@@ -87,6 +87,19 @@ export type Lead = {
   bantTimeline: BantLevel;
 };
 
+export type LeadImportResult = {
+  imported: number;
+  skippedDuplicates: number;
+  skippedEmpty: number;
+  totalRows: number;
+  errors: string[];
+};
+
+export type LeadClearResult = {
+  deleted: number;
+  skippedWithDeals: number;
+};
+
 export type Conversation = {
   id: number;
   contactPhone: string;

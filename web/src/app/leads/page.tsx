@@ -20,7 +20,7 @@ import {
   INTERACTION_OUTCOME_OPTIONS,
   INTERACTION_OUTCOME_LABELS,
 } from "@/lib/constants";
-import type { ChatMessage, Conversation, CustomFieldDef, FunnelStage, LeadInteraction, Script } from "@/lib/types";
+import type { ChatMessage, Conversation, CustomFieldDef, FunnelStage, LeadImportResult, LeadInteraction, Script } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
 import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
@@ -92,6 +92,12 @@ export default function LeadsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
+  // Importação / exportação / limpeza em massa
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<LeadImportResult | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [conversionForm, setConversionForm] = useState({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
   // Fechamento (etapa 7): desfecho + valor de contrato / motivo de perda
@@ -523,6 +529,91 @@ export default function LeadsPage() {
     }
   };
 
+  const handleExport = async () => {
+    if (!token) return;
+    setExporting(true);
+    try {
+      const blob = await api.exportLeads(token);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `leads-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      notify({ type: "success", message: "Planilha de leads gerada.", title: "Exportado" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao exportar leads.";
+      notify({ type: "error", message, title: "Erro ao exportar" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Gera um CSV modelo (cabeçalhos esperados) para o usuário preencher.
+  const downloadImportTemplate = () => {
+    const headers = ["Nome", "Empresa", "Canal", "Email", "Telefone", "Instagram", "Cidade", "Avaliacao Google", "Fonte", "Observacoes"];
+    const example = ["Maria Silva", "Padaria Pão Quente", "Instagram", "maria@email.com", "(11) 99999-0000", "@padaria", "São Paulo", "4.5", "Indicação", "Tem interesse em delivery"];
+    const csv = `﻿${headers.join(";")}\n${example.join(";")}\n`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "modelo-importacao-leads.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async () => {
+    if (!token || !importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = await api.importLeads(token, importFile);
+      setImportResult(result);
+      await load();
+      notify({
+        type: result.imported > 0 ? "success" : "info",
+        message: `${result.imported} lead(s) importado(s), ${result.skippedDuplicates} duplicado(s) ignorado(s).`,
+        title: "Importação concluída",
+      });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const message = err instanceof Error ? err.message : "Erro ao importar leads.";
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para importar leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao importar" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      "Isso vai apagar TODOS os leads do CRM (exceto os que têm negócios vinculados). Recomendamos exportar para Excel antes. Deseja continuar?",
+    );
+    if (!confirmed) return;
+    setSubmitting(true);
+    try {
+      const result = await api.clearAllLeads(token);
+      setSelectedLead(null);
+      await load();
+      notify({
+        type: "success",
+        message: `${result.deleted} lead(s) apagado(s)${result.skippedWithDeals > 0 ? `, ${result.skippedWithDeals} mantido(s) por terem negócios vinculados` : ""}.`,
+        title: "Leads limpos",
+      });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const message = err instanceof Error ? err.message : "Erro ao limpar leads.";
+      notify({ type: "error", message: status === 403 ? "Você não tem permissão para excluir leads." : message, title: status === 403 ? "Permissão negada" : "Erro ao limpar" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Move um lead de etapa. Ao mover para "Closed" abre o modal de fechamento/perda.
   const handleMoveStage = async (lead: Lead, stageValue: string) => {
     if (!token || stageValue === lead.funnelStage) return;
@@ -690,11 +781,26 @@ export default function LeadsPage() {
               <strong>{leadMetrics.cold}</strong>
             </article>
           </div>
-          {canCreate ? (
-            <button type="button" className="primary-button" onClick={() => setCreateModalOpen(true)}>
-              Novo lead
+          <div className="lead-command-buttons">
+            <button type="button" className="ghost-button" onClick={() => void handleExport()} disabled={exporting}>
+              {exporting ? "Exportando..." : "Exportar Excel"}
             </button>
-          ) : null}
+            {canCreate ? (
+              <button type="button" className="ghost-button" onClick={() => { setImportResult(null); setImportFile(null); setImportModalOpen(true); }}>
+                Importar leads
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button type="button" className="ghost-button danger" onClick={() => void handleClearAll()} disabled={submitting}>
+                Limpar todos
+              </button>
+            ) : null}
+            {canCreate ? (
+              <button type="button" className="primary-button" onClick={() => setCreateModalOpen(true)}>
+                Novo lead
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -982,6 +1088,66 @@ export default function LeadsPage() {
               {submitting ? "Salvando..." : "Criar lead"}
             </button>
           </form>
+        </div>
+      ) : null}
+
+      {importModalOpen && canCreate ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setImportModalOpen(false)}>
+          <div className="modal-panel narrow" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="card-header">
+              <div>
+                <h3>Importar leads</h3>
+                <p>Envie um arquivo CSV ou Excel (.xlsx). Duplicados (mesmo email/telefone) são ignorados.</p>
+              </div>
+              <button type="button" className="table-action" onClick={() => setImportModalOpen(false)}>
+                Fechar
+              </button>
+            </div>
+            <div className="modal-body">
+              <label className="field">
+                <span>Arquivo (.csv ou .xlsx)</span>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }}
+                />
+              </label>
+              <p className="muted-mini">
+                Colunas reconhecidas: Nome (obrigatório), Empresa, Canal, Email, Telefone, Instagram, Cidade, Avaliação Google, Fonte, Observações.{" "}
+                <button type="button" className="link-button" onClick={downloadImportTemplate}>
+                  Baixar modelo CSV
+                </button>
+              </p>
+
+              {importResult ? (
+                <div className="compact-insight">
+                  <span>Resultado da importação</span>
+                  <div className="checklist-grid">
+                    <div className="checklist-item"><em className="checklist-icon ok">✓</em><span>{importResult.imported} importado(s)</span></div>
+                    <div className="checklist-item"><em className="checklist-icon warn">!</em><span>{importResult.skippedDuplicates} duplicado(s) ignorado(s)</span></div>
+                    <div className="checklist-item"><em className="checklist-icon warn">!</em><span>{importResult.skippedEmpty} sem nome ignorado(s)</span></div>
+                    <div className="checklist-item"><em className="checklist-icon">·</em><span>{importResult.totalRows} linha(s) lida(s)</span></div>
+                  </div>
+                  {importResult.errors.length > 0 ? (
+                    <ul className="import-errors">
+                      {importResult.errors.slice(0, 10).map((msg, idx) => (
+                        <li key={idx}>{msg}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="modal-actions">
+                <button type="button" className="ghost-button" onClick={() => setImportModalOpen(false)}>
+                  {importResult ? "Fechar" : "Cancelar"}
+                </button>
+                <button type="button" className="primary-button" onClick={() => void handleImport()} disabled={importing || !importFile}>
+                  {importing ? "Importando..." : "Importar"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 

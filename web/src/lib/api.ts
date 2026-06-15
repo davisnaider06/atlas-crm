@@ -13,6 +13,8 @@ import type {
   DocumentItem,
   HistoryItem,
   Lead,
+  LeadClearResult,
+  LeadImportResult,
   LeadInteraction,
   LeadOwner,
   PagedResult,
@@ -316,6 +318,35 @@ export const api = {
     }),
   deleteLead: (token: string, id: number) =>
     request<void>(`/leads/${id}`, {
+      method: "DELETE",
+      token,
+    }),
+  // Baixa o .xlsx de todos os leads. Retorna um Blob (o componente cuida do download).
+  exportLeads: async (token: string): Promise<Blob> => {
+    const response = await fetchWithTimeout(
+      `${API_URL}/leads/export`,
+      { method: "GET", headers: { Authorization: `Bearer ${token}` } },
+      60000,
+    );
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      const err = new Error(body?.error ?? "Falha ao exportar leads.");
+      (err as { status?: number }).status = response.status;
+      throw err;
+    }
+    return response.blob();
+  },
+  importLeads: (token: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<LeadImportResult>("/leads/import", {
+      method: "POST",
+      token,
+      body: formData,
+    });
+  },
+  clearAllLeads: (token: string) =>
+    request<LeadClearResult>("/leads", {
       method: "DELETE",
       token,
     }),

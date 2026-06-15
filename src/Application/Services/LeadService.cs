@@ -4,7 +4,10 @@ using AtlasCRM.Application.Common.Pagination;
 using AtlasCRM.Application.Contracts.Leads;
 using AtlasCRM.Domain.Entities;
 using AtlasCRM.Domain.Enums;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 
 namespace AtlasCRM.Application.Services;
@@ -423,6 +426,393 @@ public sealed class LeadService : ILeadService
             cancellationToken: cancellationToken);
 
         return ToDto(lead);
+    }
+
+    // Aplica o mesmo recorte de visibilidade do listing: vendedor vê só os próprios leads.
+    private IQueryable<Lead> VisibleLeads()
+    {
+        var query = _dbContext.Leads.AsQueryable();
+        if (_currentUser.User?.Role == UserRole.Sales)
+        {
+            query = query.Where(x => x.OwnerUserId == _currentUser.User.UserId);
+        }
+        return query;
+    }
+
+    private static readonly Dictionary<FunnelStage, string> StageLabels = new()
+    {
+        [FunnelStage.Mapped] = "Mapeado",
+        [FunnelStage.Prospected] = "Prospectado",
+        [FunnelStage.Replied] = "Respondeu",
+        [FunnelStage.MeetingScheduled] = "Reunião agendada",
+        [FunnelStage.MeetingDone] = "Reunião feita",
+        [FunnelStage.ProposalSent] = "Proposta enviada",
+        [FunnelStage.Closed] = "Fechado / Perdido",
+    };
+
+    private static readonly Dictionary<LossReason, string> LossLabels = new()
+    {
+        [LossReason.None] = "",
+        [LossReason.NoBudget] = "Sem orçamento",
+        [LossReason.NoInterest] = "Sem interesse",
+        [LossReason.StoppedResponding] = "Parou de responder",
+        [LossReason.ClosedWithCompetitor] = "Fechou com concorrente",
+        [LossReason.Other] = "Outro",
+        [LossReason.NoAuthority] = "Sem autoridade",
+    };
+
+    public async Task<byte[]> ExportToExcelAsync(CancellationToken cancellationToken = default)
+    {
+        var leads = await VisibleLeads()
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => new
+            {
+                x.Name,
+                x.CompanyName,
+                x.Channel,
+                x.Email,
+                x.Phone,
+                x.InstagramHandle,
+                x.City,
+                x.GoogleRating,
+                x.Source,
+                x.FunnelStage,
+                x.Outcome,
+                x.LossReason,
+                x.FollowUpStep,
+                x.NextFollowUpAtUtc,
+                x.ProposalValue,
+                x.ContractValue,
+                x.Observations,
+                OwnerName = x.OwnerUser != null ? x.OwnerUser.Name : null,
+                x.CreatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var headers = new[]
+        {
+            "Nome", "Empresa/Nicho", "Canal", "Email", "Telefone", "Instagram", "Cidade",
+            "Avaliação Google", "Fonte", "Etapa", "Desfecho", "Motivo da perda", "Follow-up atual",
+            "Próximo follow-up", "Valor proposta", "Valor contrato", "Observações", "Vendedor", "Criado em"
+        };
+
+        using var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Leads");
+        for (var c = 0; c < headers.Length; c++)
+        {
+            ws.Cell(1, c + 1).Value = headers[c];
+        }
+        ws.Row(1).Style.Font.Bold = true;
+
+        var r = 2;
+        foreach (var lead in leads)
+        {
+            ws.Cell(r, 1).Value = lead.Name;
+            ws.Cell(r, 2).Value = lead.CompanyName ?? "";
+            ws.Cell(r, 3).Value = lead.Channel ?? "";
+            ws.Cell(r, 4).Value = lead.Email ?? "";
+            ws.Cell(r, 5).Value = lead.Phone ?? "";
+            ws.Cell(r, 6).Value = lead.InstagramHandle ?? "";
+            ws.Cell(r, 7).Value = lead.City ?? "";
+            if (lead.GoogleRating.HasValue) ws.Cell(r, 8).Value = (double)lead.GoogleRating.Value;
+            ws.Cell(r, 9).Value = lead.Source ?? "";
+            ws.Cell(r, 10).Value = StageLabels.GetValueOrDefault(lead.FunnelStage, lead.FunnelStage.ToString());
+            ws.Cell(r, 11).Value = lead.Outcome == FunnelOutcome.Won ? "Fechado" : lead.Outcome == FunnelOutcome.Lost ? "Perdido" : "";
+            ws.Cell(r, 12).Value = LossLabels.GetValueOrDefault(lead.LossReason, "");
+            ws.Cell(r, 13).Value = lead.FollowUpStep;
+            if (lead.NextFollowUpAtUtc.HasValue) ws.Cell(r, 14).Value = lead.NextFollowUpAtUtc.Value;
+            if (lead.ProposalValue.HasValue) ws.Cell(r, 15).Value = (double)lead.ProposalValue.Value;
+            if (lead.ContractValue.HasValue) ws.Cell(r, 16).Value = (double)lead.ContractValue.Value;
+            ws.Cell(r, 17).Value = lead.Observations ?? "";
+            ws.Cell(r, 18).Value = lead.OwnerName ?? "";
+            ws.Cell(r, 19).Value = lead.CreatedAtUtc;
+            r++;
+        }
+
+        ws.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public async Task<LeadImportResultDto> ImportAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
+    {
+        var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
+        var result = new LeadImportResultDto();
+
+        // Lê o arquivo inteiro para um buffer (ClosedXML precisa de stream seekable).
+        using var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer, cancellationToken);
+        buffer.Position = 0;
+
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        List<string[]> table = ext switch
+        {
+            ".csv" or ".txt" => ParseCsv(Encoding.UTF8.GetString(buffer.ToArray())),
+            ".xlsx" => ReadXlsx(buffer),
+            _ => throw new AppException("Formato não suportado. Envie um arquivo .csv ou .xlsx.", 400),
+        };
+
+        if (table.Count < 2)
+        {
+            return result; // só cabeçalho ou vazio
+        }
+
+        // Mapeia cabeçalhos -> índice de coluna (primeiro que casar vence).
+        var columnMap = new Dictionary<string, int>();
+        var header = table[0];
+        for (var c = 0; c < header.Length; c++)
+        {
+            var key = MapHeader(header[c]);
+            if (key != null && !columnMap.ContainsKey(key))
+            {
+                columnMap[key] = c;
+            }
+        }
+
+        if (!columnMap.ContainsKey("name"))
+        {
+            throw new AppException("Não encontrei a coluna \"Nome\" no arquivo. Verifique o cabeçalho.", 400);
+        }
+
+        // Conjuntos de duplicados: e-mails/telefones já existentes na base + os vistos no próprio arquivo.
+        var existing = await _dbContext.Leads.AsNoTracking()
+            .Select(x => new { x.Email, x.Phone })
+            .ToListAsync(cancellationToken);
+        var emailSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var phoneSet = new HashSet<string>();
+        foreach (var e in existing)
+        {
+            if (!string.IsNullOrWhiteSpace(e.Email)) emailSet.Add(e.Email.Trim().ToLowerInvariant());
+            var p = DigitsOnly(e.Phone);
+            if (p.Length > 0) phoneSet.Add(p);
+        }
+
+        string Field(string[] row, string key) =>
+            columnMap.TryGetValue(key, out var idx) && idx < row.Length ? row[idx].Trim() : "";
+
+        var toAdd = new List<Lead>();
+        for (var i = 1; i < table.Count; i++)
+        {
+            var row = table[i];
+            if (row.All(string.IsNullOrWhiteSpace))
+            {
+                continue; // linha totalmente vazia: não conta
+            }
+            result.TotalRows++;
+
+            try
+            {
+                var name = Field(row, "name");
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    result.SkippedEmpty++;
+                    continue;
+                }
+
+                var email = Field(row, "email");
+                var phone = Field(row, "phone");
+                var emailKey = email.ToLowerInvariant();
+                var phoneKey = DigitsOnly(phone);
+
+                var isDuplicate = (!string.IsNullOrWhiteSpace(emailKey) && emailSet.Contains(emailKey))
+                    || (phoneKey.Length > 0 && phoneSet.Contains(phoneKey));
+                if (isDuplicate)
+                {
+                    result.SkippedDuplicates++;
+                    continue;
+                }
+
+                decimal? googleRating = null;
+                var ratingRaw = Field(row, "googleRating");
+                if (!string.IsNullOrWhiteSpace(ratingRaw)
+                    && decimal.TryParse(ratingRaw.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var rating))
+                {
+                    googleRating = Math.Clamp(rating, 0m, 5m);
+                }
+
+                var source = Field(row, "source");
+                var channel = Field(row, "channel");
+
+                toAdd.Add(new Lead
+                {
+                    CompanyId = user.CompanyId,
+                    Name = name,
+                    Email = string.IsNullOrWhiteSpace(email) ? null : email,
+                    Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
+                    Source = string.IsNullOrWhiteSpace(source) ? (string.IsNullOrWhiteSpace(channel) ? "Importação" : channel) : source,
+                    Status = LeadStatus.MessageSent,
+                    OwnerUserId = user.UserId,
+                    Channel = string.IsNullOrWhiteSpace(channel) ? null : channel,
+                    CompanyName = NullIfEmpty(Field(row, "company")),
+                    ContactHandle = NullIfEmpty(Field(row, "instagram")),
+                    InstagramHandle = NullIfEmpty(Field(row, "instagram")),
+                    City = NullIfEmpty(Field(row, "city")),
+                    GoogleRating = googleRating,
+                    Observations = NullIfEmpty(Field(row, "observations")),
+                    // FunnelStage = Mapped (default) — todo lead importado entra na etapa 1.
+                });
+
+                if (!string.IsNullOrWhiteSpace(emailKey)) emailSet.Add(emailKey);
+                if (phoneKey.Length > 0) phoneSet.Add(phoneKey);
+                result.Imported++;
+            }
+            catch (Exception ex)
+            {
+                if (result.Errors.Count < 50)
+                {
+                    result.Errors.Add($"Linha {i + 1}: {ex.Message}");
+                }
+            }
+        }
+
+        if (toAdd.Count > 0)
+        {
+            _dbContext.Leads.AddRange(toAdd);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _eventLogService.LogAsync(
+                EventLogType.LeadCreated,
+                new { Imported = toAdd.Count, Source = "Import" },
+                cancellationToken: cancellationToken);
+        }
+
+        return result;
+    }
+
+    public async Task<LeadClearResultDto> ClearAllAsync(CancellationToken cancellationToken = default)
+    {
+        _ = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
+
+        var leads = await _dbContext.Leads.ToListAsync(cancellationToken);
+        if (leads.Count == 0)
+        {
+            return new LeadClearResultDto();
+        }
+
+        // Leads com negócios vinculados não podem ser apagados (mesma regra do delete individual).
+        var leadIdsWithDeals = await _dbContext.Deals
+            .Select(d => d.LeadId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var withDeals = new HashSet<long>(leadIdsWithDeals);
+
+        var toDelete = leads.Where(l => !withDeals.Contains(l.Id)).ToList();
+        _dbContext.Leads.RemoveRange(toDelete);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _eventLogService.LogAsync(
+            EventLogType.LeadDeleted,
+            new { Cleared = toDelete.Count },
+            cancellationToken: cancellationToken);
+
+        return new LeadClearResultDto
+        {
+            Deleted = toDelete.Count,
+            SkippedWithDeals = leads.Count - toDelete.Count
+        };
+    }
+
+    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static string DigitsOnly(string? value) =>
+        string.IsNullOrEmpty(value) ? "" : new string(value.Where(char.IsDigit).ToArray());
+
+    // Normaliza um cabeçalho (sem acento, minúsculo, só letras/números) e o casa com um campo conhecido.
+    private static string? MapHeader(string raw)
+    {
+        var n = NormalizeHeader(raw);
+        return n switch
+        {
+            "nome" or "nomedocontato" or "contato" or "name" or "cliente" or "lead" => "name",
+            "email" or "emails" or "mail" => "email",
+            "telefone" or "tel" or "celular" or "phone" or "whatsapp" or "fone" or "numero" => "phone",
+            "empresa" or "empresanicho" or "nicho" or "company" or "companhia" => "company",
+            "canal" or "channel" or "origemcanal" => "channel",
+            "instagram" or "insta" or "instagramhandle" or "arroba" or "perfil" => "instagram",
+            "cidade" or "city" or "praca" => "city",
+            "avaliacaogoogle" or "notagoogle" or "google" or "avaliacao" or "rating" or "googlerating" => "googleRating",
+            "fonte" or "origem" or "source" => "source",
+            "observacoes" or "observacao" or "obs" or "notas" or "observations" or "nota" => "observations",
+            _ => null,
+        };
+    }
+
+    private static string NormalizeHeader(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "";
+        var formd = raw.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder();
+        foreach (var ch in formd)
+        {
+            var cat = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (cat == UnicodeCategory.NonSpacingMark) continue; // remove acentos
+            if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+        }
+        return sb.ToString();
+    }
+
+    // Parser CSV simples com suporte a aspas, escape ("") e detecção de delimitador (',' ou ';').
+    private static List<string[]> ParseCsv(string content)
+    {
+        content = content.TrimStart('﻿'); // remove BOM, se houver
+        var firstBreak = content.IndexOfAny(new[] { '\r', '\n' });
+        var headerLine = firstBreak >= 0 ? content[..firstBreak] : content;
+        var delimiter = headerLine.Count(c => c == ';') > headerLine.Count(c => c == ',') ? ';' : ',';
+
+        var rows = new List<string[]>();
+        var fields = new List<string>();
+        var sb = new StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < content.Length; i++)
+        {
+            var c = content[i];
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < content.Length && content[i + 1] == '"') { sb.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else sb.Append(c);
+            }
+            else if (c == '"') inQuotes = true;
+            else if (c == delimiter) { fields.Add(sb.ToString()); sb.Clear(); }
+            else if (c == '\r') { /* ignora; a quebra é tratada no \n */ }
+            else if (c == '\n') { fields.Add(sb.ToString()); sb.Clear(); rows.Add(fields.ToArray()); fields = new List<string>(); }
+            else sb.Append(c);
+        }
+        if (sb.Length > 0 || fields.Count > 0)
+        {
+            fields.Add(sb.ToString());
+            rows.Add(fields.ToArray());
+        }
+        return rows;
+    }
+
+    private static List<string[]> ReadXlsx(Stream stream)
+    {
+        var table = new List<string[]>();
+        using var wb = new XLWorkbook(stream);
+        var ws = wb.Worksheets.FirstOrDefault();
+        if (ws == null) return table;
+
+        var rowsUsed = ws.RowsUsed().ToList();
+        if (rowsUsed.Count == 0) return table;
+
+        var lastCol = rowsUsed[0].LastCellUsed()?.Address.ColumnNumber ?? 0;
+        foreach (var row in rowsUsed)
+        {
+            var arr = new string[lastCol];
+            for (var c = 1; c <= lastCol; c++)
+            {
+                arr[c - 1] = row.Cell(c).GetString().Trim();
+            }
+            table.Add(arr);
+        }
+        return table;
     }
 
     private static LeadDto ToDto(Lead lead, string? ownerName = null) => new()

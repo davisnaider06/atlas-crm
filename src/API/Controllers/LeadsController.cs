@@ -76,6 +76,36 @@ public sealed class LeadsController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(CancellationToken cancellationToken)
+    {
+        var bytes = await _leadService.ExportToExcelAsync(cancellationToken);
+        var fileName = $"leads-{DateTime.UtcNow:yyyy-MM-dd}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
+    [HttpPost("import")]
+    [Authorize(Policy = CrmPermissions.LeadsCreate)]
+    [RequestSizeLimit(20_000_000)] // ~20 MB
+    public async Task<ActionResult<LeadImportResultDto>> Import(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "Envie um arquivo .csv ou .xlsx." });
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await _leadService.ImportAsync(stream, file.FileName, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpDelete]
+    [Authorize(Policy = CrmPermissions.LeadsDelete)]
+    public async Task<ActionResult<LeadClearResultDto>> ClearAll(CancellationToken cancellationToken)
+    {
+        return Ok(await _leadService.ClearAllAsync(cancellationToken));
+    }
+
     [HttpGet("{id:long}/interacoes")]
     public async Task<ActionResult<IReadOnlyList<LeadInteractionDto>>> GetInteractions(long id, CancellationToken cancellationToken)
     {
