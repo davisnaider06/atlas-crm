@@ -87,12 +87,22 @@ export type Lead = {
   bantTimeline: BantLevel;
 };
 
+export type LeadImportAssignment = {
+  ownerUserId: number;
+  ownerName: string;
+  assigned: number;
+};
+
 export type LeadImportResult = {
   imported: number;
   skippedDuplicates: number;
   skippedEmpty: number;
   totalRows: number;
   errors: string[];
+  needsPhoneConfirmation: boolean;
+  phoneDuplicateCount: number;
+  phoneDuplicateSamples: string[];
+  distribution: LeadImportAssignment[];
 };
 
 export type LeadClearResult = {

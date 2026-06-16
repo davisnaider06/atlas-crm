@@ -1126,6 +1126,41 @@ select {
   font-size: 0.76rem;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.checkbox-row.compact {
+  font-size: 0.8rem;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-strong);
+  cursor: pointer;
+}
+
+.owner-pick {
+  display: grid;
+  gap: 6px;
+}
+
+.owner-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 4px 12px;
+}
+
+.warn-insight {
+  border-color: var(--warning, #b4801f);
+  background: rgba(180, 128, 31, 0.08);
+}
+
 .lead-metrics article {
   min-height: 80px;
   display: grid;

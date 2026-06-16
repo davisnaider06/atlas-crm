@@ -87,15 +87,28 @@ public sealed class LeadsController : ControllerBase
     [HttpPost("import")]
     [Authorize(Policy = CrmPermissions.LeadsCreate)]
     [RequestSizeLimit(20_000_000)] // ~20 MB
-    public async Task<ActionResult<LeadImportResultDto>> Import(IFormFile file, CancellationToken cancellationToken)
+    public async Task<ActionResult<LeadImportResultDto>> Import(
+        IFormFile file,
+        [FromForm] bool distribute = true,
+        [FromForm] string? ownerUserIds = null,
+        [FromForm] string phoneDuplicateMode = "ask",
+        CancellationToken cancellationToken = default)
     {
         if (file is null || file.Length == 0)
         {
             return BadRequest(new { error = "Envie um arquivo .csv ou .xlsx." });
         }
 
+        // ownerUserIds chega como lista separada por vírgula (ex: "3,5,8").
+        var owners = (ownerUserIds ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => long.TryParse(x, out var id) ? id : (long?)null)
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToList();
+
         await using var stream = file.OpenReadStream();
-        var result = await _leadService.ImportAsync(stream, file.FileName, cancellationToken);
+        var result = await _leadService.ImportAsync(stream, file.FileName, distribute, owners, phoneDuplicateMode, cancellationToken);
         return Ok(result);
     }
 

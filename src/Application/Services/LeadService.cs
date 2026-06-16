@@ -537,10 +537,17 @@ public sealed class LeadService : ILeadService
         return stream.ToArray();
     }
 
-    public async Task<LeadImportResultDto> ImportAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<LeadImportResultDto> ImportAsync(
+        Stream fileStream,
+        string fileName,
+        bool distribute,
+        IReadOnlyList<long>? ownerUserIds,
+        string phoneDuplicateMode,
+        CancellationToken cancellationToken = default)
     {
         var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
         var result = new LeadImportResultDto();
+        var mode = (phoneDuplicateMode ?? "ask").Trim().ToLowerInvariant();
 
         // Lê o arquivo inteiro para um buffer (ClosedXML precisa de stream seekable).
         using var buffer = new MemoryStream();
@@ -577,23 +584,24 @@ public sealed class LeadService : ILeadService
             throw new AppException("Não encontrei a coluna \"Nome\" no arquivo. Verifique o cabeçalho.", 400);
         }
 
-        // Conjuntos de duplicados: e-mails/telefones já existentes na base + os vistos no próprio arquivo.
+        // E-mails/telefones já existentes na base (e os vistos no próprio arquivo durante a leitura).
         var existing = await _dbContext.Leads.AsNoTracking()
             .Select(x => new { x.Email, x.Phone })
             .ToListAsync(cancellationToken);
-        var emailSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var phoneSet = new HashSet<string>();
+        var emailSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var phoneSeen = new HashSet<string>();
         foreach (var e in existing)
         {
-            if (!string.IsNullOrWhiteSpace(e.Email)) emailSet.Add(e.Email.Trim().ToLowerInvariant());
+            if (!string.IsNullOrWhiteSpace(e.Email)) emailSeen.Add(e.Email.Trim().ToLowerInvariant());
             var p = DigitsOnly(e.Phone);
-            if (p.Length > 0) phoneSet.Add(p);
+            if (p.Length > 0) phoneSeen.Add(p);
         }
 
         string Field(string[] row, string key) =>
             columnMap.TryGetValue(key, out var idx) && idx < row.Length ? row[idx].Trim() : "";
 
-        var toAdd = new List<Lead>();
+        // 1ª passada: monta os candidatos e marca quais têm telefone já cadastrado.
+        var candidates = new List<(Lead Lead, bool IsPhoneDuplicate)>();
         for (var i = 1; i < table.Count; i++)
         {
             var row = table[i];
@@ -617,13 +625,14 @@ public sealed class LeadService : ILeadService
                 var emailKey = email.ToLowerInvariant();
                 var phoneKey = DigitsOnly(phone);
 
-                var isDuplicate = (!string.IsNullOrWhiteSpace(emailKey) && emailSet.Contains(emailKey))
-                    || (phoneKey.Length > 0 && phoneSet.Contains(phoneKey));
-                if (isDuplicate)
+                // Email repetido (base ou já visto no arquivo): pulado sempre, em silêncio.
+                if (!string.IsNullOrWhiteSpace(emailKey) && emailSeen.Contains(emailKey))
                 {
                     result.SkippedDuplicates++;
                     continue;
                 }
+
+                var isPhoneDuplicate = phoneKey.Length > 0 && phoneSeen.Contains(phoneKey);
 
                 decimal? googleRating = null;
                 var ratingRaw = Field(row, "googleRating");
@@ -636,7 +645,7 @@ public sealed class LeadService : ILeadService
                 var source = Field(row, "source");
                 var channel = Field(row, "channel");
 
-                toAdd.Add(new Lead
+                var lead = new Lead
                 {
                     CompanyId = user.CompanyId,
                     Name = name,
@@ -644,7 +653,7 @@ public sealed class LeadService : ILeadService
                     Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                     Source = string.IsNullOrWhiteSpace(source) ? (string.IsNullOrWhiteSpace(channel) ? "Importação" : channel) : source,
                     Status = LeadStatus.MessageSent,
-                    OwnerUserId = user.UserId,
+                    OwnerUserId = user.UserId, // padrão; pode ser sobrescrito pela distribuição
                     Channel = string.IsNullOrWhiteSpace(channel) ? null : channel,
                     CompanyName = NullIfEmpty(Field(row, "company")),
                     ContactHandle = NullIfEmpty(Field(row, "instagram")),
@@ -653,11 +662,13 @@ public sealed class LeadService : ILeadService
                     GoogleRating = googleRating,
                     Observations = NullIfEmpty(Field(row, "observations")),
                     // FunnelStage = Mapped (default) — todo lead importado entra na etapa 1.
-                });
+                };
 
-                if (!string.IsNullOrWhiteSpace(emailKey)) emailSet.Add(emailKey);
-                if (phoneKey.Length > 0) phoneSet.Add(phoneKey);
-                result.Imported++;
+                candidates.Add((lead, isPhoneDuplicate));
+
+                // Marca como visto para detectar repetição dentro do próprio arquivo.
+                if (!string.IsNullOrWhiteSpace(emailKey)) emailSeen.Add(emailKey);
+                if (phoneKey.Length > 0) phoneSeen.Add(phoneKey);
             }
             catch (Exception ex)
             {
@@ -668,17 +679,120 @@ public sealed class LeadService : ILeadService
             }
         }
 
-        if (toAdd.Count > 0)
+        var phoneDuplicates = candidates.Where(x => x.IsPhoneDuplicate).ToList();
+
+        // Modo "ask": havendo telefone repetido, não grava nada e devolve para o front confirmar.
+        if (mode == "ask" && phoneDuplicates.Count > 0)
         {
-            _dbContext.Leads.AddRange(toAdd);
+            result.NeedsPhoneConfirmation = true;
+            result.PhoneDuplicateCount = phoneDuplicates.Count;
+            result.PhoneDuplicateSamples = phoneDuplicates
+                .Take(10)
+                .Select(x => $"{x.Lead.Name} · {x.Lead.Phone}")
+                .ToList();
+            return result;
+        }
+
+        // Define o conjunto final conforme o modo escolhido.
+        List<Lead> toCreate;
+        if (mode == "skip")
+        {
+            result.SkippedDuplicates += phoneDuplicates.Count;
+            toCreate = candidates.Where(x => !x.IsPhoneDuplicate).Select(x => x.Lead).ToList();
+        }
+        else // "import" (ou "ask" quando não há telefone repetido)
+        {
+            toCreate = candidates.Select(x => x.Lead).ToList();
+        }
+
+        // Distribuição entre vendedores (equilibrando a carga).
+        if (distribute && toCreate.Count > 0)
+        {
+            await DistributeAmongOwnersAsync(toCreate, ownerUserIds, user.CompanyId, result, cancellationToken);
+        }
+
+        if (toCreate.Count > 0)
+        {
+            _dbContext.Leads.AddRange(toCreate);
             await _dbContext.SaveChangesAsync(cancellationToken);
             await _eventLogService.LogAsync(
                 EventLogType.LeadCreated,
-                new { Imported = toAdd.Count, Source = "Import" },
+                new { Imported = toCreate.Count, Source = "Import", Distributed = distribute },
                 cancellationToken: cancellationToken);
         }
 
+        result.Imported = toCreate.Count;
         return result;
+    }
+
+    // Divide os leads recém-criados entre os vendedores elegíveis. Cada lead vai para o vendedor
+    // com o MENOR total atual (leads em aberto + já recebidos nesta importação), nivelando a carga.
+    private async Task DistributeAmongOwnersAsync(
+        List<Lead> leads,
+        IReadOnlyList<long>? requestedOwnerIds,
+        long companyId,
+        LeadImportResultDto result,
+        CancellationToken cancellationToken)
+    {
+        var eligibleQuery = _dbContext.Users.AsNoTracking()
+            .Where(u => u.IsActive && u.CompanyId == companyId);
+
+        if (requestedOwnerIds is { Count: > 0 })
+        {
+            var requested = requestedOwnerIds.ToList();
+            eligibleQuery = eligibleQuery.Where(u => requested.Contains(u.Id));
+        }
+        else
+        {
+            // Padrão: apenas vendedores (papel Sales) ativos.
+            eligibleQuery = eligibleQuery.Where(u => u.Role == UserRole.Sales);
+        }
+
+        var eligible = await eligibleQuery
+            .OrderBy(u => u.Id)
+            .Select(u => new { u.Id, u.Name })
+            .ToListAsync(cancellationToken);
+
+        if (eligible.Count == 0)
+        {
+            // Sem vendedores elegíveis: mantém o dono padrão (quem importou).
+            return;
+        }
+
+        var ids = eligible.Select(e => e.Id).ToArray();
+        var names = eligible.Select(e => e.Name).ToArray();
+
+        // Carga atual = leads em aberto (etapa != Fechado) já atribuídos a cada vendedor.
+        var openCounts = await _dbContext.Leads.AsNoTracking()
+            .Where(l => l.FunnelStage != FunnelStage.Closed && l.OwnerUserId != null && ids.Contains(l.OwnerUserId!.Value))
+            .GroupBy(l => l.OwnerUserId!.Value)
+            .Select(g => new { OwnerUserId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        var countMap = openCounts.ToDictionary(x => x.OwnerUserId, x => x.Count);
+
+        var totals = ids.Select(id => countMap.GetValueOrDefault(id, 0)).ToArray();
+        var assigned = new int[ids.Length];
+
+        foreach (var lead in leads)
+        {
+            var best = 0;
+            for (var k = 1; k < ids.Length; k++)
+            {
+                if (totals[k] < totals[best] || (totals[k] == totals[best] && ids[k] < ids[best]))
+                {
+                    best = k;
+                }
+            }
+            lead.OwnerUserId = ids[best];
+            totals[best]++;
+            assigned[best]++;
+        }
+
+        result.Distribution = Enumerable.Range(0, ids.Length)
+            .Where(k => assigned[k] > 0)
+            .OrderByDescending(k => assigned[k])
+            .Select(k => new LeadImportAssignmentDto { OwnerUserId = ids[k], OwnerName = names[k], Assigned = assigned[k] })
+            .ToList();
     }
 
     public async Task<LeadClearResultDto> ClearAllAsync(CancellationToken cancellationToken = default)

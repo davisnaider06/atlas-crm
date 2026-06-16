@@ -336,9 +336,22 @@ export const api = {
     }
     return response.blob();
   },
-  importLeads: (token: string, file: File) => {
+  importLeads: (
+    token: string,
+    file: File,
+    options?: {
+      distribute?: boolean;
+      ownerUserIds?: number[];
+      phoneDuplicateMode?: "ask" | "import" | "skip";
+    },
+  ) => {
     const formData = new FormData();
     formData.append("file", file);
+    if (options?.distribute !== undefined) formData.append("distribute", String(options.distribute));
+    if (options?.ownerUserIds && options.ownerUserIds.length > 0) {
+      formData.append("ownerUserIds", options.ownerUserIds.join(","));
+    }
+    if (options?.phoneDuplicateMode) formData.append("phoneDuplicateMode", options.phoneDuplicateMode);
     return request<LeadImportResult>("/leads/import", {
       method: "POST",
       token,

@@ -98,6 +98,9 @@ export default function LeadsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<LeadImportResult | null>(null);
   const [exporting, setExporting] = useState(false);
+  // Distribuição automática entre vendedores na importação
+  const [distributeLeads, setDistributeLeads] = useState(true);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<number[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [conversionForm, setConversionForm] = useState({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
   // Fechamento (etapa 7): desfecho + valor de contrato / motivo de perda
@@ -567,17 +570,41 @@ export default function LeadsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = async () => {
+  // Vendedores (papel Sales) que entram no rodízio de distribuição.
+  const salesOwners = useMemo(() => owners.filter((o) => o.role === "Sales"), [owners]);
+
+  const openImportModal = () => {
+    setImportResult(null);
+    setImportFile(null);
+    setDistributeLeads(true);
+    setSelectedOwnerIds(salesOwners.map((o) => o.id));
+    setImportModalOpen(true);
+  };
+
+  const handleImport = async (phoneDuplicateMode: "ask" | "import" | "skip" = "ask") => {
     if (!token || !importFile) return;
     setImporting(true);
-    setImportResult(null);
+    if (phoneDuplicateMode === "ask") setImportResult(null);
     try {
-      const result = await api.importLeads(token, importFile);
+      const result = await api.importLeads(token, importFile, {
+        distribute: distributeLeads,
+        ownerUserIds: distributeLeads ? selectedOwnerIds : undefined,
+        phoneDuplicateMode,
+      });
       setImportResult(result);
+
+      // Modo "ask" detectou telefone repetido: espera a decisão do usuário, nada foi gravado.
+      if (result.needsPhoneConfirmation) {
+        return;
+      }
+
       await load();
+      const distMsg = result.distribution.length > 0
+        ? ` Distribuídos: ${result.distribution.map((d) => `${d.ownerName} +${d.assigned}`).join(", ")}.`
+        : "";
       notify({
         type: result.imported > 0 ? "success" : "info",
-        message: `${result.imported} lead(s) importado(s), ${result.skippedDuplicates} duplicado(s) ignorado(s).`,
+        message: `${result.imported} lead(s) importado(s), ${result.skippedDuplicates} duplicado(s) ignorado(s).${distMsg}`,
         title: "Importação concluída",
       });
     } catch (err) {
@@ -587,6 +614,12 @@ export default function LeadsPage() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const toggleOwnerSelected = (id: number) => {
+    setSelectedOwnerIds((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
   };
 
   const handleClearAll = async () => {
@@ -786,7 +819,7 @@ export default function LeadsPage() {
               {exporting ? "Exportando..." : "Exportar Excel"}
             </button>
             {canCreate ? (
-              <button type="button" className="ghost-button" onClick={() => { setImportResult(null); setImportFile(null); setImportModalOpen(true); }}>
+              <button type="button" className="ghost-button" onClick={openImportModal}>
                 Importar leads
               </button>
             ) : null}
@@ -1097,7 +1130,7 @@ export default function LeadsPage() {
             <div className="card-header">
               <div>
                 <h3>Importar leads</h3>
-                <p>Envie um arquivo CSV ou Excel (.xlsx). Duplicados (mesmo email/telefone) são ignorados.</p>
+                <p>CSV ou Excel (.xlsx). Email repetido é ignorado; telefone repetido pede confirmação.</p>
               </div>
               <button type="button" className="table-action" onClick={() => setImportModalOpen(false)}>
                 Fechar
@@ -1119,7 +1152,47 @@ export default function LeadsPage() {
                 </button>
               </p>
 
-              {importResult ? (
+              <label className="checkbox-row">
+                <input type="checkbox" checked={distributeLeads} onChange={(e) => setDistributeLeads(e.target.checked)} />
+                <span>Distribuir automaticamente entre vendedores</span>
+              </label>
+              {distributeLeads ? (
+                salesOwners.length > 0 ? (
+                  <div className="owner-pick">
+                    <p className="muted-mini">Vendedores que vão receber os leads (carga equilibrada):</p>
+                    <div className="owner-pick-grid">
+                      {salesOwners.map((o) => (
+                        <label key={o.id} className="checkbox-row compact">
+                          <input type="checkbox" checked={selectedOwnerIds.includes(o.id)} onChange={() => toggleOwnerSelected(o.id)} />
+                          <span>{o.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedOwnerIds.length === 0 ? (
+                      <p className="form-error">Selecione ao menos um vendedor (ou desligue a distribuição).</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="muted-mini">Nenhum vendedor (perfil Sales) ativo — os leads ficarão com você.</p>
+                )
+              ) : null}
+
+              {importResult?.needsPhoneConfirmation ? (
+                <div className="compact-insight warn-insight">
+                  <span>⚠️ {importResult.phoneDuplicateCount} lead(s) com telefone já cadastrado</span>
+                  <ul className="import-errors">
+                    {importResult.phoneDuplicateSamples.map((s, idx) => (
+                      <li key={idx}>{s}</li>
+                    ))}
+                    {importResult.phoneDuplicateCount > importResult.phoneDuplicateSamples.length ? (
+                      <li>e mais {importResult.phoneDuplicateCount - importResult.phoneDuplicateSamples.length}…</li>
+                    ) : null}
+                  </ul>
+                  <p className="muted-mini">Deseja importar mesmo assim?</p>
+                </div>
+              ) : null}
+
+              {importResult && !importResult.needsPhoneConfirmation ? (
                 <div className="compact-insight">
                   <span>Resultado da importação</span>
                   <div className="checklist-grid">
@@ -1128,6 +1201,18 @@ export default function LeadsPage() {
                     <div className="checklist-item"><em className="checklist-icon warn">!</em><span>{importResult.skippedEmpty} sem nome ignorado(s)</span></div>
                     <div className="checklist-item"><em className="checklist-icon">·</em><span>{importResult.totalRows} linha(s) lida(s)</span></div>
                   </div>
+                  {importResult.distribution.length > 0 ? (
+                    <div className="owner-pick">
+                      <p className="muted-mini">Distribuição por vendedor:</p>
+                      <div className="checklist-grid">
+                        {importResult.distribution.map((d) => (
+                          <div key={d.ownerUserId} className="checklist-item">
+                            <em className="checklist-icon ok">→</em><span>{d.ownerName}: +{d.assigned}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   {importResult.errors.length > 0 ? (
                     <ul className="import-errors">
                       {importResult.errors.slice(0, 10).map((msg, idx) => (
@@ -1138,14 +1223,33 @@ export default function LeadsPage() {
                 </div>
               ) : null}
 
-              <div className="modal-actions">
-                <button type="button" className="ghost-button" onClick={() => setImportModalOpen(false)}>
-                  {importResult ? "Fechar" : "Cancelar"}
-                </button>
-                <button type="button" className="primary-button" onClick={() => void handleImport()} disabled={importing || !importFile}>
-                  {importing ? "Importando..." : "Importar"}
-                </button>
-              </div>
+              {importResult?.needsPhoneConfirmation ? (
+                <div className="modal-actions">
+                  <button type="button" className="ghost-button" onClick={() => setImportResult(null)}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="ghost-button" onClick={() => void handleImport("skip")} disabled={importing}>
+                    Pular os repetidos
+                  </button>
+                  <button type="button" className="primary-button" onClick={() => void handleImport("import")} disabled={importing}>
+                    {importing ? "Importando..." : "Importar mesmo assim"}
+                  </button>
+                </div>
+              ) : (
+                <div className="modal-actions">
+                  <button type="button" className="ghost-button" onClick={() => setImportModalOpen(false)}>
+                    {importResult ? "Fechar" : "Cancelar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => void handleImport("ask")}
+                    disabled={importing || !importFile || (distributeLeads && salesOwners.length > 0 && selectedOwnerIds.length === 0)}
+                  >
+                    {importing ? "Importando..." : "Importar"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
