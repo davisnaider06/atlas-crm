@@ -644,23 +644,28 @@ public sealed class LeadService : ILeadService
 
                 var source = Field(row, "source");
                 var channel = Field(row, "channel");
+                var sourceValue = !string.IsNullOrWhiteSpace(source) ? source
+                    : !string.IsNullOrWhiteSpace(channel) ? channel
+                    : "Importação";
 
+                // Trunca cada campo ao limite da coluna (planilhas de scrape têm valores longos
+                // que estourariam o varchar e derrubariam o batch inteiro).
                 var lead = new Lead
                 {
                     CompanyId = user.CompanyId,
-                    Name = name,
-                    Email = string.IsNullOrWhiteSpace(email) ? null : email,
-                    Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
-                    Source = string.IsNullOrWhiteSpace(source) ? (string.IsNullOrWhiteSpace(channel) ? "Importação" : channel) : source,
+                    Name = Clip(name, 140)!,
+                    Email = Clip(email, 180),
+                    Phone = Clip(phone, 40),
+                    Source = Clip(sourceValue, 100) ?? "Importação",
                     Status = LeadStatus.MessageSent,
                     OwnerUserId = user.UserId, // padrão; pode ser sobrescrito pela distribuição
-                    Channel = string.IsNullOrWhiteSpace(channel) ? null : channel,
-                    CompanyName = NullIfEmpty(Field(row, "company")),
-                    ContactHandle = NullIfEmpty(Field(row, "instagram")),
-                    InstagramHandle = NullIfEmpty(Field(row, "instagram")),
-                    City = NullIfEmpty(Field(row, "city")),
+                    Channel = Clip(channel, 40),
+                    CompanyName = Clip(Field(row, "company"), 180),
+                    ContactHandle = Clip(Field(row, "instagram"), 140),
+                    InstagramHandle = Clip(Field(row, "instagram"), 140),
+                    City = Clip(Field(row, "city"), 120),
                     GoogleRating = googleRating,
-                    Observations = NullIfEmpty(Field(row, "observations")),
+                    Observations = Clip(Field(row, "observations"), 2000),
                     // FunnelStage = Mapped (default) — todo lead importado entra na etapa 1.
                 };
 
@@ -714,7 +719,16 @@ public sealed class LeadService : ILeadService
         if (toCreate.Count > 0)
         {
             _dbContext.Leads.AddRange(toCreate);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                // Expõe a causa real do banco (a mensagem do EF esconde na inner exception).
+                var detail = ex.GetBaseException().Message;
+                throw new AppException($"Erro ao salvar os leads importados: {detail}", 400);
+            }
             await _eventLogService.LogAsync(
                 EventLogType.LeadCreated,
                 new { Imported = toCreate.Count, Source = "Import", Distributed = distribute },
@@ -828,7 +842,13 @@ public sealed class LeadService : ILeadService
         };
     }
 
-    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    // Normaliza para null se vazio e trunca ao tamanho máximo da coluna.
+    private static string? Clip(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim();
+        return v.Length <= maxLength ? v : v[..maxLength];
+    }
 
     private static string DigitsOnly(string? value) =>
         string.IsNullOrEmpty(value) ? "" : new string(value.Where(char.IsDigit).ToArray());

@@ -1130,7 +1130,7 @@ export default function LeadsPage() {
             <div className="card-header">
               <div>
                 <h3>Importar leads</h3>
-                <p>CSV ou Excel (.xlsx). Email repetido é ignorado; telefone repetido pede confirmação.</p>
+                <p>CSV ou Excel (.xlsx). Email repetido é ignorado; telefone repetido (na base ou no próprio arquivo) pede confirmação.</p>
               </div>
               <button type="button" className="table-action" onClick={() => setImportModalOpen(false)}>
                 Fechar
@@ -1179,7 +1179,7 @@ export default function LeadsPage() {
 
               {importResult?.needsPhoneConfirmation ? (
                 <div className="compact-insight warn-insight">
-                  <span>⚠️ {importResult.phoneDuplicateCount} lead(s) com telefone já cadastrado</span>
+                  <span>⚠️ {importResult.phoneDuplicateCount} lead(s) com telefone repetido</span>
                   <ul className="import-errors">
                     {importResult.phoneDuplicateSamples.map((s, idx) => (
                       <li key={idx}>{s}</li>
