@@ -228,6 +228,30 @@ export const api = {
     if (params?.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
     return request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
   },
+  // Busca TODOS os leads paginando no servidor (o funil mostra a base inteira, não só 1 página).
+  getAllLeads: async (
+    token: string,
+    params?: { search?: string; source?: string; status?: string; ownerUserId?: number },
+  ): Promise<PagedResult<Lead>> => {
+    const pageSize = 500;
+    const all: Lead[] = [];
+    let page = 1;
+    let totalCount = 0;
+    // Limite de segurança para nunca entrar em loop infinito (até 50k leads).
+    for (let guard = 0; guard < 100; guard++) {
+      const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (params?.search) query.set("search", params.search);
+      if (params?.source) query.set("source", params.source);
+      if (params?.status) query.set("status", params.status);
+      if (params?.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+      const res = await request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
+      all.push(...res.items);
+      totalCount = res.totalCount;
+      if (res.items.length === 0 || all.length >= res.totalCount) break;
+      page += 1;
+    }
+    return { items: all, page: 1, pageSize: all.length, totalCount };
+  },
   getLeadOwners: (token: string) => request<LeadOwner[]>("/leads/vendedores", { token }),
   createLead: (
     token: string,

@@ -23,7 +23,7 @@ import {
 import type { ChatMessage, Conversation, CustomFieldDef, FunnelStage, LeadImportResult, LeadInteraction, Script } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
-import type { HistoryItem, Lead, LeadOwner, PagedResult, Pipeline } from "@/lib/types";
+import type { HistoryItem, Lead, LeadOwner, Pipeline } from "@/lib/types";
 
 const PROPOSAL_STAGE_ORDER = 6; // valor_proposta editável a partir de "Proposta enviada"
 
@@ -332,10 +332,10 @@ export default function LeadsPage() {
     setError(null);
     try {
       const [response, ownerResponse] = await Promise.all([
-        api.getLeads(token, {
+        api.getAllLeads(token, {
           search: search || undefined,
           ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
-        }) as Promise<PagedResult<Lead>>,
+        }),
         api.getLeadOwners(token),
       ]);
       setLeads(response.items);

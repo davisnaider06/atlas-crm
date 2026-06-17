@@ -31,7 +31,7 @@ public sealed class LeadsController : ControllerBase
         [FromQuery] long? ownerUserId = null,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 100), search, source, status, ownerUserId, cancellationToken));
+        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 500), search, source, status, ownerUserId, cancellationToken));
     }
 
     [HttpGet("vendedores")]
