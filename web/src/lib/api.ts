@@ -17,6 +17,8 @@ import type {
   LeadImportResult,
   LeadInteraction,
   LeadOwner,
+  PerformanceOverview,
+  SellerPerformance,
   PagedResult,
   Script,
   PermissionCatalogItem,
@@ -386,6 +388,16 @@ export const api = {
     request<LeadClearResult>("/leads", {
       method: "DELETE",
       token,
+    }),
+
+  // Desempenho / metas
+  getPerformanceOverview: (token: string) => request<PerformanceOverview>("/desempenho", { token }),
+  getMyPerformance: (token: string) => request<SellerPerformance>("/desempenho/me", { token }),
+  setSalesGoal: (token: string, userId: number, payload: { revenueTarget: number; meetingsTarget: number }) =>
+    request<SellerPerformance>(`/desempenho/metas/${userId}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify(payload),
     }),
   getCustomers: (token: string, params?: { search?: string }) => {
     const query = new URLSearchParams({ page: "1", pageSize: "50" });

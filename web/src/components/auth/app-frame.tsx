@@ -30,6 +30,7 @@ import {
   MenuIcon,
   XIcon,
   ChatIcon,
+  TrendUpIcon,
 } from "@/components/ui/icons";
 
 type NavItem = {
@@ -61,6 +62,7 @@ const navGroups: NavGroup[] = [
       { href: "/pipeline",  label: "Pipeline",   Icon: PipelineIcon,  permission: permissions.dealsView },
       { href: "/atividades",label: "Atividades", Icon: ActivitiesIcon,permission: permissions.activitiesView },
       { href: "/agenda",    label: "Agenda",     Icon: CalendarIcon,  permission: permissions.schedulesView },
+      { href: "/desempenho",label: "Desempenho", Icon: TrendUpIcon,   permission: permissions.leadsView },
     ],
   },
   {
@@ -81,6 +83,12 @@ const navGroups: NavGroup[] = [
 ];
 
 const allNavItems = navGroups.flatMap((g) => g.items);
+
+const roleLabels: Record<string, string> = {
+  Admin: "Administrador",
+  Manager: "Gerente",
+  Sales: "Vendedor",
+};
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -122,6 +130,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/agenda": {
     title: "Agenda",
     subtitle: "Visualize e gerencie compromissos, reuniões e tarefas do time.",
+  },
+  "/desempenho": {
+    title: "Desempenho",
+    subtitle: "Metas e resultados por vendedor — faturamento e reuniões agendadas no mês.",
   },
   "/whatsapp": {
     title: "Conectar WhatsApp",
@@ -333,7 +345,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
                   className="search-input"
                 />
               </form>
-              <span className="status-pill">{user.role}</span>
+              <span className="status-pill">{roleLabels[user.role] ?? user.role}</span>
             </div>
           </header>
 

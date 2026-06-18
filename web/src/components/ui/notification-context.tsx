@@ -59,9 +59,9 @@ export function NotificationModal() {
         inset: 0,
         zIndex: 9999,
         display: "flex",
-        alignItems: "flex-end",
+        alignItems: "flex-start",
         justifyContent: "center",
-        padding: "0 20px 24px",
+        padding: "24px 20px 0",
         pointerEvents: "none",
       }}
     >
@@ -84,7 +84,7 @@ export function NotificationModal() {
       >
         <style>{`
           @keyframes toastIn {
-            from { opacity: 0; transform: translateY(16px) scale(0.96); }
+            from { opacity: 0; transform: translateY(-16px) scale(0.96); }
             to   { opacity: 1; transform: translateY(0) scale(1); }
           }
         `}</style>

@@ -188,6 +188,7 @@ public sealed class LeadService : ILeadService
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new AppException("Lead não encontrado.", 404);
+        EnsureCanEditLead(lead);
 
         lead.Name = request.Name.Trim();
         lead.Email = request.Email?.Trim();
@@ -230,6 +231,7 @@ public sealed class LeadService : ILeadService
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new AppException("Lead não encontrado.", 404);
+        EnsureCanEditLead(lead);
 
         var hasDeals = await _dbContext.Deals.AnyAsync(x => x.LeadId == id, cancellationToken);
         if (hasDeals)
@@ -249,6 +251,7 @@ public sealed class LeadService : ILeadService
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new AppException("Lead não encontrado.", 404);
+        EnsureCanEditLead(lead);
 
         var previousStage = lead.FunnelStage;
 
@@ -382,6 +385,7 @@ public sealed class LeadService : ILeadService
     {
         var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new AppException("Lead não encontrado.", 404);
+        EnsureCanEditLead(lead);
 
         var now = DateTime.UtcNow;
         lead.LastContactAtUtc = now;
@@ -437,6 +441,25 @@ public sealed class LeadService : ILeadService
             query = query.Where(x => x.OwnerUserId == _currentUser.User.UserId);
         }
         return query;
+    }
+
+    // Vendedor (Sales) só pode mexer em lead atribuído a ele; Admin/Gerente mexem em qualquer um.
+    private void EnsureCanEditLead(Lead lead)
+    {
+        var user = _currentUser.User;
+        if (user is not null && user.Role == UserRole.Sales && lead.OwnerUserId != user.UserId)
+        {
+            throw new AppException("Você só pode acessar leads atribuídos a você.", 403);
+        }
+    }
+
+    // Operações em massa (importar/distribuir/limpar) são exclusivas de Admin.
+    private void EnsureAdmin(string action)
+    {
+        if (_currentUser.User?.Role != UserRole.Admin)
+        {
+            throw new AppException($"Apenas administradores podem {action}.", 403);
+        }
     }
 
     private static readonly Dictionary<FunnelStage, string> StageLabels = new()
@@ -546,6 +569,7 @@ public sealed class LeadService : ILeadService
         CancellationToken cancellationToken = default)
     {
         var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
+        EnsureAdmin("importar e distribuir leads");
         var result = new LeadImportResultDto();
         var mode = (phoneDuplicateMode ?? "ask").Trim().ToLowerInvariant();
 
@@ -812,6 +836,7 @@ public sealed class LeadService : ILeadService
     public async Task<LeadClearResultDto> ClearAllAsync(CancellationToken cancellationToken = default)
     {
         _ = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
+        EnsureAdmin("limpar todos os leads");
 
         var leads = await _dbContext.Leads.ToListAsync(cancellationToken);
         if (leads.Count == 0)

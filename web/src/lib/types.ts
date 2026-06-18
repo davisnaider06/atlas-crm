@@ -110,6 +110,37 @@ export type LeadClearResult = {
   skippedWithDeals: number;
 };
 
+export type SellerPerformance = {
+  userId: number;
+  name: string;
+  role: string;
+  totalLeads: number;
+  openLeads: number;
+  won: number;
+  lost: number;
+  cold: number;
+  overdueFollowUps: number;
+  conversionRate: number;
+  avgTicket: number;
+  meetingsScheduledMonth: number;
+  revenueMonth: number;
+  revenueTotal: number;
+  revenueTarget: number;
+  meetingsTarget: number;
+  revenueProgressPct: number;
+  meetingsProgressPct: number;
+};
+
+export type PerformanceOverview = {
+  year: number;
+  month: number;
+  sellers: SellerPerformance[];
+  teamRevenueMonth: number;
+  teamMeetingsMonth: number;
+  teamRevenueTarget: number;
+  teamMeetingsTarget: number;
+};
+
 export type Conversation = {
   id: number;
   contactPhone: string;

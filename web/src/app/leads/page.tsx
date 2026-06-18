@@ -322,6 +322,10 @@ export default function LeadsPage() {
   const canEdit = hasPermission(user, permissions.leadsEdit);
   const canDelete = hasPermission(user, permissions.leadsDelete);
   const canCreateCustomer = hasPermission(user, permissions.customersCreate);
+  // Operações em massa (importar/distribuir/limpar) são exclusivas de Admin.
+  const isAdmin = user?.role === "Admin";
+  // Admin/Gerente enxergam a base toda e a distribuição por vendedor; vendedor vê só os dele.
+  const isManagerial = user?.role === "Admin" || user?.role === "Manager";
 
   const load = useCallback(async () => {
     if (!token) {
@@ -741,19 +745,27 @@ export default function LeadsPage() {
   const handleConvertToCustomer = async () => {
     if (!token || !selectedLead) return;
 
+    // Todo lead convertido precisa virar um negócio com valor (alimenta a meta do vendedor).
+    if (!conversionForm.dealValue || Number(conversionForm.dealValue) <= 0) {
+      notify({ type: "error", message: "Informe o valor do negócio — todo lead convertido precisa ter um valor.", title: "Valor obrigatório" });
+      return;
+    }
+    if (!conversionForm.pipelineId || !conversionForm.stageId) {
+      notify({ type: "error", message: "Selecione o pipeline e o estágio para criar o negócio.", title: "Campo obrigatório" });
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
       await api.convertLeadToCustomer(token, selectedLead.id);
 
-      if (conversionForm.dealValue && conversionForm.stageId) {
-        await api.createDeal(token, {
-          leadId: selectedLead.id,
-          stageId: Number(conversionForm.stageId),
-          value: Number(conversionForm.dealValue),
-          ownerUserId: selectedLead.ownerUserId ?? undefined,
-        });
-      }
+      await api.createDeal(token, {
+        leadId: selectedLead.id,
+        stageId: Number(conversionForm.stageId),
+        value: Number(conversionForm.dealValue),
+        ownerUserId: selectedLead.ownerUserId ?? undefined,
+      });
 
       setConvertModalOpen(false);
       setConversionForm({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
@@ -818,12 +830,12 @@ export default function LeadsPage() {
             <button type="button" className="ghost-button" onClick={() => void handleExport()} disabled={exporting}>
               {exporting ? "Exportando..." : "Exportar Excel"}
             </button>
-            {canCreate ? (
+            {isAdmin ? (
               <button type="button" className="ghost-button" onClick={openImportModal}>
                 Importar leads
               </button>
             ) : null}
-            {canDelete ? (
+            {isAdmin ? (
               <button type="button" className="ghost-button danger" onClick={() => void handleClearAll()} disabled={submitting}>
                 Limpar todos
               </button>
@@ -842,45 +854,49 @@ export default function LeadsPage() {
           <span>Buscar</span>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, email ou telefone" />
         </label>
-        <label className="field compact">
-          <span>Vendedor</span>
-          <Select
-            value={ownerFilter}
-            onChange={setOwnerFilter}
-            options={[
-              { value: "", label: "Todos" },
-              ...owners.map((owner) => ({ value: String(owner.id), label: owner.name })),
-            ]}
-          />
-        </label>
+        {isManagerial ? (
+          <label className="field compact">
+            <span>Vendedor</span>
+            <Select
+              value={ownerFilter}
+              onChange={setOwnerFilter}
+              options={[
+                { value: "", label: "Todos" },
+                ...owners.map((owner) => ({ value: String(owner.id), label: owner.name })),
+              ]}
+            />
+          </label>
+        ) : null}
         <button type="button" className="ghost-button" onClick={() => void load()}>
           Aplicar filtros
         </button>
       </section>
 
-      <section className="table-card">
-        <div className="card-header">
-          <div>
-            <h3>Leads por vendedor</h3>
-            <p>Acompanhe a distribuição dos leads entre os responsáveis comerciais.</p>
+      {isManagerial ? (
+        <section className="table-card">
+          <div className="card-header">
+            <div>
+              <h3>Leads por vendedor</h3>
+              <p>Acompanhe a distribuição dos leads entre os responsáveis comerciais.</p>
+            </div>
+            <span className="tag">{owners.length} vendedores</span>
           </div>
-          <span className="tag">{owners.length} vendedores</span>
-        </div>
-        <div className="lead-metrics">
-          {ownerMetrics.map((owner) => (
-            <article key={owner.id}>
-              <span>{owner.name}</span>
-              <strong>{ownerFilter ? owner.visibleLeadCount : owner.leadCount}</strong>
-            </article>
-          ))}
-          {ownerMetrics.length === 0 ? (
-            <article>
-              <span>Sem vendedores</span>
-              <strong>0</strong>
-            </article>
-          ) : null}
-        </div>
-      </section>
+          <div className="lead-metrics">
+            {ownerMetrics.map((owner) => (
+              <article key={owner.id}>
+                <span>{owner.name}</span>
+                <strong>{ownerFilter ? owner.visibleLeadCount : owner.leadCount}</strong>
+              </article>
+            ))}
+            {ownerMetrics.length === 0 ? (
+              <article>
+                <span>Sem vendedores</span>
+                <strong>0</strong>
+              </article>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="table-card lead-kanban-section">
         <div className="card-header">
@@ -1365,20 +1381,22 @@ export default function LeadsPage() {
               </label>
 
               <div className="convert-section">
-                <p className="convert-section-title">Criar negócio ao converter (opcional)</p>
+                <p className="convert-section-title">Negócio gerado (obrigatório)</p>
                 <label className="field">
-                  <span>Valor estimado (R$)</span>
+                  <span>Valor do negócio (R$) *</span>
                   <input
                     type="number"
                     min="0"
                     step="100"
-                    placeholder="0"
+                    placeholder="Obrigatório"
                     value={conversionForm.dealValue}
                     onChange={(e) => setConversionForm((f) => ({ ...f, dealValue: e.target.value }))}
+                    required
                   />
+                  <small className="muted-mini">Esse valor conta na meta de faturamento do vendedor.</small>
                 </label>
                 <label className="field">
-                  <span>Pipeline</span>
+                  <span>Pipeline *</span>
                   <Select
                     value={conversionForm.pipelineId}
                     onChange={(value) => setConversionForm((f) => ({ ...f, pipelineId: value, stageId: "" }))}
@@ -1388,7 +1406,7 @@ export default function LeadsPage() {
                 </label>
                 {conversionForm.pipelineId ? (
                   <label className="field">
-                    <span>Estágio inicial</span>
+                    <span>Estágio inicial *</span>
                     <Select
                       value={conversionForm.stageId}
                       onChange={(value) => setConversionForm((f) => ({ ...f, stageId: value }))}
@@ -1405,7 +1423,12 @@ export default function LeadsPage() {
                 <button type="button" className="ghost-button" onClick={() => setConvertModalOpen(false)}>
                   Cancelar
                 </button>
-                <button type="button" className="primary-button" onClick={() => void handleConvertToCustomer()} disabled={submitting}>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void handleConvertToCustomer()}
+                  disabled={submitting || !conversionForm.dealValue || Number(conversionForm.dealValue) <= 0 || !conversionForm.stageId}
+                >
                   {submitting ? "Convertendo..." : "Converter em cliente"}
                 </button>
               </div>
