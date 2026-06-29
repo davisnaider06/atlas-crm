@@ -32,6 +32,7 @@ public sealed class LeadService : ILeadService
         string? source = null,
         string? status = null,
         long? ownerUserId = null,
+        string? leadType = null,
         CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Leads.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).AsQueryable();
@@ -66,6 +67,11 @@ public sealed class LeadService : ILeadService
             query = query.Where(x => x.OwnerUserId == ownerUserId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(leadType) && Enum.TryParse<LeadType>(leadType, true, out var parsedType))
+        {
+            query = query.Where(x => x.LeadType == parsedType);
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .Skip((page - 1) * pageSize)
@@ -78,6 +84,7 @@ public sealed class LeadService : ILeadService
                 Phone = x.Phone,
                 Source = x.Source,
                 Status = x.Status,
+                LeadType = x.LeadType,
                 QualificationTemperature = x.QualificationTemperature,
                 QualificationScore = x.QualificationScore,
                 QualificationNotes = x.QualificationNotes,
@@ -153,6 +160,7 @@ public sealed class LeadService : ILeadService
             Phone = request.Phone?.Trim(),
             Source = request.Source.Trim(),
             Status = request.Status,
+            LeadType = request.LeadType,
             QualificationTemperature = request.QualificationTemperature,
             QualificationScore = Math.Clamp(request.QualificationScore, 0, 100),
             QualificationNotes = request.QualificationNotes?.Trim(),
@@ -195,6 +203,7 @@ public sealed class LeadService : ILeadService
         lead.Phone = request.Phone?.Trim();
         lead.Source = request.Source.Trim();
         lead.Status = request.Status;
+        lead.LeadType = request.LeadType;
         lead.QualificationTemperature = request.QualificationTemperature;
         lead.QualificationScore = Math.Clamp(request.QualificationScore, 0, 100);
         lead.QualificationNotes = request.QualificationNotes?.Trim();
@@ -566,6 +575,7 @@ public sealed class LeadService : ILeadService
         bool distribute,
         IReadOnlyList<long>? ownerUserIds,
         string phoneDuplicateMode,
+        LeadType leadType,
         CancellationToken cancellationToken = default)
     {
         var user = _currentUser.User ?? throw new AppException("Usuário não autenticado.", 401);
@@ -682,6 +692,7 @@ public sealed class LeadService : ILeadService
                     Phone = Clip(phone, 40),
                     Source = Clip(sourceValue, 100) ?? "Importação",
                     Status = LeadStatus.MessageSent,
+                    LeadType = leadType,
                     OwnerUserId = user.UserId, // padrão; pode ser sobrescrito pela distribuição
                     Channel = Clip(channel, 40),
                     CompanyName = Clip(Field(row, "company"), 180),
@@ -982,6 +993,7 @@ public sealed class LeadService : ILeadService
         Phone = lead.Phone,
         Source = lead.Source,
         Status = lead.Status,
+        LeadType = lead.LeadType,
         QualificationTemperature = lead.QualificationTemperature,
         QualificationScore = lead.QualificationScore,
         QualificationNotes = lead.QualificationNotes,

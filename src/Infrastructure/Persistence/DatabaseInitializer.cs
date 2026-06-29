@@ -105,6 +105,10 @@ public static class DatabaseInitializer
             CREATE INDEX IF NOT EXISTS ix_leads_company_funnel_stage ON leads (company_id, funnel_stage);
             CREATE INDEX IF NOT EXISTS ix_leads_company_next_follow_up_at_utc ON leads (company_id, next_follow_up_at_utc);
 
+            -- Divisão Inbound (tráfego pago) x Outbound (cold call). Leads existentes = Inbound (1).
+            ALTER TABLE leads ADD COLUMN IF NOT EXISTS lead_type INTEGER NOT NULL DEFAULT 1;
+            CREATE INDEX IF NOT EXISTS ix_leads_company_lead_type ON leads (company_id, lead_type);
+
             -- Controle de migrações de dados executadas uma única vez
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 name VARCHAR(120) PRIMARY KEY,

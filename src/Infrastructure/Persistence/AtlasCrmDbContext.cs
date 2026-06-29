@@ -87,6 +87,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.Property(x => x.Phone).HasMaxLength(40);
             entity.Property(x => x.Source).HasMaxLength(100);
             entity.Property(x => x.QualificationScore).HasDefaultValue(0);
+            entity.Property(x => x.LeadType).HasDefaultValue(LeadType.Inbound);
             entity.Property(x => x.QualificationTemperature).HasDefaultValue(LeadTemperature.Cold);
             entity.Property(x => x.QualificationNotes).HasMaxLength(500);
             // Processo comercial Atlas (funil de 7 etapas)
@@ -111,6 +112,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(x => new { x.CompanyId, x.QualificationTemperature });
             entity.HasIndex(x => new { x.CompanyId, x.FunnelStage });
             entity.HasIndex(x => new { x.CompanyId, x.NextFollowUpAtUtc });
+            entity.HasIndex(x => new { x.CompanyId, x.LeadType });
             entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
         });
 

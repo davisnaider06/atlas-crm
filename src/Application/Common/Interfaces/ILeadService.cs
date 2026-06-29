@@ -12,6 +12,7 @@ public interface ILeadService
         string? source = null,
         string? status = null,
         long? ownerUserId = null,
+        string? leadType = null,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<LeadOwnerDto>> GetOwnersAsync(CancellationToken cancellationToken = default);
     Task<LeadDto> CreateAsync(CreateLeadRequest request, CancellationToken cancellationToken = default);
@@ -36,6 +37,7 @@ public interface ILeadService
         bool distribute,
         IReadOnlyList<long>? ownerUserIds,
         string phoneDuplicateMode,
+        Domain.Enums.LeadType leadType,
         CancellationToken cancellationToken = default);
 
     /// <summary>Apaga todos os leads da empresa (exceto os que têm negócios vinculados).</summary>

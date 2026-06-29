@@ -1117,6 +1117,43 @@ select {
   gap: 8px;
 }
 
+/* Abas Inbound / Outbound */
+.lead-type-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--panel-soft, var(--panel));
+  width: fit-content;
+  max-width: 100%;
+}
+.lead-type-tab {
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  padding: 8px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 10px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--duration-fast, 140ms), color var(--duration-fast, 140ms);
+}
+.lead-type-tab strong { font-size: 0.95rem; }
+.lead-type-tab small { font-size: 0.7rem; opacity: 0.8; }
+.lead-type-tab:hover:not(.active) { color: var(--accent-strong); }
+.lead-type-tab.active {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+
+@media (max-width: 560px) {
+  .lead-type-tabs { width: 100%; }
+  .lead-type-tab { flex: 1; text-align: center; justify-items: center; }
+}
+
 .import-errors {
   margin: 8px 0 0;
   padding-left: 18px;

@@ -9,6 +9,7 @@ public sealed class UpdateLeadRequest
     public string? Phone { get; set; }
     public string Source { get; set; } = string.Empty;
     public LeadStatus Status { get; set; } = LeadStatus.New;
+    public LeadType LeadType { get; set; } = LeadType.Inbound;
     public LeadTemperature QualificationTemperature { get; set; } = LeadTemperature.Cold;
     public int QualificationScore { get; set; }
     public string? QualificationNotes { get; set; }

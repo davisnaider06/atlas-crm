@@ -29,9 +29,10 @@ public sealed class LeadsController : ControllerBase
         [FromQuery] string? source = null,
         [FromQuery] string? status = null,
         [FromQuery] long? ownerUserId = null,
+        [FromQuery] string? leadType = null,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 500), search, source, status, ownerUserId, cancellationToken));
+        return Ok(await _leadService.GetPagedAsync(page, Math.Clamp(pageSize, 1, 500), search, source, status, ownerUserId, leadType, cancellationToken));
     }
 
     [HttpGet("vendedores")]
@@ -92,6 +93,7 @@ public sealed class LeadsController : ControllerBase
         [FromForm] bool distribute = true,
         [FromForm] string? ownerUserIds = null,
         [FromForm] string phoneDuplicateMode = "ask",
+        [FromForm] string leadType = "Inbound",
         CancellationToken cancellationToken = default)
     {
         if (file is null || file.Length == 0)
@@ -107,8 +109,12 @@ public sealed class LeadsController : ControllerBase
             .Select(x => x!.Value)
             .ToList();
 
+        var parsedType = Enum.TryParse<AtlasCRM.Domain.Enums.LeadType>(leadType, true, out var t)
+            ? t
+            : AtlasCRM.Domain.Enums.LeadType.Inbound;
+
         await using var stream = file.OpenReadStream();
-        var result = await _leadService.ImportAsync(stream, file.FileName, distribute, owners, phoneDuplicateMode, cancellationToken);
+        var result = await _leadService.ImportAsync(stream, file.FileName, distribute, owners, phoneDuplicateMode, parsedType, cancellationToken);
         return Ok(result);
     }
 

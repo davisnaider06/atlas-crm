@@ -11,6 +11,8 @@ import { mergeCustomFieldValues, readCustomFieldValues } from "@/lib/custom-fiel
 import {
   FUNNEL_STAGE_OPTIONS,
   FUNNEL_STAGE_LABELS,
+  LEAD_TYPE_OPTIONS,
+  stageLabelFor,
   CHANNEL_OPTIONS,
   LOSS_REASON_OPTIONS,
   LOSS_REASON_LABELS,
@@ -20,6 +22,7 @@ import {
   INTERACTION_OUTCOME_OPTIONS,
   INTERACTION_OUTCOME_LABELS,
 } from "@/lib/constants";
+import type { LeadTypeValue } from "@/lib/constants";
 import type { ChatMessage, Conversation, CustomFieldDef, FunnelStage, LeadImportResult, LeadInteraction, Script } from "@/lib/types";
 import { hasPermission, permissions } from "@/lib/permissions";
 import { useNotification } from "@/components/ui/notification-context";
@@ -101,6 +104,7 @@ export default function LeadsPage() {
   // Distribuição automática entre vendedores na importação
   const [distributeLeads, setDistributeLeads] = useState(true);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<number[]>([]);
+  const [importLeadType, setImportLeadType] = useState<LeadTypeValue>("Inbound");
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [conversionForm, setConversionForm] = useState({ reason: "", dealValue: "", pipelineId: "", stageId: "" });
   // Fechamento (etapa 7): desfecho + valor de contrato / motivo de perda
@@ -109,6 +113,8 @@ export default function LeadsPage() {
   const { notify } = useNotification();
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
+  // Frente ativa do CRM: Inbound (tráfego pago) ou Outbound (cold call).
+  const [leadTypeTab, setLeadTypeTab] = useState<LeadTypeValue>("Inbound");
   const [dragLeadId, setDragLeadId] = useState<number | null>(null);
   const [dropStage, setDropStage] = useState<string | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
@@ -146,6 +152,7 @@ export default function LeadsPage() {
       email: selectedLead?.email ?? "",
       phone: selectedLead?.phone ?? "",
       source: selectedLead?.source ?? "",
+      leadType: (selectedLead?.leadType ?? "Inbound") as LeadTypeValue,
       channel: selectedLead?.channel ?? "",
       companyName: selectedLead?.companyName ?? "",
       contactHandle: selectedLead?.contactHandle ?? "",
@@ -339,6 +346,7 @@ export default function LeadsPage() {
         api.getAllLeads(token, {
           search: search || undefined,
           ownerUserId: ownerFilter ? Number(ownerFilter) : undefined,
+          leadType: leadTypeTab,
         }),
         api.getLeadOwners(token),
       ]);
@@ -353,7 +361,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, search, ownerFilter, notify]);
+  }, [token, search, ownerFilter, leadTypeTab, notify]);
 
   useEffect(() => {
     void load();
@@ -381,6 +389,7 @@ export default function LeadsPage() {
         phone: form.phone || undefined,
         source: form.source || form.channel || "Outro",
         status: 6,
+        leadType: leadTypeTab,
         channel: form.channel || undefined,
         companyName: form.companyName || undefined,
         contactHandle: form.contactHandle || undefined,
@@ -423,6 +432,7 @@ export default function LeadsPage() {
         phone: editState.phone || undefined,
         source: editState.source || editState.channel || "Outro",
         status: 6,
+        leadType: editState.leadType,
         ownerUserId: selectedLead.ownerUserId ?? null,
         channel: editState.channel || undefined,
         companyName: editState.companyName || undefined,
@@ -582,6 +592,7 @@ export default function LeadsPage() {
     setImportFile(null);
     setDistributeLeads(true);
     setSelectedOwnerIds(salesOwners.map((o) => o.id));
+    setImportLeadType(leadTypeTab);
     setImportModalOpen(true);
   };
 
@@ -594,6 +605,7 @@ export default function LeadsPage() {
         distribute: distributeLeads,
         ownerUserIds: distributeLeads ? selectedOwnerIds : undefined,
         phoneDuplicateMode,
+        leadType: importLeadType,
       });
       setImportResult(result);
 
@@ -666,7 +678,7 @@ export default function LeadsPage() {
     try {
       await api.moveLeadStage(token, lead.id, { funnelStage: stageValue });
       await load();
-      notify({ type: "success", message: `Lead movido para "${FUNNEL_STAGE_LABELS[stageValue]}".`, title: "Etapa atualizada" });
+      notify({ type: "success", message: `Lead movido para "${stageLabelFor(stageValue, leadTypeTab)}".`, title: "Etapa atualizada" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao mover lead.";
       notify({ type: "error", message, title: "Erro ao mover lead" });
@@ -798,10 +810,30 @@ export default function LeadsPage() {
 
   return (
     <div className="page-grid">
+      <div className="lead-type-tabs" role="tablist">
+        {LEAD_TYPE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            role="tab"
+            aria-selected={leadTypeTab === opt.value}
+            className={`lead-type-tab${leadTypeTab === opt.value ? " active" : ""}`}
+            onClick={() => setLeadTypeTab(opt.value)}
+          >
+            <strong>{opt.label}</strong>
+            <small>{opt.value === "Inbound" ? "Tráfego pago" : "Cold call"}</small>
+          </button>
+        ))}
+      </div>
+
       <section className="lead-command-card">
         <div>
-          <p className="eyebrow">Funil comercial</p>
-          <h2>Sete etapas, do lead mapeado ao contrato fechado.</h2>
+          <p className="eyebrow">Funil comercial · {leadTypeTab === "Inbound" ? "Inbound" : "Outbound"}</p>
+          <h2>
+            {leadTypeTab === "Inbound"
+              ? "Sete etapas, do lead mapeado ao contrato fechado."
+              : "Cold call: da lista ao contrato fechado."}
+          </h2>
         </div>
         <div className="lead-command-actions">
           <div className="lead-metrics">
@@ -935,7 +967,7 @@ export default function LeadsPage() {
               <header>
                 <div>
                   <span className={`status-dot ${stageTones[column.value] ?? "orange"}`} />
-                  <strong>{column.order}. {column.label}</strong>
+                  <strong>{column.order}. {stageLabelFor(column.value, leadTypeTab)}</strong>
                 </div>
                 <small>{column.items.length}</small>
               </header>
@@ -979,7 +1011,7 @@ export default function LeadsPage() {
                       <Select
                         value={lead.funnelStage}
                         onChange={(value) => void handleMoveStage(lead, value)}
-                        options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${option.label}` }))}
+                        options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${stageLabelFor(option.value, leadTypeTab)}` }))}
                         disabled={submitting || !canEdit}
                       />
                     </div>
@@ -1026,7 +1058,7 @@ export default function LeadsPage() {
                   <td>{lead.channel ?? lead.source}</td>
                   <td>
                     <span className={`tag ${stageTones[lead.funnelStage] ?? "muted"}`}>
-                      {FUNNEL_STAGE_LABELS[lead.funnelStage] ?? lead.funnelStage}
+                      {stageLabelFor(lead.funnelStage, lead.leadType)}
                     </span>
                   </td>
                   <td>{lead.nextFollowUpAtUtc ? formatDate(lead.nextFollowUpAtUtc) : "-"}</td>
@@ -1159,6 +1191,14 @@ export default function LeadsPage() {
                   type="file"
                   accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }}
+                />
+              </label>
+              <label className="field">
+                <span>Frente</span>
+                <Select
+                  value={importLeadType}
+                  onChange={(value) => setImportLeadType(value as LeadTypeValue)}
+                  options={LEAD_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.value === "Inbound" ? "Inbound (tráfego pago)" : "Outbound (cold call)" }))}
                 />
               </label>
               <p className="muted-mini">
@@ -1445,7 +1485,7 @@ export default function LeadsPage() {
                 <h3>Detalhes do lead</h3>
                 <p>
                   Etapa atual:{" "}
-                  <strong>{FUNNEL_STAGE_LABELS[selectedLead.funnelStage] ?? selectedLead.funnelStage}</strong>
+                  <strong>{stageLabelFor(selectedLead.funnelStage, selectedLead.leadType)}</strong>
                   {selectedLead.outcome === "Won" ? " · Fechado" : ""}
                   {selectedLead.outcome === "Lost" ? ` · Perdido (${LOSS_REASON_LABELS[selectedLead.lossReason] ?? ""})` : ""}
                   {selectedLead.isCold ? " · Frio" : ""}
@@ -1462,7 +1502,7 @@ export default function LeadsPage() {
                 <Select
                   value={selectedLead.funnelStage}
                   onChange={(value) => void handleMoveStage(selectedLead, value)}
-                  options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${option.label}` }))}
+                  options={FUNNEL_STAGE_OPTIONS.map((option) => ({ value: option.value, label: `${option.order}. ${stageLabelFor(option.value, selectedLead.leadType)}` }))}
                   disabled={submitting || !canEdit}
                 />
               </label>
@@ -1503,15 +1543,26 @@ export default function LeadsPage() {
                   <span>Empresa / nicho</span>
                   <input value={editState.companyName} onChange={(event) => setEditState((current) => ({ ...current, companyName: event.target.value }))} />
                 </label>
-                <label className="field">
-                  <span>Canal</span>
-                  <Select
-                    value={editState.channel}
-                    onChange={(value) => setEditState((current) => ({ ...current, channel: value }))}
-                    placeholder="Selecione o canal"
-                    options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
-                  />
-                </label>
+                <div className="two-column">
+                  <label className="field">
+                    <span>Canal</span>
+                    <Select
+                      value={editState.channel}
+                      onChange={(value) => setEditState((current) => ({ ...current, channel: value }))}
+                      placeholder="Selecione o canal"
+                      options={CHANNEL_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Frente</span>
+                    <Select
+                      value={editState.leadType}
+                      onChange={(value) => setEditState((current) => ({ ...current, leadType: value as LeadTypeValue }))}
+                      disabled={!canEdit}
+                      options={LEAD_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    />
+                  </label>
+                </div>
                 <div className="two-column">
                   <label className="field">
                     <span>Instagram</span>

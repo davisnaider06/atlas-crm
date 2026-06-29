@@ -13,6 +13,27 @@ export const FUNNEL_STAGE_LABELS: Record<string, string> = Object.fromEntries(
   FUNNEL_STAGE_OPTIONS.map((s) => [s.value, s.label]),
 );
 
+// --- Divisão do CRM: Inbound (tráfego pago) x Outbound (cold call) ---
+export const LEAD_TYPE_OPTIONS = [
+  { value: "Inbound", label: "Inbound" },
+  { value: "Outbound", label: "Outbound" },
+] as const;
+
+export type LeadTypeValue = (typeof LEAD_TYPE_OPTIONS)[number]["value"];
+
+// No outbound, as 3 primeiras etapas têm rótulo de cold call; as demais são iguais.
+export const OUTBOUND_STAGE_LABELS: Record<string, string> = {
+  Mapped: "Lista",
+  Prospected: "Em cadência",
+  Replied: "Conectado",
+};
+
+// Rótulo da etapa conforme o tipo do lead.
+export function stageLabelFor(stage: string, leadType: LeadTypeValue): string {
+  if (leadType === "Outbound" && OUTBOUND_STAGE_LABELS[stage]) return OUTBOUND_STAGE_LABELS[stage];
+  return FUNNEL_STAGE_LABELS[stage] ?? stage;
+}
+
 export const CHANNEL_OPTIONS = [
   { value: "Instagram", label: "Instagram" },
   { value: "WhatsApp", label: "WhatsApp" },

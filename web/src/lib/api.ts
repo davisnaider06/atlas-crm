@@ -221,19 +221,20 @@ export const api = {
     request<Dashboard>(`/dashboard${period ? `?period=${encodeURIComponent(period)}` : ""}`, { token }),
   getLeads: (
     token: string,
-    params?: { search?: string; source?: string; status?: string; ownerUserId?: number },
+    params?: { search?: string; source?: string; status?: string; ownerUserId?: number; leadType?: string },
   ) => {
     const query = new URLSearchParams({ page: "1", pageSize: "50" });
     if (params?.search) query.set("search", params.search);
     if (params?.source) query.set("source", params.source);
     if (params?.status) query.set("status", params.status);
     if (params?.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+    if (params?.leadType) query.set("leadType", params.leadType);
     return request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
   },
   // Busca TODOS os leads paginando no servidor (o funil mostra a base inteira, não só 1 página).
   getAllLeads: async (
     token: string,
-    params?: { search?: string; source?: string; status?: string; ownerUserId?: number },
+    params?: { search?: string; source?: string; status?: string; ownerUserId?: number; leadType?: string },
   ): Promise<PagedResult<Lead>> => {
     const pageSize = 500;
     const all: Lead[] = [];
@@ -246,6 +247,7 @@ export const api = {
       if (params?.source) query.set("source", params.source);
       if (params?.status) query.set("status", params.status);
       if (params?.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+      if (params?.leadType) query.set("leadType", params.leadType);
       const res = await request<PagedResult<Lead>>(`/leads?${query.toString()}`, { token });
       all.push(...res.items);
       totalCount = res.totalCount;
@@ -263,6 +265,7 @@ export const api = {
       phone?: string;
       source: string;
       status: number;
+      leadType?: string;
       qualificationTemperature?: number;
       qualificationScore?: number;
       qualificationNotes?: string | null;
@@ -295,6 +298,7 @@ export const api = {
       phone?: string;
       source: string;
       status: number;
+      leadType?: string;
       qualificationTemperature?: number;
       qualificationScore?: number;
       qualificationNotes?: string | null;
@@ -369,6 +373,7 @@ export const api = {
       distribute?: boolean;
       ownerUserIds?: number[];
       phoneDuplicateMode?: "ask" | "import" | "skip";
+      leadType?: string;
     },
   ) => {
     const formData = new FormData();
@@ -378,6 +383,7 @@ export const api = {
       formData.append("ownerUserIds", options.ownerUserIds.join(","));
     }
     if (options?.phoneDuplicateMode) formData.append("phoneDuplicateMode", options.phoneDuplicateMode);
+    if (options?.leadType) formData.append("leadType", options.leadType);
     return request<LeadImportResult>("/leads/import", {
       method: "POST",
       token,
