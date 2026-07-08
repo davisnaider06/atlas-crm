@@ -41,6 +41,7 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
     public DbSet<Script> Scripts => Set<Script>();
     public DbSet<LeadInteraction> LeadInteractions => Set<LeadInteraction>();
     public DbSet<SalesGoal> SalesGoals => Set<SalesGoal>();
+    public DbSet<SdrGoal> SdrGoals => Set<SdrGoal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -198,6 +199,18 @@ public sealed class AtlasCrmDbContext : DbContext, IApplicationDbContext
         {
             entity.ToTable("sales_goals");
             entity.Property(x => x.RevenueTarget).HasColumnType("numeric(18,2)");
+            entity.HasIndex(x => new { x.CompanyId, x.UserId }).IsUnique();
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(x => !TenantFilterEnabled || x.CompanyId == TenantCompanyId);
+        });
+
+        modelBuilder.Entity<SdrGoal>(entity =>
+        {
+            entity.ToTable("sdr_goals");
+            entity.Property(x => x.MonthlyTarget).HasColumnType("numeric(18,2)");
             entity.HasIndex(x => new { x.CompanyId, x.UserId }).IsUnique();
             entity.HasOne(x => x.User)
                 .WithMany()

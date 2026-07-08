@@ -15,6 +15,7 @@ function ClerkAuthPanel({ mode }: { mode: AuthMode }) {
   const { adoptSession } = useAuth();
   const { isLoaded, isSignedIn, getToken } = useClerkAuth();
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const exchanging = useRef(false);
 
   useEffect(() => {
@@ -23,25 +24,67 @@ function ClerkAuthPanel({ mode }: { mode: AuthMode }) {
     if (window.localStorage.getItem(CLERK_SIGNOUT_FLAG) === "1") return;
 
     exchanging.current = true;
+    let cancelled = false;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
     void (async () => {
-      try {
-        const clerkToken = await getToken();
-        if (!clerkToken) throw new Error("Sessão do Clerk indisponível.");
-        const response = await api.clerkLogin(clerkToken);
-        adoptSession(response);
-        router.replace("/dashboard");
-      } catch (err) {
-        exchanging.current = false;
-        setError(err instanceof Error ? err.message : "Falha ao autenticar com o servidor.");
+      // Logo após o sign-in a sessão do Clerk pode não estar totalmente
+      // hidratada (getToken null / clock skew), fazendo a 1ª troca falhar.
+      // Antes isso travava até um reload manual — agora tentamos algumas
+      // vezes com backoff antes de mostrar erro.
+      const MAX_ATTEMPTS = 4;
+      let lastError: unknown = null;
+
+      for (let i = 0; i < MAX_ATTEMPTS && !cancelled; i += 1) {
+        if (i > 0) await sleep(300 * i); // 0, 300, 600, 900ms
+        if (cancelled) return;
+        try {
+          const clerkToken = await getToken();
+          if (!clerkToken) {
+            lastError = new Error("Sessão do Clerk indisponível.");
+            continue;
+          }
+          const response = await api.clerkLogin(clerkToken);
+          if (cancelled) return;
+          adoptSession(response);
+          router.replace("/dashboard");
+          return;
+        } catch (err) {
+          lastError = err;
+        }
       }
+
+      if (cancelled) return;
+      exchanging.current = false;
+      setError(
+        lastError instanceof Error ? lastError.message : "Falha ao autenticar com o servidor.",
+      );
     })();
-  }, [isLoaded, isSignedIn, getToken, adoptSession, router]);
+
+    return () => {
+      cancelled = true;
+      // Libera o guard para que um novo disparo do effect (ex.: getToken mudou
+      // de identidade) possa retomar a troca em vez de ficar travado.
+      exchanging.current = false;
+    };
+  }, [isLoaded, isSignedIn, getToken, adoptSession, router, attempt]);
+
+  const retry = () => {
+    setError(null);
+    exchanging.current = false;
+    setAttempt((n) => n + 1);
+  };
 
   if (isSignedIn) {
     return (
       <div className="login-syncing">
         {error ? (
-          <p className="form-error">{error}</p>
+          <>
+            <p className="form-error">{error}</p>
+            <button type="button" className="primary-button login-submit" onClick={retry}>
+              Tentar novamente
+            </button>
+          </>
         ) : (
           <p>Preparando seu workspace...</p>
         )}

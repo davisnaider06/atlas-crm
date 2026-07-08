@@ -378,6 +378,32 @@ export type TeamMember = {
   createdAtUtc: string;
 };
 
+export type SdrGoal = {
+  userId: number;
+  userName: string;
+  monthlyTarget: number;
+  achieved: number;
+  remaining: number;
+  progressPct: number;
+  wonDeals: number;
+};
+
+export type DailyTask = {
+  id: string;
+  type: "overdue_followup" | "today_followup" | "no_contact" | "hot_no_next" | string;
+  title: string;
+  priority: "high" | "normal" | string;
+  leadId?: number | null;
+  leadName?: string | null;
+  dueAtUtc?: string | null;
+};
+
+export type DailyBriefing = {
+  goal: SdrGoal;
+  tasks: DailyTask[];
+  monthLabel: string;
+};
+
 export type PermissionCatalogItem = {
   key: string;
   label: string;

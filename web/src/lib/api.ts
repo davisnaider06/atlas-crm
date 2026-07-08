@@ -8,6 +8,7 @@ import type {
   CustomFieldDef,
   Dashboard,
   Customer,
+  DailyBriefing,
   FinanceEntry,
   Deal,
   DocumentItem,
@@ -24,6 +25,7 @@ import type {
   PermissionCatalogItem,
   Pipeline,
   RegisterPayload,
+  SdrGoal,
   TeamMember,
   WhatsAppCampaignRecipient,
   WhatsAppCampaignResult,
@@ -741,6 +743,16 @@ export const api = {
     request<void>(`/agenda/${id}`, {
       method: "DELETE",
       token,
+    }),
+
+  // Metas e tarefas diárias dos SDRs
+  getMyBriefing: (token: string) => request<DailyBriefing>("/metas/me", { token }),
+  getTeamGoals: (token: string) => request<SdrGoal[]>("/metas", { token }),
+  setSdrGoal: (token: string, userId: number, monthlyTarget: number) =>
+    request<SdrGoal>(`/metas/${userId}`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ monthlyTarget }),
     }),
 };
 

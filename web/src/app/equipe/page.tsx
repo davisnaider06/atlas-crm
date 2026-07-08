@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, formatDate } from "@/lib/api";
+import { api, formatCurrency, formatDate } from "@/lib/api";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
 import { useNotification } from "@/components/ui/notification-context";
 import { permissions } from "@/lib/permissions";
-import type { PermissionCatalogItem, TeamMember, UserRole } from "@/lib/types";
+import type { PermissionCatalogItem, SdrGoal, TeamMember, UserRole } from "@/lib/types";
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: "Admin", label: "Administrador" },
@@ -77,6 +77,9 @@ export default function TeamPage() {
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalogItem[]>([]);
+  const [goals, setGoals] = useState<SdrGoal[]>([]);
+  const [goalDrafts, setGoalDrafts] = useState<Record<number, string>>({});
+  const [savingGoal, setSavingGoal] = useState<number | null>(null);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -88,12 +91,20 @@ export default function TeamPage() {
     setLoading(true);
     setError(null);
     try {
-      const [memberRes, catalogRes] = await Promise.all([
+      const [memberRes, catalogRes, goalsRes] = await Promise.all([
         api.getTeamMembers(token),
         api.getPermissionCatalog(token),
+        api.getTeamGoals(token),
       ]);
       setMembers(memberRes);
       setCatalog(catalogRes);
+      setGoals(goalsRes);
+      setGoalDrafts(
+        goalsRes.reduce<Record<number, string>>((acc, g) => {
+          acc[g.userId] = String(g.monthlyTarget);
+          return acc;
+        }, {}),
+      );
       setSelectedMember((cur) => cur ? memberRes.find((m) => m.id === cur.id) ?? null : null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao carregar equipe.";
@@ -177,6 +188,27 @@ export default function TeamPage() {
       notify({ type: "error", message: msg, title: "Erro ao salvar membro" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveGoal = async (userId: number) => {
+    if (!token) return;
+    const raw = (goalDrafts[userId] ?? "").replace(/\./g, "").replace(",", ".");
+    const target = Number(raw);
+    if (!Number.isFinite(target) || target < 0) {
+      notify({ type: "error", message: "Informe um valor de meta válido.", title: "Meta inválida" });
+      return;
+    }
+    setSavingGoal(userId);
+    try {
+      const updated = await api.setSdrGoal(token, userId, target);
+      setGoals((cur) => cur.map((g) => (g.userId === userId ? updated : g)));
+      notify({ type: "success", message: "Meta atualizada.", title: "Sucesso" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar meta.";
+      notify({ type: "error", message: msg, title: "Erro ao salvar meta" });
+    } finally {
+      setSavingGoal(null);
     }
   };
 
@@ -326,6 +358,72 @@ export default function TeamPage() {
             {submitting ? "Salvando..." : selectedMember ? "Salvar membro" : "Cadastrar membro"}
           </button>
         </form>
+      </section>
+
+      <section className="table-card">
+        <div className="card-header">
+          <div>
+            <h3>Metas mensais dos SDRs</h3>
+            <p>Meta padrão de R$ 20.000/mês. O progresso vem dos contratos fechados no mês.</p>
+          </div>
+        </div>
+
+        <table className="table">
+          <thead>
+            <tr>
+              <th>SDR</th>
+              <th>Progresso</th>
+              <th>Fechado no mês</th>
+              <th>Meta (R$)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {goals.map((g) => {
+              const pct = Math.min(100, Math.max(0, g.progressPct));
+              return (
+                <tr key={g.userId}>
+                  <td>{g.userName}</td>
+                  <td style={{ minWidth: 160 }}>
+                    <div className="briefing-progress" style={{ marginBottom: 4 }}>
+                      <div
+                        className={`briefing-progress-fill${pct >= 100 ? " complete" : ""}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="muted-mini">{g.progressPct.toFixed(0)}% · {g.wonDeals} fechado(s)</span>
+                  </td>
+                  <td>{formatCurrency(g.achieved)}</td>
+                  <td>
+                    <input
+                      className="goal-input"
+                      inputMode="numeric"
+                      value={goalDrafts[g.userId] ?? ""}
+                      onChange={(e) =>
+                        setGoalDrafts((cur) => ({ ...cur, [g.userId]: e.target.value }))
+                      }
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="ghost-button small"
+                      onClick={() => void handleSaveGoal(g.userId)}
+                      disabled={savingGoal === g.userId}
+                    >
+                      {savingGoal === g.userId ? "..." : "Salvar"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {goals.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="muted-mini">Nenhum SDR ativo encontrado.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
       </section>
     </div>
   );

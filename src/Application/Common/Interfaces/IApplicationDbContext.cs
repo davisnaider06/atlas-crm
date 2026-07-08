@@ -28,6 +28,7 @@ public interface IApplicationDbContext
     DbSet<Script> Scripts { get; }
     DbSet<LeadInteraction> LeadInteractions { get; }
     DbSet<SalesGoal> SalesGoals { get; }
+    DbSet<SdrGoal> SdrGoals { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

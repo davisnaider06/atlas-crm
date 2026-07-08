@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useTheme } from "@/components/theme/theme-provider";
+import { DailyBriefingModal } from "@/components/ui/daily-briefing-modal";
 import { hasPermission, permissions } from "@/lib/permissions";
 import {
   DashboardIcon,
@@ -352,6 +353,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <main className="content">{children}</main>
         </div>
       </div>
+      <DailyBriefingModal />
     </div>
   );
 }
