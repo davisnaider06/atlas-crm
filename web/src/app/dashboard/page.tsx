@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
+import { useCachedResource } from "@/lib/data-cache";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { BarChart } from "@/components/ui/charts";
@@ -25,60 +26,47 @@ const PERIOD_TREND_LABEL: Record<string, string> = {
 export default function DashboardPage() {
   const { token } = useAuth();
   const { notify } = useNotification();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activePeriod, setActivePeriod] = useState("30d");
-  // Mantém o período atual acessível dentro de load() sem recriá-lo a cada troca.
-  const periodRef = useRef(activePeriod);
-  periodRef.current = activePeriod;
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [dashboardData, leadsData, activitiesData] = await Promise.all([
-        api.getDashboard(token, periodRef.current),
-        api.getLeads(token),
-        api.getActivities(token),
-      ]);
-      setDashboard(dashboardData);
-      setLeads((leadsData as PagedResult<Lead>).items);
-      setActivities((activitiesData as PagedResult<Activity>).items);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao carregar dashboard.";
-      setError(msg);
-      notify({ type: "error", title: "Erro ao carregar dashboard", message: msg });
-    } finally {
-      setLoading(false);
-    }
-  }, [token, notify]);
+  // Cache SWR: ao voltar para o dashboard os dados aparecem na hora e só
+  // revalidam em segundo plano — sem spinner a cada troca de aba.
+  const dashboardRes = useCachedResource(
+    token ? `dashboard:${activePeriod}` : null,
+    () => api.getDashboard(token as string, activePeriod),
+    { enabled: !!token },
+  );
+  const leadsRes = useCachedResource(
+    token ? "dashboard:leads" : null,
+    () => api.getLeads(token as string) as Promise<PagedResult<Lead>>,
+    { enabled: !!token },
+  );
+  const activitiesRes = useCachedResource(
+    token ? "dashboard:activities" : null,
+    () => api.getActivities(token as string) as Promise<PagedResult<Activity>>,
+    { enabled: !!token },
+  );
+  const briefingRes = useCachedResource(
+    token ? "dashboard:my-goal" : null,
+    () => api.getMyBriefing(token as string),
+    { enabled: !!token },
+  );
 
-  useEffect(() => { void load(); }, [load]);
+  const dashboard = dashboardRes.data ?? null;
+  const leads = useMemo(() => leadsRes.data?.items ?? [], [leadsRes.data]);
+  const activities = useMemo(() => activitiesRes.data?.items ?? [], [activitiesRes.data]);
+  const loading = dashboardRes.loading || leadsRes.loading || activitiesRes.loading;
+  const error = dashboardRes.error || leadsRes.error || activitiesRes.error;
 
-  // Troca de período: refaz só o dashboard (sem recarregar tudo nem piscar a tela).
-  const periodInitialized = useRef(false);
+  const load = useCallback(() => {
+    void dashboardRes.reload();
+    void leadsRes.reload();
+    void activitiesRes.reload();
+  }, [dashboardRes.reload, leadsRes.reload, activitiesRes.reload]);
+
+  // Notifica falhas de carregamento (mantém o comportamento anterior).
   useEffect(() => {
-    if (!token) return;
-    if (!periodInitialized.current) {
-      periodInitialized.current = true; // o load() inicial já buscou com o período padrão
-      return;
-    }
-    let cancelled = false;
-    void api
-      .getDashboard(token, activePeriod)
-      .then((d) => !cancelled && setDashboard(d))
-      .catch((err) => {
-        const msg = err instanceof Error ? err.message : "Erro ao atualizar período.";
-        notify({ type: "error", title: "Erro ao atualizar período", message: msg });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activePeriod, token, notify]);
+    if (error) notify({ type: "error", title: "Erro ao carregar dashboard", message: error });
+  }, [error, notify]);
 
   const sourceMix = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -107,6 +95,8 @@ export default function DashboardPage() {
   const maxSource = Math.max(...sourceMix.map((s) => s.value), 1);
   const trend = dashboard.periodTrend ?? [];
   const periodNewLeadsLabel = PERIOD_NEW_LEADS_LABEL[activePeriod] ?? "no período";
+  const myGoal = briefingRes.data?.goal ?? null;
+  const goalPct = myGoal ? Math.min(100, Math.max(0, myGoal.progressPct)) : 0;
 
   return (
     <div className="dashboard-grid">
@@ -153,6 +143,37 @@ export default function DashboardPage() {
           <small>{completionRate}% concluídas no período</small>
         </article>
       </section>
+
+      {/* Minha meta mensal */}
+      {myGoal ? (
+        <section className="dashboard-panel wide goal-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Minha meta do mês</h3>
+              <p>Progresso puxado dos contratos fechados no mês.</p>
+            </div>
+            <span className="status-pill">{myGoal.progressPct.toFixed(0)}%</span>
+          </div>
+          <div className="goal-panel-values">
+            <strong>{formatCurrency(myGoal.achieved)}</strong>
+            <span className="muted-mini">de {formatCurrency(myGoal.monthlyTarget)}</span>
+          </div>
+          <div className="briefing-progress">
+            <div
+              className={`briefing-progress-fill${goalPct >= 100 ? " complete" : ""}`}
+              style={{ width: `${goalPct}%` }}
+            />
+          </div>
+          <div className="goal-panel-foot">
+            <span>{myGoal.wonDeals} contrato(s) fechado(s)</span>
+            <span>
+              {myGoal.remaining > 0
+                ? `Faltam ${formatCurrency(myGoal.remaining)}`
+                : "🎉 Meta batida!"}
+            </span>
+          </div>
+        </section>
+      ) : null}
 
       {/* Métricas do processo comercial (automáticas) */}
       <section className="dashboard-panel wide">

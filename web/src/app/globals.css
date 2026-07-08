@@ -3834,3 +3834,69 @@ body.mobile-nav-locked { overflow: hidden; }
   from { opacity: 0.6; transform: translateY(40px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ---------- Briefing diário (meta + tarefas) ---------- */
+.briefing-panel { max-width: 460px; width: 100%; }
+.briefing-panel .modal-body { display: flex; flex-direction: column; gap: 22px; }
+
+.briefing-goal { display: flex; flex-direction: column; gap: 10px; }
+.briefing-goal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.briefing-goal-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.briefing-goal-values { font-size: 1.15rem; }
+.briefing-goal-values .muted-mini { font-size: 0.85rem; color: var(--muted); }
+
+.briefing-progress {
+  height: 12px; border-radius: 999px; overflow: hidden;
+  background: var(--panel-muted); border: 1px solid var(--border);
+}
+.briefing-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.briefing-progress-fill.complete {
+  background: linear-gradient(135deg, var(--success), var(--success));
+}
+.briefing-goal-foot {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 0.82rem; color: var(--muted);
+}
+
+.briefing-tasks { display: flex; flex-direction: column; gap: 12px; }
+.briefing-tasks-head { display: flex; align-items: center; justify-content: space-between; }
+.briefing-empty { font-size: 0.9rem; color: var(--muted); margin: 4px 0; }
+
+.briefing-task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.briefing-task {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 12px; text-align: left; cursor: pointer;
+  background: var(--panel-soft); border: 1px solid var(--border);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.briefing-task:hover { background: var(--panel-hover); transform: translateX(2px); }
+.briefing-task-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.briefing-task-dot.tone-danger { background: var(--danger); }
+.briefing-task-dot.tone-warn   { background: var(--warning); }
+.briefing-task-dot.tone-info   { background: var(--accent); }
+.briefing-task-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.briefing-task-body strong { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.briefing-more { padding: 6px 2px 0; }
+
+.goal-input {
+  width: 120px; padding: 7px 10px; border-radius: 10px;
+  background: var(--panel-soft); border: 1px solid var(--border);
+  color: var(--text); font-size: 0.9rem;
+}
+.goal-input:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.goal-panel { display: flex; flex-direction: column; gap: 14px; }
+.goal-panel-values { display: flex; align-items: baseline; gap: 8px; }
+.goal-panel-values strong { font-size: 1.6rem; }
+.goal-panel .briefing-progress { height: 14px; }
+.goal-panel-foot {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 0.85rem; color: var(--muted);
+}

@@ -27,6 +27,7 @@ public interface IApplicationDbContext
     DbSet<WhatsAppMessage> WhatsAppMessages { get; }
     DbSet<Script> Scripts { get; }
     DbSet<LeadInteraction> LeadInteractions { get; }
+    DbSet<SdrGoal> SdrGoals { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

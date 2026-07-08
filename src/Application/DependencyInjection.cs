@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppInboxService, WhatsAppInboxService>();
         services.AddScoped<IScriptService, ScriptService>();
         services.AddScoped<ILeadInteractionService, LeadInteractionService>();
+        services.AddScoped<IGoalService, GoalService>();
 
         return services;
     }

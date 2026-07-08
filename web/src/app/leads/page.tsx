@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, formatCurrency, formatDate } from "@/lib/api";
+import { getCached, setCached } from "@/lib/data-cache";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ErrorState, LoadingState } from "@/components/ui/page-state";
 import { Select } from "@/components/ui/select";
@@ -81,14 +82,20 @@ function formatHistoryDetail(item: HistoryItem): string {
   }
 }
 
+/** Chave do cache SWR para a visão padrão de leads (sem busca/filtro de dono). */
+const LEADS_CACHE_KEY = "leads:base";
+
 export default function LeadsPage() {
   const { token, user } = useAuth();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [owners, setOwners] = useState<LeadOwner[]>([]);
+  // Seed a partir do cache SWR (visão padrão sem filtros): ao voltar para a aba
+  // os leads aparecem na hora e a revalidação em segundo plano atualiza sozinha.
+  const cachedLeads = getCached<{ leads: Lead[]; owners: LeadOwner[] }>(LEADS_CACHE_KEY);
+  const [leads, setLeads] = useState<Lead[]>(() => cachedLeads?.leads ?? []);
+  const [owners, setOwners] = useState<LeadOwner[]>(() => cachedLeads?.owners ?? []);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedLeads);
   const [submitting, setSubmitting] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
@@ -318,7 +325,9 @@ export default function LeadsPage() {
       return;
     }
 
-    setLoading(true);
+    const isDefaultView = !search && !ownerFilter;
+    // Só mostra spinner quando não há nada em cache para exibir.
+    setLoading(!(isDefaultView && getCached(LEADS_CACHE_KEY)));
     setError(null);
     try {
       const [response, ownerResponse] = await Promise.all([
@@ -330,6 +339,9 @@ export default function LeadsPage() {
       ]);
       setLeads(response.items);
       setOwners(ownerResponse);
+      if (isDefaultView) {
+        setCached(LEADS_CACHE_KEY, { leads: response.items, owners: ownerResponse });
+      }
       setSelectedLead((current) => (current ? response.items.find((item) => item.id === current.id) ?? null : null));
     } catch (err) {
       const status = (err as any)?.status;
